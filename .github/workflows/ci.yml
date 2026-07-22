@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A newer push supersedes an in-flight run for the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  verify:
+    name: Typecheck, test and build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: studentos
+          POSTGRES_PASSWORD: studentos
+          POSTGRES_DB: studentos_test
+        ports:
+          - 5432:5432
+        # The job must not start querying before Postgres accepts connections.
+        options: >-
+          --health-cmd "pg_isready -U studentos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://studentos:studentos@localhost:5432/studentos_test
+      # Deterministic, non-secret values — CI never needs real credentials.
+      JWT_ACCESS_SECRET: ci-access-secret-that-is-long-enough-for-validation
+      JWT_REFRESH_SECRET: ci-refresh-secret-that-is-long-enough-for-validation
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate
+
+      - name: Apply schema to the test database
+        run: npm run prisma:push
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test --workspace=backend
+
+      - name: Build backend
+        run: npm run build --workspace=backend
+
+      - name: Build frontend
+        run: npm run build --workspace=frontend
+
+      - name: Verify API route surface
+        run: node scripts/verify-routes.mjs
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # Fails the job on high or critical advisories only; moderate findings
+      # are reported without blocking every pull request.
+      - run: npm audit --audit-level=high
+
+  docker:
+    name: Build container images
+    runs-on: ubuntu-latest
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

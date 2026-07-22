@@ -1,0 +1,147 @@
+@import 'tailwindcss';
+
+/*
+  Dark-first design system. Tailwind v4 reads theme tokens straight from CSS,
+  so `@theme` is the single source of truth — there is no tailwind.config.js.
+*/
+@theme {
+  --color-canvas: #08080c;
+  --color-surface: #0f0f16;
+  --color-surface-raised: #16161f;
+  --color-border: #23232f;
+  --color-border-strong: #32323f;
+
+  --color-fg: #f4f4f6;
+  --color-fg-muted: #a0a0b0;
+  --color-fg-subtle: #6b6b7d;
+
+  --color-brand: #8b5cf6;
+  --color-brand-bright: #a78bfa;
+  --color-accent: #38bdf8;
+  --color-teal: #2dd4bf;
+
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+
+  --radius-card: 1rem;
+
+  --shadow-glow: 0 0 0 1px rgb(139 92 246 / 0.16), 0 12px 40px -12px rgb(139 92 246 / 0.4);
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -12px rgb(0 0 0 / 0.6);
+
+  --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-float: float 7s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+/* Light theme is opt-in via [data-theme="light"] on <html>. */
+[data-theme='light'] {
+  color-scheme: light;
+  --color-canvas: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f4f4f7;
+  --color-border: #e4e4ea;
+  --color-border-strong: #d0d0da;
+  --color-fg: #12121a;
+  --color-fg-muted: #55555f;
+  --color-fg-subtle: #85858f;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-brand) 35%, transparent);
+  }
+
+  /* Visible focus for keyboard users without a permanent ring on click. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-bright);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 9999px;
+    border: 2px solid var(--color-canvas);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-fg-subtle);
+  }
+}
+
+@layer components {
+  /* Frosted panel used for cards, popovers and the command palette. */
+  .glass {
+    background: color-mix(in oklab, var(--color-surface) 78%, transparent);
+    backdrop-filter: blur(14px) saturate(140%);
+    border: 1px solid var(--color-border);
+  }
+
+  .gradient-text {
+    background: linear-gradient(
+      110deg,
+      var(--color-brand-bright),
+      var(--color-accent) 55%,
+      var(--color-teal)
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface-raised) 25%,
+      var(--color-border) 50%,
+      var(--color-surface-raised) 75%
+    );
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+}
+
+/* Respect users who have asked the OS to reduce motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

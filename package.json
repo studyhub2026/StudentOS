@@ -1,0 +1,35 @@
+{
+  "name": "studentos-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StudentOS AI — an AI-powered academic operating system",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=backend & npm run dev --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "prisma:generate": "npm run prisma:generate --workspace=backend",
+    "prisma:push": "npm run prisma:push --workspace=backend",
+    "prisma:seed": "npm run prisma:seed --workspace=backend",
+    "prisma:studio": "npm run prisma:studio --workspace=backend",
+    "verify:routes": "node scripts/verify-routes.mjs",
+    "verify:integration": "node scripts/verify-integration.mjs",
+    "verify:services": "node scripts/verify-services.mjs",
+    "verify": "npm run build --workspace=backend && npm run verify:routes && npm run verify:integration && npm run verify:services"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "//overrides": "Next 15.5.x pins vulnerable transitive deps: postcss <8.5.10 (GHSA-qx2v-qp2m-jg93) and sharp <0.35.0 (libvips CVE-2026-33327/33328/35590/35591, reachable via next/image). Both are patched here without leaving the Next 15 line. Re-check on each Next upgrade.",
+  "overrides": {
+    "postcss": "^8.5.22",
+    "sharp": "^0.35.3"
+  }
+}
