@@ -25,7 +25,13 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('30d'),
-  COOKIE_DOMAIN: z.string().default('localhost'),
+  // Empty = host-only cookie on the API's own domain, which is what a
+  // cross-site deployment (frontend and API on different domains) needs.
+  COOKIE_DOMAIN: z.string().default(''),
+  // 'none' is required when the frontend and API live on different sites, so
+  // the browser sends the refresh cookie on cross-site fetches. 'none' is only
+  // honoured together with Secure, which is on in production.
+  COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
 
   GEMINI_API_KEY: z.string().optional().or(z.literal('')),
   GEMINI_DEFAULT_MODEL: z.string().default('gemini-2.5-flash'),
