@@ -1,0 +1,75 @@
+import 'server-only';
+import { z } from 'zod';
+
+/**
+ * Server-only, validated configuration for the API route handlers.
+ *
+ * Next.js exposes non-`NEXT_PUBLIC_` variables to server code via
+ * `process.env`. This module must never be imported from a client component —
+ * the `server-only` guard turns any such import into a build error.
+ *
+ * Unlike the old Express server, the app and API share an origin, so there is
+ * no separate API_URL/APP_URL split and no CORS: `APP_URL` is just this
+ * deployment's own URL, used for OAuth redirects and email links.
+ */
+const schema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+
+  APP_URL: z.string().url().default('http://localhost:3000'),
+
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+
+  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  JWT_ACCESS_TTL: z.string().default('15m'),
+  JWT_REFRESH_TTL: z.string().default('30d'),
+  COOKIE_DOMAIN: z.string().default(''),
+  COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
+
+  GEMINI_API_KEY: z.string().optional().or(z.literal('')),
+  GEMINI_DEFAULT_MODEL: z.string().default('gemini-2.5-flash'),
+  GEMINI_PRO_MODEL: z.string().default('gemini-2.5-pro'),
+
+  GOOGLE_CLIENT_ID: z.string().optional().or(z.literal('')),
+  GOOGLE_CLIENT_SECRET: z.string().optional().or(z.literal('')),
+  GITHUB_CLIENT_ID: z.string().optional().or(z.literal('')),
+  GITHUB_CLIENT_SECRET: z.string().optional().or(z.literal('')),
+  DISCORD_CLIENT_ID: z.string().optional().or(z.literal('')),
+  DISCORD_CLIENT_SECRET: z.string().optional().or(z.literal('')),
+
+  CLOUDINARY_CLOUD_NAME: z.string().optional().or(z.literal('')),
+  CLOUDINARY_API_KEY: z.string().optional().or(z.literal('')),
+  CLOUDINARY_API_SECRET: z.string().optional().or(z.literal('')),
+
+  // Supabase Realtime powers live group chat. The URL and anon key are also
+  // exposed to the client via NEXT_PUBLIC_ copies; the service role key stays
+  // server-side for authorising broadcasts.
+  SUPABASE_URL: z.string().optional().or(z.literal('')),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional().or(z.literal('')),
+});
+
+const parsed = schema.safeParse(process.env);
+
+if (!parsed.success) {
+  const issues = parsed.error.issues
+    .map((issue) => `  • ${issue.path.join('.')}: ${issue.message}`)
+    .join('\n');
+  // Fail fast: a route handler running with a missing secret is worse than a
+  // clear boot-time error.
+  throw new Error(`Invalid server environment:\n${issues}`);
+}
+
+const raw = parsed.data;
+
+export const env = {
+  ...raw,
+  isProduction: raw.NODE_ENV === 'production',
+  isDevelopment: raw.NODE_ENV === 'development',
+  hasGemini: Boolean(raw.GEMINI_API_KEY),
+  hasCloudinary: Boolean(
+    raw.CLOUDINARY_CLOUD_NAME && raw.CLOUDINARY_API_KEY && raw.CLOUDINARY_API_SECRET,
+  ),
+  hasSupabaseRealtime: Boolean(raw.SUPABASE_URL && raw.SUPABASE_SERVICE_ROLE_KEY),
+} as const;
+
+export type Env = typeof env;

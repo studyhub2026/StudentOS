@@ -5,13 +5,16 @@ import axios, {
 } from 'axios';
 import type { ApiErrorBody } from '@/types/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+// The API now lives in the same Next.js app, so requests are same-origin and
+// the base URL is relative — no cross-origin host, no CORS. Overridable via
+// NEXT_PUBLIC_API_URL only if the API is ever split out again.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 /**
  * The access token is held in memory only.
  *
  * localStorage would make it readable by any injected script; the refresh
- * token lives in an httpOnly cookie the backend sets, and a page reload
+ * token lives in an httpOnly cookie the server sets, and a page reload
  * recovers the session by calling /auth/refresh.
  */
 let accessToken: string | null = null;
