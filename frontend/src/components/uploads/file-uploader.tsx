@@ -171,7 +171,9 @@ export function AvatarUploader({
   const { data: status } = useUploadStatus();
   const upload = useAvatarUpload();
 
-  if (status && !status.configured) return null;
+  // The avatar itself always shows; only the change control depends on the
+  // upload provider being configured.
+  const configured = status?.configured ?? false;
 
   return (
     <div className="flex items-center gap-4">
@@ -212,16 +214,24 @@ export function AvatarUploader({
             event.target.value = '';
           }}
         />
-        <Button
-          variant="secondary"
-          size="sm"
-          loading={upload.isPending}
-          onClick={() => inputRef.current?.click()}
-        >
-          <Upload className="h-4 w-4" aria-hidden />
-          Change avatar
-        </Button>
-        <p className="mt-1 text-xs text-fg-subtle">JPG, PNG, WebP or GIF up to 2MB.</p>
+        {configured ? (
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={upload.isPending}
+              onClick={() => inputRef.current?.click()}
+            >
+              <Upload className="h-4 w-4" aria-hidden />
+              Change avatar
+            </Button>
+            <p className="mt-1 text-xs text-fg-subtle">JPG, PNG, WebP or GIF up to 2MB.</p>
+          </>
+        ) : (
+          <p className="text-xs text-fg-subtle">
+            Photo uploads need Cloudinary credentials on the server.
+          </p>
+        )}
       </div>
     </div>
   );

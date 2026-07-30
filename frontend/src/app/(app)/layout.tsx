@@ -11,6 +11,7 @@ import {
   Layers,
   LogOut,
   Menu,
+  Settings,
   Shield,
   Sparkles,
   Timer,
@@ -101,15 +102,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="mt-4 border-t border-border pt-4">
-        <div className="flex items-center gap-3 px-2 py-2">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-accent text-sm font-semibold text-white">
-            {initialsOf(user.name)}
-          </span>
+        <Link
+          href="/settings"
+          aria-current={pathname === '/settings' ? 'page' : undefined}
+          className={cn(
+            'flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-surface-raised',
+            pathname === '/settings' && 'bg-brand/12',
+          )}
+        >
+          {user.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.avatarUrl}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-accent text-sm font-semibold text-white">
+              {initialsOf(user.name)}
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{user.name}</p>
             <p className="truncate text-xs text-fg-subtle">{user.email}</p>
           </div>
-        </div>
+          <Settings className="h-4 w-4 shrink-0 text-fg-subtle" aria-hidden />
+        </Link>
 
         <Button
           variant="ghost"

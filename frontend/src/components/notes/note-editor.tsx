@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { MarkdownPreview } from './markdown-preview';
+import { FileUploader } from '@/components/uploads/file-uploader';
 import { Button } from '@/components/ui/button';
 import { useAutosaveNote, useSummariseNote, useToggleFavorite } from '@/hooks/use-notes';
 import { cn } from '@/lib/utils';
@@ -191,6 +192,14 @@ export function NoteEditor({ note, onClose, onOpenHistory }: NoteEditorProps) {
         ) : (
           <MarkdownPreview content={content} />
         )}
+
+        <div className="mt-4 border-t border-border pt-4">
+          <FileUploader
+            folder="notes"
+            target={{ noteId: note.id }}
+            attachments={note.attachments}
+          />
+        </div>
       </div>
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-xs text-fg-subtle">
