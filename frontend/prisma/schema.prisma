@@ -1,6 +1,6 @@
 // StudentOS AI — database schema
-// Provider: PostgreSQL. Generated client is consumed by the Express backend
-// via src/config/prisma.ts.
+// Provider: PostgreSQL. Generated client is consumed by the Next.js app
+// via src/server/db.ts.
 
 generator client {
   provider = "prisma-client-js"

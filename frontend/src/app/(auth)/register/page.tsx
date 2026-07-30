@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { apiErrorMessage } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 
-/** Mirrors backend/src/validators/auth.validator.ts so errors surface early. */
+/** Mirrors src/server/validators/auth.validator.ts so errors surface early. */
 const schema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(80),
   email: z.string().min(1, 'Email is required').email('Enter a valid email address'),

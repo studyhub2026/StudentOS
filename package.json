@@ -4,25 +4,20 @@
   "private": true,
   "description": "StudentOS AI — an AI-powered academic operating system",
   "workspaces": [
-    "backend",
     "frontend"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=backend & npm run dev --workspace=frontend",
-    "dev:backend": "npm run dev --workspace=backend",
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "start": "npm run start --workspace=frontend",
+    "typecheck": "npm run typecheck --workspace=frontend",
     "lint": "npm run lint --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "prisma:generate": "npm run prisma:generate --workspace=backend",
-    "prisma:push": "npm run prisma:push --workspace=backend",
-    "prisma:seed": "npm run prisma:seed --workspace=backend",
-    "prisma:studio": "npm run prisma:studio --workspace=backend",
-    "verify:routes": "node scripts/verify-routes.mjs",
-    "verify:integration": "node scripts/verify-integration.mjs",
-    "verify:services": "node scripts/verify-services.mjs",
-    "verify": "npm run build --workspace=backend && npm run verify:routes && npm run verify:integration && npm run verify:services"
+    "test": "npm run test --workspace=frontend",
+    "prisma:generate": "npm run prisma:generate --workspace=frontend",
+    "prisma:push": "npm run prisma:push --workspace=frontend",
+    "prisma:seed": "npm run prisma:seed --workspace=frontend",
+    "prisma:studio": "npm run prisma:studio --workspace=frontend",
+    "verify:live": "node scripts/verify-live.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

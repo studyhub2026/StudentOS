@@ -10,7 +10,7 @@
  * Idempotent: re-running replaces the demo user's data rather than
  * accumulating duplicates. It never touches other accounts.
  *
- *   npm run prisma:seed --workspace=backend
+ *   npm run prisma:seed --workspace=frontend
  */
 import {
   AssignmentStatus,

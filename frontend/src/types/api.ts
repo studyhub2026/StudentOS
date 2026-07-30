@@ -1,9 +1,9 @@
 /**
- * Mirrors the backend's response envelope and Prisma models.
+ * Mirrors the server's response envelope and Prisma models.
  *
- * These types are hand-maintained against `backend/src`. When a backend
+ * These types are hand-maintained against `src/server`. When a route's
  * response shape changes, update it here in the same commit — this file is the
- * contract the whole frontend compiles against.
+ * contract the whole client compiles against.
  */
 
 export interface ApiEnvelope<T> {

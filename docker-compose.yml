@@ -1,7 +1,11 @@
-# Local development stack: Postgres, Redis, the API and the web app.
+# Local stack for the unified Next.js app: Postgres plus the web app.
 #
-#   docker compose up -d postgres redis     # dependencies only
-#   docker compose up --build               # the whole stack
+#   docker compose up -d postgres     # database only (run `npm run dev` on the host)
+#   docker compose up --build         # the whole stack
+#
+# The app is a single Next.js service — its API routes and Prisma client run in
+# the same process, so there is no separate backend and no Redis. Apply the
+# schema with `npm run prisma:push` (pointed at DATABASE_URL) before first use.
 #
 # Secrets come from a .env file beside this one; nothing is hardcoded.
 
@@ -26,43 +30,30 @@ services:
       retries: 10
       start_period: 10s
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: redis-server --save 60 1 --loglevel warning
-    ports:
-      - '${REDIS_PORT:-6379}:6379'
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  api:
+  web:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: frontend/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       NODE_ENV: production
-      PORT: 4000
+      PORT: 3000
       APP_URL: ${APP_URL:-http://localhost:3000}
-      API_URL: ${API_URL:-http://localhost:4000}
       DATABASE_URL: postgresql://${POSTGRES_USER:-studentos}:${POSTGRES_PASSWORD:-studentos}@postgres:5432/${POSTGRES_DB:-studentos}
-      REDIS_URL: redis://redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      # Optional integrations — leave unset to run without them.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
@@ -70,34 +61,7 @@ services:
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
     ports:
-      - '${API_PORT:-4000}:4000'
-
-  web:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:4000}
-    restart: unless-stopped
-    depends_on:
-      - api
-    ports:
       - '${WEB_PORT:-3000}:3000'
-
-  # One-shot: applies the Prisma schema to the database.
-  #   docker compose run --rm migrate
-  migrate:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    profiles: ['tools']
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-studentos}:${POSTGRES_PASSWORD:-studentos}@postgres:5432/${POSTGRES_DB:-studentos}
-    entrypoint: ['npx', 'prisma', 'db', 'push', '--schema', 'backend/prisma/schema.prisma']
 
 volumes:
   postgres-data:
-  redis-data:

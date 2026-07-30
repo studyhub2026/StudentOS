@@ -6,17 +6,11 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/
 
 RUN npm ci --workspace=frontend --include-workspace-root
 
 COPY frontend ./frontend
-
-# Baked into the client bundle at build time, so it must be present here
-# rather than only at runtime.
-ARG NEXT_PUBLIC_API_URL=http://localhost:4000
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build --workspace=frontend
 
