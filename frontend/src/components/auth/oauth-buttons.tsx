@@ -5,7 +5,9 @@ import { apiClient } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import type { ApiEnvelope } from '@/types/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+// Same-origin by default; the API lives in this Next.js app. Overridable via
+// NEXT_PUBLIC_API_URL only if the API is ever split out again.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: 'Google',

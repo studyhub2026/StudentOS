@@ -1,8 +1,6 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -38,10 +36,6 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },
-
-  env: {
-    NEXT_PUBLIC_API_URL: apiUrl,
   },
 };
 

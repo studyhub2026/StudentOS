@@ -4,7 +4,10 @@ import { io, type Socket } from 'socket.io-client';
 import { getAccessToken } from './api-client';
 import type { ChatMessage } from '@/types/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+// Same-origin by default. NOTE: this Socket.io transport is pending migration
+// to Supabase Realtime (group chat); until then there is no Socket.io server to
+// connect to, so live chat events are inert. Overridable via NEXT_PUBLIC_API_URL.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export interface SocketUser {
   id: string;

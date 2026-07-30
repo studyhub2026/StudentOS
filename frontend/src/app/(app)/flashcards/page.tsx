@@ -26,7 +26,9 @@ import {
 } from '@/hooks/use-flashcards';
 import { apiErrorMessage } from '@/lib/api-client';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+// Same-origin by default; the API lives in this Next.js app. Overridable via
+// NEXT_PUBLIC_API_URL only if the API is ever split out again.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export default function FlashcardsPage() {
   const { data: decks, isLoading, isError, error } = useDecks();
