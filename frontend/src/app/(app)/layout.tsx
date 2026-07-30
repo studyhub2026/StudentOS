@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import {
   BarChart3,
   BookOpen,
+  Bot,
   CalendarDays,
   CheckSquare,
   Layers,
@@ -25,6 +26,7 @@ import { useAuthStore } from '@/stores/auth-store';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+  { href: '/ai', label: 'AI Assistant', icon: Bot },
   { href: '/assignments', label: 'Assignments', icon: CheckSquare },
   { href: '/schedule', label: 'Schedule', icon: CalendarDays },
   { href: '/notes', label: 'Notes', icon: BookOpen },

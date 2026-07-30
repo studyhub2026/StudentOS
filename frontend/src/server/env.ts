@@ -27,8 +27,10 @@ const schema = z.object({
   COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
 
   GEMINI_API_KEY: z.string().optional().or(z.literal('')),
-  GEMINI_DEFAULT_MODEL: z.string().default('gemini-2.5-flash'),
-  GEMINI_PRO_MODEL: z.string().default('gemini-2.5-pro'),
+  // "latest" aliases track the current stable model and avoid the new-user
+  // restriction that now 404s pinned older versions like gemini-2.5-flash.
+  GEMINI_DEFAULT_MODEL: z.string().default('gemini-flash-latest'),
+  GEMINI_PRO_MODEL: z.string().default('gemini-pro-latest'),
 
   GOOGLE_CLIENT_ID: z.string().optional().or(z.literal('')),
   GOOGLE_CLIENT_SECRET: z.string().optional().or(z.literal('')),
