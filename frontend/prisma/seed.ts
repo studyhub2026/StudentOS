@@ -32,6 +32,8 @@ const prisma = new PrismaClient();
 const DEMO_EMAIL = 'demo@studentos.ai';
 const DEMO_PASSWORD = 'DemoPassword123';
 const PEER_EMAIL = 'peer@studentos.ai';
+const ADMIN_EMAIL = 'admin@studentos.ai';
+const ADMIN_PASSWORD = 'AdminPassword123';
 
 /** Midnight today, so seeded dates land predictably relative to "now". */
 const TODAY = new Date();
@@ -56,7 +58,9 @@ async function main(): Promise<void> {
   // --- Users --------------------------------------------------------------
   // Delete-then-recreate keeps the seed idempotent; cascades clear everything
   // owned by these accounts without touching anyone else's rows.
-  await prisma.user.deleteMany({ where: { email: { in: [DEMO_EMAIL, PEER_EMAIL] } } });
+  await prisma.user.deleteMany({
+    where: { email: { in: [DEMO_EMAIL, PEER_EMAIL, ADMIN_EMAIL] } },
+  });
 
   const demo = await prisma.user.create({
     data: {
@@ -95,6 +99,27 @@ async function main(): Promise<void> {
     },
   });
   console.log(`  user       ${peer.email}`);
+
+  // A dedicated administrator so the admin dashboard is reachable out of the
+  // box. Hashed separately since it uses its own password.
+  const adminPasswordHash = await hash(ADMIN_PASSWORD, {
+    memoryCost: 19_456,
+    timeCost: 2,
+    parallelism: 1,
+  });
+  const admin = await prisma.user.create({
+    data: {
+      email: ADMIN_EMAIL,
+      username: 'admin',
+      name: 'Platform Admin',
+      passwordHash: adminPasswordHash,
+      role: Role.ADMIN,
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
+      settings: { create: {} },
+    },
+  });
+  console.log(`  user       ${admin.email} (admin)`);
 
   // --- Subjects -----------------------------------------------------------
   const subjectSpecs = [
@@ -612,7 +637,8 @@ more substituted carbocation intermediate is more stable.
   });
 
   console.log('\nSeed complete.');
-  console.log(`  Sign in with  ${DEMO_EMAIL}  /  ${DEMO_PASSWORD}`);
+  console.log(`  Student  ${DEMO_EMAIL}  /  ${DEMO_PASSWORD}`);
+  console.log(`  Admin    ${ADMIN_EMAIL}  /  ${ADMIN_PASSWORD}`);
 }
 
 main()
