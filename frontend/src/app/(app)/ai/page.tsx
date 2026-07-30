@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Bot, Loader2, Plus, SendHorizonal, Sparkles, Trash2, User } from 'lucide-react';
+import Link from 'next/link';
+import { AlertTriangle, Bot, Loader2, Plus, SendHorizonal, Sparkles, Trash2, User, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -119,7 +120,15 @@ export default function AiChatPage() {
             <Sparkles className="h-5 w-5 text-brand-bright" aria-hidden />
             AI Assistant
           </h1>
-          <div className="flex rounded-lg border border-border p-0.5 text-xs">
+          <div className="flex items-center gap-2">
+            <Link
+              href="/ai/tools"
+              className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
+            >
+              <Wrench className="h-3.5 w-3.5" aria-hidden />
+              Study tools
+            </Link>
+            <div className="flex rounded-lg border border-border p-0.5 text-xs">
             {(['flash', 'pro'] as const).map((t) => (
               <button
                 key={t}
@@ -133,6 +142,7 @@ export default function AiChatPage() {
                 {t}
               </button>
             ))}
+            </div>
           </div>
         </header>
 

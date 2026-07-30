@@ -145,3 +145,106 @@ export function useDeleteConversation() {
     onError: (error) => toast.error(apiErrorMessage(error)),
   });
 }
+
+// --- Structured tools -------------------------------------------------------
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+export interface QuizResult {
+  questions: QuizQuestion[];
+  model: string;
+  totalTokens: number;
+}
+export interface SummaryResult {
+  summary: string;
+  keyPoints: string[];
+  model: string;
+  totalTokens: number;
+}
+export interface ExamQuestion {
+  number: number;
+  question: string;
+  marks: number;
+  markScheme: string;
+  topic?: string;
+}
+export interface ExamResult {
+  title: string;
+  durationMinutes: number;
+  totalMarks: number;
+  questions: ExamQuestion[];
+  model: string;
+  totalTokens: number;
+}
+export interface ExplainResult {
+  definition: string;
+  explanation: string;
+  example: string;
+  commonMistake: string;
+  relatedConcepts: string[];
+  model: string;
+  totalTokens: number;
+}
+export interface RevisionResult {
+  topic: string;
+  keyFacts: string[];
+  definitions: { term: string; meaning: string }[];
+  formulae: string[];
+  examTips: string[];
+  model: string;
+  totalTokens: number;
+}
+export interface LearningStep {
+  order: number;
+  title: string;
+  description: string;
+  estimatedHours: number;
+  masteryCheck: string;
+}
+export interface LearningPathResult {
+  goal: string;
+  totalHours: number;
+  steps: LearningStep[];
+  model: string;
+  totalTokens: number;
+}
+export interface CoachResult {
+  message: string;
+  model: string;
+  totalTokens: number;
+}
+
+function useAiTool<TInput, TResult>(path: string) {
+  return useMutation({
+    mutationFn: async (input: TInput) => {
+      const { data } = await apiClient.post<ApiEnvelope<TResult>>(path, input);
+      return data.data;
+    },
+    onError: (error) => toast.error(apiErrorMessage(error)),
+  });
+}
+
+export const useQuiz = () =>
+  useAiTool<{ source: string; count: number }, QuizResult>('/ai/quiz');
+export const useSummarise = () =>
+  useAiTool<{ source: string }, SummaryResult>('/ai/summarise');
+export const useExam = () =>
+  useAiTool<
+    { source: string; questionCount: number; durationMinutes: number; level: string; subject: string },
+    ExamResult
+  >('/ai/exam');
+export const useExplain = () =>
+  useAiTool<{ concept: string; level: string; context?: string }, ExplainResult>('/ai/explain');
+export const useRevision = () =>
+  useAiTool<{ source: string; topic: string }, RevisionResult>('/ai/revision');
+export const useLearningPath = () =>
+  useAiTool<
+    { goal: string; currentLevel: string; hoursPerWeek: number },
+    LearningPathResult
+  >('/ai/learning-path');
+export const useCoach = () =>
+  useAiTool<{ situation: string; includeStats: boolean }, CoachResult>('/ai/coach');
