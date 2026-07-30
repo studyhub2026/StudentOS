@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useChatSocket } from '@/hooks/use-chat-socket';
+import { useChatRealtime } from '@/hooks/use-chat-realtime';
 import { useDeleteMessage, useGroup, useMessages } from '@/hooks/use-groups';
 import { cn, initialsOf } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
@@ -43,7 +43,7 @@ export default function GroupChatPage() {
 
   const { data: page, isLoading: loadingMessages } = useMessages(groupId, channelId);
   const { connected, online, typingUsers, joinError, sendMessage, notifyTyping, stopTyping } =
-    useChatSocket(groupId, channelId);
+    useChatRealtime(groupId, channelId);
   const deleteMessage = useDeleteMessage();
 
   // Keep the newest message in view as the conversation grows.
