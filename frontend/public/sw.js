@@ -163,51 +163,10 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// --- Push notifications -----------------------------------------------------
-
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-
-  let payload;
-  try {
-    payload = event.data.json();
-  } catch {
-    payload = { title: 'StudentOS AI', body: event.data.text() };
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(payload.title ?? 'StudentOS AI', {
-      body: payload.body ?? '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: payload.tag ?? 'studentos',
-      data: { url: payload.url ?? '/dashboard' },
-      // Reminders should persist until acknowledged rather than auto-dismiss.
-      requireInteraction: payload.requireInteraction === true,
-    }),
-  );
-});
-
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const target = event.notification.data?.url ?? '/dashboard';
-
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // Focus an existing tab rather than opening a duplicate.
-      for (const client of clients) {
-        if (client.url.includes(target) && 'focus' in client) return client.focus();
-      }
-      const existing = clients[0];
-      if (existing) {
-        void existing.focus();
-        return existing.navigate(target);
-      }
-      return self.clients.openWindow(target);
-    }),
-  );
-});
-
+// Web push is intentionally not implemented: there is no VAPID key, client
+// subscription, or server sender, so the app never triggers a browser push.
+// In-app notifications (the Notification model) cover reminders instead. The
+// message handler below drives the update-ready → SKIP_WAITING flow.
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
