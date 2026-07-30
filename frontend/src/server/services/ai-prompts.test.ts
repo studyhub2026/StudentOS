@@ -11,13 +11,13 @@ import {
   clampSource,
   withTone,
   type AiFeatureKey,
-} from './ai-prompts.js';
+} from './ai-prompts';
 import {
   examSchema,
   explanationSchema,
   learningPathSchema,
   revisionSchema,
-} from './ai.service.js';
+} from './ai.service';
 
 const ALL_FEATURES: AiFeatureKey[] = [
   'CHAT',

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { buildPublicId, buildSignature, validateUploadResult } from './upload.service.js';
+import { buildPublicId, buildSignature, validateUploadResult } from './upload.service';
 
 describe('cloudinary signature', () => {
   const SECRET = 'test-api-secret';

@@ -11,7 +11,7 @@ import {
   schedule,
   type ReviewQuality,
   type SchedulingState,
-} from './sm2.js';
+} from './sm2';
 
 const NOW = new Date('2026-01-01T09:00:00.000Z');
 

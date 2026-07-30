@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildExcerpt, countWords } from './note.service.js';
-import { parseCsv, toCsv, type ExportedDeck } from './flashcard.service.js';
+import { buildExcerpt, countWords } from './note.service';
+import { parseCsv, toCsv, type ExportedDeck } from './flashcard.service';
 
 describe('note word counting', () => {
   it('counts plain prose', () => {

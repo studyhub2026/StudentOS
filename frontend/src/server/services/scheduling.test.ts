@@ -12,7 +12,7 @@ import {
   prioritiseTasks,
   type StudyTask,
   type TimeBlock,
-} from './scheduling.js';
+} from './scheduling';
 
 /** Builds a block on a fixed day from "HH:MM" strings. */
 function block(start: string, end: string): TimeBlock {

@@ -7,15 +7,15 @@ import {
   signRefreshToken,
   verifyAccessToken,
   verifyRefreshToken,
-} from './jwt.js';
-import { hashPassword, verifyPassword } from './password.js';
-import { totpService } from '../services/totp.service.js';
-import { oauthService } from '../services/oauth.service.js';
+} from './jwt';
+import { hashPassword, verifyPassword } from './password';
+import { totpService } from '@/server/services/totp.service';
+import { oauthService } from '@/server/services/oauth.service';
 import {
   loginSchema,
   registerSchema,
   resetPasswordSchema,
-} from '../validators/auth.validator.js';
+} from '@/server/validators/auth.validator';
 
 describe('password hashing', () => {
   it('verifies a correct password', async () => {
