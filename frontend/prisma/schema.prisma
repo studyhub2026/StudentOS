@@ -203,6 +203,7 @@ model User {
   aiConversations   AiConversation[]
   aiFiles           UploadedFile[]
   aiMemories        AiMemory[]
+  dailyBriefs       DailyBrief[]
   userAchievements  UserAchievement[]
 
   groupMemberships  GroupMember[]
@@ -969,6 +970,23 @@ model AiMemory {
   @@unique([userId, key])
   @@index([userId, updatedAt])
   @@map("ai_memories")
+}
+
+/// The AI-generated "command center" brief for a given day — priorities,
+/// workload estimate, a recommendation and a motivational line — built from the
+/// student's real data. Cached once per day so it is generated, not recomputed.
+model DailyBrief {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date      DateTime @db.Date
+  content   Json
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("daily_briefs")
 }
 
 enum UploadedFileStatus {

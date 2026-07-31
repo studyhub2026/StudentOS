@@ -18,6 +18,7 @@ import {
   Timer,
   TrendingUp,
 } from 'lucide-react';
+import { AiBriefCard } from '@/components/dashboard/ai-brief-card';
 import { ProgressRing } from '@/components/dashboard/progress-ring';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { StudyTrendChart } from '@/components/dashboard/study-trend-chart';
@@ -159,6 +160,11 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </motion.section>
+
+      {/* AI command center — morning brief */}
+      <motion.section variants={item}>
+        <AiBriefCard />
       </motion.section>
 
       {/* Stat tiles */}
