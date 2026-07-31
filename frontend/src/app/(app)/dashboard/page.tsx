@@ -1,16 +1,24 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
+import { motion, type Variants } from 'framer-motion';
 import {
   AlertTriangle,
   ArrowRight,
+  Brain,
   CalendarClock,
+  CalendarDays,
   CheckCircle2,
   Flame,
-  Gauge,
   Layers,
+  PenLine,
+  Sparkles,
+  Target,
   Timer,
+  TrendingUp,
 } from 'lucide-react';
+import { ProgressRing } from '@/components/dashboard/progress-ring';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { StudyTrendChart } from '@/components/dashboard/study-trend-chart';
 import { SubjectBreakdownChart } from '@/components/dashboard/subject-breakdown-chart';
@@ -20,7 +28,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCardSkeleton, Skeleton } from '@/components/ui/skeleton';
 import { useDashboard } from '@/hooks/use-dashboard';
 import { apiErrorMessage } from '@/lib/api-client';
-import { formatDueDate, formatMinutes } from '@/lib/utils';
+import { cn, formatDueDate, formatMinutes } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 
 function greeting(): string {
@@ -30,9 +38,45 @@ function greeting(): string {
   return 'Good evening';
 }
 
+const QUOTES = [
+  'Small, steady sessions beat cramming every time.',
+  'The secret of getting ahead is getting started.',
+  'Focus is a superpower. Protect it.',
+  'A little progress each day adds up to big results.',
+  'Review on schedule — that is what makes it stick.',
+  'You do not have to be extreme, just consistent.',
+  'Done is better than perfect. Start the next block.',
+];
+
+const container: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } },
+};
+
+const item: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } },
+};
+
+const QUICK_ACTIONS = [
+  { href: '/ai', label: 'Ask AI', icon: Sparkles, tone: 'text-brand-bright bg-brand/12' },
+  { href: '/notes', label: 'New note', icon: PenLine, tone: 'text-accent bg-accent/12' },
+  { href: '/flashcards/review', label: 'Review cards', icon: Layers, tone: 'text-teal bg-teal/12' },
+  { href: '/focus', label: 'Start focus', icon: Timer, tone: 'text-success bg-success/12' },
+  { href: '/schedule', label: 'Plan day', icon: CalendarDays, tone: 'text-warning bg-warning/12' },
+  { href: '/assignments', label: 'Assignments', icon: Target, tone: 'text-brand-bright bg-brand/12' },
+];
+
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   const { data, isLoading, isError, error, refetch } = useDashboard();
+
+  const quote = useMemo(() => QUOTES[new Date().getDate() % QUOTES.length]!, []);
+  const dateLabel = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 
   if (isError) {
     return (
@@ -47,32 +91,78 @@ export default function DashboardPage() {
     );
   }
 
+  const score = data?.stats.productivityScore ?? 0;
+  const completion = data?.assignments.completionRate ?? 0;
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {greeting()}
-            {user ? `, ${user.name.split(' ')[0]}` : ''}
-          </h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            {new Date().toLocaleDateString(undefined, {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </p>
+    <motion.div
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="mx-auto max-w-6xl space-y-6"
+    >
+      {/* Hero command band */}
+      <motion.section
+        variants={item}
+        className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-brand/15 via-surface-raised to-surface p-6 sm:p-8"
+      >
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand/25 blur-3xl" aria-hidden />
+        <div className="pointer-events-none absolute -bottom-24 left-1/4 h-48 w-48 rounded-full bg-accent/15 blur-3xl" aria-hidden />
+
+        <div className="relative flex flex-wrap items-center justify-between gap-6">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-bright">
+              {dateLabel}
+            </p>
+            <h1 className="mt-1.5 text-2xl font-semibold tracking-tight sm:text-3xl">
+              {greeting()}
+              {user ? `, ${user.name.split(' ')[0]}` : ''}
+            </h1>
+            <p className="mt-2 max-w-md text-sm text-fg-muted">{quote}</p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link href="/ai">
+                <Button className="shadow-[0_8px_30px_-12px_var(--color-brand)]">
+                  <Sparkles className="h-4 w-4" aria-hidden />
+                  Ask your AI tutor
+                </Button>
+              </Link>
+              <Link href="/focus">
+                <Button variant="secondary">
+                  <Timer className="h-4 w-4" aria-hidden />
+                  Start a focus session
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="text-center">
+              <ProgressRing value={score} size={96} color="var(--color-brand)">
+                <div>
+                  <p className="text-2xl font-semibold tabular-nums">{score}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-fg-subtle">Score</p>
+                </div>
+              </ProgressRing>
+              <p className="mt-1.5 text-xs text-fg-muted">Productivity</p>
+            </div>
+
+            <div className="text-center">
+              <div className="mx-auto grid h-[68px] w-[68px] place-items-center rounded-2xl border border-warning/25 bg-warning/12">
+                <Flame className="h-7 w-7 text-warning" aria-hidden />
+              </div>
+              <p className="mt-1.5 text-lg font-semibold tabular-nums">
+                {data?.stats.currentStreak ?? 0}
+                <span className="text-sm text-fg-subtle">d</span>
+              </p>
+              <p className="text-xs text-fg-muted">Streak</p>
+            </div>
+          </div>
         </div>
+      </motion.section>
 
-        <Link href="/assignments">
-          <Button variant="secondary" size="sm">
-            View all assignments
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Button>
-        </Link>
-      </header>
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Stat tiles */}
+      <motion.section variants={item} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {isLoading || !data ? (
           Array.from({ length: 4 }, (_, index) => <StatCardSkeleton key={index} />)
         ) : (
@@ -96,30 +186,35 @@ export default function DashboardPage() {
               }
             />
             <StatCard
-              label="Current streak"
-              value={`${data.stats.currentStreak}d`}
-              icon={Flame}
+              label="Total XP"
+              value={data.stats.totalXp.toLocaleString()}
+              icon={TrendingUp}
               tone="teal"
-              hint={`Best: ${data.stats.longestStreak} days`}
+              hint={`Best streak: ${data.stats.longestStreak} days`}
             />
             <StatCard
-              label="Productivity"
-              value={data.stats.productivityScore}
-              icon={Gauge}
-              tone={data.stats.productivityScore >= 60 ? 'success' : 'warning'}
-              hint={`${data.assignments.completionRate}% completion rate`}
+              label="Assignments done"
+              value={`${data.assignments.completed}/${data.assignments.total}`}
+              icon={CheckCircle2}
+              tone={completion >= 60 ? 'success' : 'warning'}
+              hint={`${completion}% completion rate`}
             />
           </>
         )}
-      </section>
+      </motion.section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      {/* Charts */}
+      <motion.section variants={item} className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Study hours</CardTitle>
             <span className="text-xs text-fg-subtle">Last 14 days</span>
           </CardHeader>
-          {isLoading || !data ? <Skeleton className="h-56 w-full" /> : <StudyTrendChart data={data.trend} />}
+          {isLoading || !data ? (
+            <Skeleton className="h-56 w-full" />
+          ) : (
+            <StudyTrendChart data={data.trend} />
+          )}
         </Card>
 
         <Card>
@@ -132,9 +227,10 @@ export default function DashboardPage() {
             <SubjectBreakdownChart data={data.subjectBreakdown} />
           )}
         </Card>
-      </section>
+      </motion.section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      {/* Up next + Today */}
+      <motion.section variants={item} className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Up next</CardTitle>
@@ -150,10 +246,13 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : data.upcoming.length === 0 ? (
-            <div className="py-8 text-center">
-              <CheckCircle2 className="mx-auto h-8 w-8 text-success" aria-hidden />
-              <p className="mt-2 text-sm text-fg-muted">Nothing due. Enjoy the breathing room.</p>
-            </div>
+            <EmptyState
+              icon={CheckCircle2}
+              tone="text-success"
+              title="You're all caught up"
+              body="No assignments due. Add one to see it tracked here."
+              cta={{ href: '/assignments', label: 'Add an assignment' }}
+            />
           ) : (
             <ul className="space-y-2">
               {data.upcoming.map((assignment) => {
@@ -162,7 +261,7 @@ export default function DashboardPage() {
                   <li key={assignment.id}>
                     <Link
                       href={`/assignments?highlight=${assignment.id}`}
-                      className="flex items-center gap-3 rounded-xl border border-border bg-surface-raised/60 p-3 transition-colors hover:border-border-strong"
+                      className="flex items-center gap-3 rounded-xl border border-border bg-surface-raised/60 p-3 transition-all hover:-translate-y-0.5 hover:border-border-strong"
                     >
                       <span
                         className="h-8 w-1 shrink-0 rounded-full"
@@ -200,15 +299,13 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : data.todaySchedule.length === 0 ? (
-            <div className="py-8 text-center">
-              <CalendarClock className="mx-auto h-8 w-8 text-fg-subtle" aria-hidden />
-              <p className="mt-2 text-sm text-fg-muted">No blocks scheduled today.</p>
-              <Link href="/schedule">
-                <Button variant="secondary" size="sm" className="mt-3">
-                  Plan your day
-                </Button>
-              </Link>
-            </div>
+            <EmptyState
+              icon={CalendarClock}
+              tone="text-fg-subtle"
+              title="Nothing scheduled today"
+              body="Block out study time and it will appear here."
+              cta={{ href: '/schedule', label: 'Plan your day' }}
+            />
           ) : (
             <ul className="space-y-2">
               {data.todaySchedule.map((block) => (
@@ -239,29 +336,118 @@ export default function DashboardPage() {
             </ul>
           )}
         </Card>
-      </section>
+      </motion.section>
 
-      {data && data.stats.cardsDueToday > 0 ? (
-        <Card className="flex flex-wrap items-center justify-between gap-4 border-brand/25 bg-brand/8">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl border border-brand/25 bg-brand/12">
-              <Layers className="h-5 w-5 text-brand-bright" aria-hidden />
+      {/* Quick actions */}
+      <motion.section variants={item}>
+        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-fg-muted">
+          <Sparkles className="h-4 w-4 text-brand-bright" aria-hidden />
+          Quick actions
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {QUICK_ACTIONS.map(({ href, label, icon: Icon, tone }) => (
+            <motion.div key={href} whileHover={{ y: -3 }} whileTap={{ scale: 0.97 }}>
+              <Link
+                href={href}
+                className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface p-4 text-center transition-colors hover:border-border-strong"
+              >
+                <span className={cn('grid h-10 w-10 place-items-center rounded-xl', tone)}>
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="text-xs font-medium text-fg-muted">{label}</span>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* AI coach + flashcards due */}
+      <motion.section variants={item} className="grid gap-4 lg:grid-cols-2">
+        <Card className="relative overflow-hidden border-brand/25 bg-gradient-to-br from-brand/12 to-transparent">
+          <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand/20 blur-2xl" aria-hidden />
+          <div className="relative flex items-start gap-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-brand/25 bg-brand/15">
+              <Brain className="h-6 w-6 text-brand-bright" aria-hidden />
             </span>
-            <div>
-              <p className="font-medium">
-                {data.stats.cardsDueToday} flashcard
-                {data.stats.cardsDueToday === 1 ? '' : 's'} due for review
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">Your AI study coach</p>
+              <p className="mt-1 text-sm text-fg-muted">
+                Feeling stuck or behind? Get a plan, a pep talk, or a concept explained in seconds.
               </p>
-              <p className="text-sm text-fg-muted">
-                Reviewing on schedule is what makes spaced repetition work.
-              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href="/ai/tools">
+                  <Button size="sm">Open study tools</Button>
+                </Link>
+                <Link href="/ai">
+                  <Button size="sm" variant="secondary">
+                    Chat now
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
-          <Link href="/flashcards">
-            <Button size="sm">Start review</Button>
-          </Link>
         </Card>
-      ) : null}
+
+        {data && data.stats.cardsDueToday > 0 ? (
+          <Card className="flex items-center justify-between gap-4 border-teal/25 bg-teal/8">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl border border-teal/25 bg-teal/12">
+                <Layers className="h-5 w-5 text-teal" aria-hidden />
+              </span>
+              <div>
+                <p className="font-medium">
+                  {data.stats.cardsDueToday} flashcard
+                  {data.stats.cardsDueToday === 1 ? '' : 's'} ready
+                </p>
+                <p className="text-sm text-fg-muted">Keep your review streak alive.</p>
+              </div>
+            </div>
+            <Link href="/flashcards/review">
+              <Button size="sm">Review</Button>
+            </Link>
+          </Card>
+        ) : (
+          <Card className="flex items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-border bg-surface-raised">
+              <Layers className="h-5 w-5 text-fg-subtle" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="font-medium">No cards due right now</p>
+              <p className="text-sm text-fg-muted">
+                Generate a deck from your notes with AI to start reviewing.
+              </p>
+            </div>
+          </Card>
+        )}
+      </motion.section>
+    </motion.div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  tone,
+  title,
+  body,
+  cta,
+}: {
+  icon: typeof CheckCircle2;
+  tone: string;
+  title: string;
+  body: string;
+  cta: { href: string; label: string };
+}) {
+  return (
+    <div className="grid place-items-center py-8 text-center">
+      <Icon className={cn('h-8 w-8', tone)} aria-hidden />
+      <p className="mt-2 text-sm font-medium">{title}</p>
+      <p className="mt-0.5 max-w-xs text-xs text-fg-subtle">{body}</p>
+      <Link href={cta.href}>
+        <Button variant="secondary" size="sm" className="mt-3">
+          {cta.label}
+        </Button>
+      </Link>
     </div>
   );
 }
