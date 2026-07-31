@@ -22,6 +22,12 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "//optionalDependencies": "These native binaries have no download fallback and are loaded on Linux (Vercel/CI): lightningcss + @tailwindcss/oxide during the Tailwind v4 CSS build, and @node-rs/argon2 when `next build` imports the auth routes for page-data collection. npm run on Windows only records the win32 binaries in the lockfile, so Linux builds failed with 'Cannot find module …linux-x64-gnu.node'. Pinning the linux-x64 (glibc) binaries forces them into the lockfile; they are os/cpu-gated, so other platforms skip them. @next/swc (Next auto-downloads) and sharp (Vercel-provided) need no pin. Keep versions in lockstep with their parent packages.",
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "1.32.0",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
+    "@node-rs/argon2-linux-x64-gnu": "2.0.2"
+  },
   "//overrides": "Next 15.5.x pins vulnerable transitive deps: postcss <8.5.10 (GHSA-qx2v-qp2m-jg93) and sharp <0.35.0 (libvips CVE-2026-33327/33328/35590/35591, reachable via next/image). Both are patched here without leaving the Next 15 line. Re-check on each Next upgrade.",
   "overrides": {
     "postcss": "^8.5.22",
