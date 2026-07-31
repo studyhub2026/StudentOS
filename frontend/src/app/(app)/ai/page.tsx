@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Bot, Loader2, Plus, SendHorizonal, Sparkles, Trash2, User, Wrench } from 'lucide-react';
+import { MarkdownPreview } from '@/components/notes/markdown-preview';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -235,11 +236,15 @@ function MessageBubble({ message }: { message: AiMessage }) {
       </span>
       <div
         className={cn(
-          'max-w-[80%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
-          isUser ? 'bg-brand text-white' : 'bg-surface-raised text-fg',
+          'max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
+          isUser ? 'whitespace-pre-wrap bg-brand text-white' : 'bg-surface-raised text-fg',
         )}
       >
-        {message.content}
+        {isUser ? (
+          message.content
+        ) : (
+          <MarkdownPreview content={message.content} />
+        )}
       </div>
     </div>
   );

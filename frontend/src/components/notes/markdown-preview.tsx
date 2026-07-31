@@ -14,6 +14,7 @@ import { useMemo, type JSX } from 'react';
 type Token =
   | { kind: 'heading'; level: 1 | 2 | 3; text: string }
   | { kind: 'code'; language: string; lines: string[] }
+  | { kind: 'math'; tex: string }
   | { kind: 'quote'; lines: string[] }
   | { kind: 'list'; ordered: boolean; items: string[] }
   | { kind: 'rule' }
@@ -43,6 +44,28 @@ function tokenize(markdown: string): Token[] {
       }
       index += 1; // closing fence
       tokens.push({ kind: 'code', language, lines: body });
+      continue;
+    }
+
+    // Block display math: $$ … $$, on one line or spanning several.
+    if (line.trim().startsWith('$$')) {
+      const first = line.trim().slice(2);
+      if (first.endsWith('$$') && first.length >= 2) {
+        tokens.push({ kind: 'math', tex: first.slice(0, -2) });
+        index += 1;
+        continue;
+      }
+      const body: string[] = first ? [first] : [];
+      index += 1;
+      while (index < lines.length && !(lines[index] ?? '').trim().endsWith('$$')) {
+        body.push(lines[index] ?? '');
+        index += 1;
+      }
+      if (index < lines.length) {
+        body.push((lines[index] ?? '').trim().replace(/\$\$$/, ''));
+        index += 1;
+      }
+      tokens.push({ kind: 'math', tex: body.join(' ') });
       continue;
     }
 
@@ -101,10 +124,71 @@ function tokenize(markdown: string): Token[] {
   return tokens;
 }
 
-/** Applies inline emphasis, code and links, returning React nodes. */
+/**
+ * Common LaTeX symbols, rendered as their Unicode equivalents. This is a
+ * lightweight, dependency-free renderer — it handles the constructs AI answers
+ * actually use (super/subscripts, fractions, Greek letters, operators) rather
+ * than typesetting the full TeX grammar.
+ */
+const MATH_SYMBOLS: Record<string, string> = {
+  '\\times': '×', '\\cdot': '·', '\\div': '÷', '\\pm': '±', '\\mp': '∓',
+  '\\leq': '≤', '\\geq': '≥', '\\neq': '≠', '\\approx': '≈', '\\equiv': '≡',
+  '\\rightarrow': '→', '\\to': '→', '\\leftarrow': '←', '\\Rightarrow': '⇒',
+  '\\infty': '∞', '\\sum': '∑', '\\prod': '∏', '\\int': '∫', '\\sqrt': '√',
+  '\\partial': '∂', '\\nabla': '∇', '\\in': '∈', '\\notin': '∉', '\\subset': '⊂',
+  '\\cup': '∪', '\\cap': '∩', '\\cdots': '⋯', '\\ldots': '…', '\\degree': '°',
+  '\\alpha': 'α', '\\beta': 'β', '\\gamma': 'γ', '\\delta': 'δ', '\\epsilon': 'ε',
+  '\\theta': 'θ', '\\lambda': 'λ', '\\mu': 'μ', '\\pi': 'π', '\\rho': 'ρ',
+  '\\sigma': 'σ', '\\tau': 'τ', '\\phi': 'φ', '\\omega': 'ω',
+  '\\Delta': 'Δ', '\\Sigma': 'Σ', '\\Omega': 'Ω', '\\Pi': 'Π',
+};
+
+/** Turns a LaTeX fragment into readable React nodes (super/subscripts, symbols). */
+function renderMath(tex: string, keyPrefix: string): (string | JSX.Element)[] {
+  let s = tex.replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '($1)/($2)');
+  for (const [name, glyph] of Object.entries(MATH_SYMBOLS)) s = s.split(name).join(glyph);
+  s = s.replace(/\\left|\\right|\\,|\\;|\\!|\\quad/g, ' ').replace(/\\[a-zA-Z]+/g, '').trim();
+
+  const nodes: (string | JSX.Element)[] = [];
+  let buffer = '';
+  let i = 0;
+  let counter = 0;
+  const flush = () => {
+    if (buffer) nodes.push(buffer);
+    buffer = '';
+  };
+
+  while (i < s.length) {
+    const char = s[i]!;
+    if (char === '^' || char === '_') {
+      flush();
+      i += 1;
+      let content = '';
+      if (s[i] === '{') {
+        i += 1;
+        while (i < s.length && s[i] !== '}') content += s[i++];
+        i += 1;
+      } else {
+        content = s[i] ?? '';
+        i += 1;
+      }
+      const key = `${keyPrefix}-sx${counter++}`;
+      nodes.push(char === '^' ? <sup key={key}>{content}</sup> : <sub key={key}>{content}</sub>);
+    } else if (char === '{' || char === '}') {
+      i += 1;
+    } else {
+      buffer += char;
+      i += 1;
+    }
+  }
+  flush();
+  return nodes;
+}
+
+/** Applies inline emphasis, code, links and math, returning React nodes. */
 function renderInline(text: string, keyPrefix: string): (string | JSX.Element)[] {
   const pattern =
-    /(\*\*[^*]+\*\*)|(__[^_]+__)|(\*[^*]+\*)|(_[^_]+_)|(`[^`]+`)|(~~[^~]+~~)|(\[[^\]]+\]\([^)]+\))/g;
+    /(\$[^$\n]+\$)|(\\\([^\n]*?\\\))|(\*\*[^*]+\*\*)|(__[^_]+__)|(\*[^*]+\*)|(_[^_]+_)|(`[^`]+`)|(~~[^~]+~~)|(\[[^\]]+\]\([^)]+\))/g;
 
   const nodes: (string | JSX.Element)[] = [];
   let lastIndex = 0;
@@ -118,7 +202,14 @@ function renderInline(text: string, keyPrefix: string): (string | JSX.Element)[]
     const key = `${keyPrefix}-${counter}`;
     counter += 1;
 
-    if (token.startsWith('**') || token.startsWith('__')) {
+    if (token.startsWith('$') || token.startsWith('\\(')) {
+      const inner = token.startsWith('$') ? token.slice(1, -1) : token.slice(2, -2);
+      nodes.push(
+        <span key={key} className="font-serif italic text-fg">
+          {renderMath(inner, key)}
+        </span>,
+      );
+    } else if (token.startsWith('**') || token.startsWith('__')) {
       nodes.push(<strong key={key}>{token.slice(2, -2)}</strong>);
     } else if (token.startsWith('~~')) {
       nodes.push(
@@ -204,6 +295,16 @@ export function MarkdownPreview({ content }: { content: string }) {
                   {token.lines.join('\n')}
                 </code>
               </pre>
+            );
+
+          case 'math':
+            return (
+              <div
+                key={key}
+                className="overflow-x-auto rounded-xl border border-border bg-surface-raised px-4 py-3 text-center font-serif text-base italic"
+              >
+                {renderMath(token.tex, key)}
+              </div>
             );
 
           case 'quote':
