@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 const cuid = z.string().min(1);
 
-const FOLDERS = ['avatars', 'assignments', 'notes', 'messages'] as const;
+const FOLDERS = ['avatars', 'assignments', 'notes', 'messages', 'ai'] as const;
 
 export const signUploadSchema = z.object({
   folder: z.enum(FOLDERS),

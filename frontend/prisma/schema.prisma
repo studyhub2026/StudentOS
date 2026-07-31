@@ -201,6 +201,7 @@ model User {
   files             FileAsset[]
   activityLogs      ActivityLog[]
   aiConversations   AiConversation[]
+  aiFiles           UploadedFile[]
   userAchievements  UserAchievement[]
 
   groupMemberships  GroupMember[]
@@ -877,6 +878,7 @@ model AiConversation {
   deletedAt DateTime?
 
   messages  AiMessage[]
+  files     UploadedFile[]
 
   @@index([userId, feature])
   @@index([userId, updatedAt])
@@ -900,8 +902,56 @@ model AiMessage {
 
   createdAt      DateTime       @default(now())
 
+  files          UploadedFile[]
+
   @@index([conversationId, createdAt])
   @@map("ai_messages")
+}
+
+/// A file a user attaches to an AI conversation (PDF, DOCX, image, …). The
+/// binary lives in object storage; extracted text (for documents) is cached
+/// here so the model can be prompted without re-fetching on every turn.
+model UploadedFile {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  conversationId String
+  conversation   AiConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Set once the file is referenced by a specific sent message.
+  messageId      String?
+  message        AiMessage?      @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  filename       String
+  mimeType       String
+  size           Int
+  storageUrl     String
+  // Cloudinary public id / storage key, for deletion.
+  storageKey     String?
+  kind           UploadedFileKind @default(DOCUMENT)
+
+  // Extracted text for documents; null for images (handed to Gemini natively).
+  extractedText  String?
+  status         UploadedFileStatus @default(PENDING)
+  error          String?
+
+  createdAt      DateTime        @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([userId])
+  @@map("uploaded_files")
+}
+
+enum UploadedFileKind {
+  DOCUMENT
+  IMAGE
+}
+
+enum UploadedFileStatus {
+  PENDING
+  READY
+  FAILED
 }
 
 // ---------------------------------------------------------------------------

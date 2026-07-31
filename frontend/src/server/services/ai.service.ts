@@ -14,6 +14,7 @@ import {
   type AiFeatureKey,
 } from '@/server/services/ai-prompts';
 import { geminiService, type GeminiMessage } from '@/server/services/gemini.service';
+import { aiFileService } from '@/server/services/ai-file.service';
 
 /**
  * Conversational AI and the structured generators that back the AI suite.
@@ -148,6 +149,8 @@ export async function sendMessage(
     feature: AiFeature;
     content: string;
     tier?: 'flash' | 'pro';
+    /** Files (already uploaded to this conversation) to link to this turn. */
+    fileIds?: string[];
   },
 ): Promise<ChatResult> {
   const settings = await prisma.userSettings.findUnique({
@@ -162,23 +165,47 @@ export async function sendMessage(
         title: deriveTitle(input.content),
       });
 
-  await prisma.aiMessage.create({
+  const userMessage = await prisma.aiMessage.create({
     data: { conversationId: conversation.id, role: AiRole.USER, content: input.content },
   });
+
+  // Link any just-uploaded files to the message that first referenced them.
+  if (input.fileIds && input.fileIds.length > 0) {
+    await aiFileService.attachFilesToMessage(input.fileIds, userMessage.id);
+  }
 
   // Re-read so the outgoing context includes the turn just written.
   conversation = await getConversation(userId, conversation.id);
 
   const featureKey = conversation.feature as AiFeatureKey;
-  const systemInstruction = withTone(
+  const baseInstruction = withTone(
     SYSTEM_PROMPTS[featureKey] ?? SYSTEM_PROMPTS.CHAT,
     settings?.aiTone ?? 'encouraging',
   );
+
+  // Every ready file on the conversation is included each turn, so questions
+  // about a document keep working after it has scrolled out of view.
+  const files = await prisma.uploadedFile.findMany({
+    where: { conversationId: conversation.id, userId, status: 'READY' },
+    orderBy: { createdAt: 'asc' },
+  });
+  const fileContext = await aiFileService.buildFileContext(files);
+  const systemInstruction = fileContext.textPreamble
+    ? `${baseInstruction}\n\n${fileContext.textPreamble}`
+    : baseInstruction;
 
   const result = await geminiService.generateText({
     messages: toGeminiMessages(conversation.messages),
     systemInstruction,
     ...(input.tier ? { tier: input.tier } : {}),
+    ...(fileContext.inlineParts.length > 0
+      ? {
+          attachments: fileContext.inlineParts.map((part) => ({
+            mimeType: part.mimeType,
+            dataBase64: part.dataBase64,
+          })),
+        }
+      : {}),
   });
 
   const [saved] = await prisma.$transaction([

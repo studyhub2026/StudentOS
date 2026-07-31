@@ -14,7 +14,7 @@ import { AppError, BadRequestError } from '@/server/lib/errors';
  * every signed parameter is covered by the signature.
  */
 
-export type UploadFolder = 'avatars' | 'assignments' | 'notes' | 'messages';
+export type UploadFolder = 'avatars' | 'assignments' | 'notes' | 'messages' | 'ai';
 
 export interface SignedUpload {
   signature: string;
@@ -51,6 +51,12 @@ const POLICIES: Record<
   messages: {
     maxBytes: 10 * 1024 * 1024,
     formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf'],
+    resourceType: 'auto',
+  },
+  // Attachments for the AI chat: documents the model reads plus images it sees.
+  ai: {
+    maxBytes: 25 * 1024 * 1024,
+    formats: ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'txt', 'md', 'csv', 'docx', 'xlsx', 'pptx'],
     resourceType: 'auto',
   },
 };

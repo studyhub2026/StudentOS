@@ -29,9 +29,12 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "exceljs": "^4.4.0",
     "framer-motion": "^12.42.2",
     "jsonwebtoken": "^9.0.2",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.25.0",
+    "mammoth": "^1.12.0",
     "next": "^15.5.21",
     "otpauth": "^9.5.1",
     "qrcode": "^1.5.4",
@@ -59,8 +62,8 @@
   },
   "//optionalDependencies": "Linux (glibc) native binaries with no download fallback, pinned so they resolve on Vercel/CI whether the install is scoped to this workspace or the repo root. They are os/cpu-gated and skipped on other platforms. Also declared at the repo root; keep both in lockstep with their parent packages.",
   "optionalDependencies": {
-    "lightningcss-linux-x64-gnu": "1.32.0",
+    "@node-rs/argon2-linux-x64-gnu": "2.0.2",
     "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
-    "@node-rs/argon2-linux-x64-gnu": "2.0.2"
+    "lightningcss-linux-x64-gnu": "1.32.0"
   }
 }

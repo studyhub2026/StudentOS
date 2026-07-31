@@ -33,6 +33,8 @@ export const sendMessageSchema = z.object({
   content: z.string().trim().min(1, 'Message cannot be empty').max(20_000),
   /** "pro" routes to Gemini 2.5 Pro for harder reasoning. */
   tier: z.enum(['flash', 'pro']).optional(),
+  /** Files already uploaded to the conversation to reference in this turn. */
+  fileIds: z.array(cuid).max(20).optional(),
 });
 
 export const renameConversationSchema = z.object({
@@ -87,6 +89,21 @@ export const quizSchema = z.object({
 
 export const summariseSchema = z.object({
   source: sourceText,
+});
+
+// --- File uploads -----------------------------------------------------------
+
+export const registerAiFileSchema = z.object({
+  conversationId: cuid,
+  filename: z.string().trim().min(1).max(300),
+  mimeType: z.string().trim().min(1).max(200),
+  size: z.coerce.number().int().min(1).max(25 * 1024 * 1024),
+  url: z.string().url(),
+  storageKey: z.string().trim().min(1).max(400).optional(),
+});
+
+export const listAiFilesSchema = z.object({
+  conversationId: cuid,
 });
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;

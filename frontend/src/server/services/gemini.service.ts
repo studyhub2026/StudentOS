@@ -1,5 +1,5 @@
 import 'server-only';
-﻿import { GoogleGenAI, type Content, type GenerateContentResponse } from '@google/genai';
+﻿import { GoogleGenAI, type Content, type GenerateContentResponse, type Part } from '@google/genai';
 import { env } from '@/server/env';
 import { logger } from '@/server/lib/logger';
 import { AppError } from '@/server/lib/errors';
@@ -20,6 +20,12 @@ export interface GeminiMessage {
   content: string;
 }
 
+/** A file handed to Gemini's native reader (PDF or image), base64-encoded. */
+export interface GeminiInlinePart {
+  mimeType: string;
+  dataBase64: string;
+}
+
 export interface GeminiRequest {
   /** Ordered conversation turns. The last entry should be the user's prompt. */
   messages: GeminiMessage[];
@@ -30,6 +36,8 @@ export interface GeminiRequest {
   maxOutputTokens?: number;
   /** Abort in-flight generation when the client disconnects. */
   signal?: AbortSignal;
+  /** PDFs/images appended to the final user turn for Gemini to read natively. */
+  attachments?: GeminiInlinePart[];
 }
 
 export interface GeminiResult {
@@ -73,11 +81,21 @@ function resolveModel(tier: GeminiTier = 'flash'): string {
   return tier === 'pro' ? env.GEMINI_PRO_MODEL : env.GEMINI_DEFAULT_MODEL;
 }
 
-function toContents(messages: GeminiMessage[]): Content[] {
-  return messages.map((message) => ({
+function toContents(messages: GeminiMessage[], attachments: GeminiInlinePart[] = []): Content[] {
+  const contents: Content[] = messages.map((message) => ({
     role: message.role,
-    parts: [{ text: message.content }],
+    parts: [{ text: message.content }] as Part[],
   }));
+
+  // Attach files to the final user turn so the model reads them in context.
+  const last = contents[contents.length - 1];
+  if (last?.parts && attachments.length > 0) {
+    for (const file of attachments) {
+      last.parts.push({ inlineData: { mimeType: file.mimeType, data: file.dataBase64 } });
+    }
+  }
+
+  return contents;
 }
 
 function extractStatus(error: unknown): number | null {
@@ -153,7 +171,7 @@ async function execute(options: InternalOptions): Promise<GeminiResult> {
     try {
       const response = await ai.models.generateContent({
         model,
-        contents: toContents(options.messages),
+        contents: toContents(options.messages, options.attachments),
         config: {
           ...(options.systemInstruction
             ? { systemInstruction: options.systemInstruction }
