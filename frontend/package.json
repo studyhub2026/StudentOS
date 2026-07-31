@@ -56,5 +56,11 @@
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
+  },
+  "//optionalDependencies": "Linux (glibc) native binaries with no download fallback, pinned so they resolve on Vercel/CI whether the install is scoped to this workspace or the repo root. They are os/cpu-gated and skipped on other platforms. Also declared at the repo root; keep both in lockstep with their parent packages.",
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "1.32.0",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
+    "@node-rs/argon2-linux-x64-gnu": "2.0.2"
   }
 }
