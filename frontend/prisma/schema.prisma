@@ -202,6 +202,7 @@ model User {
   activityLogs      ActivityLog[]
   aiConversations   AiConversation[]
   aiFiles           UploadedFile[]
+  aiMemories        AiMemory[]
   userAchievements  UserAchievement[]
 
   groupMemberships  GroupMember[]
@@ -946,6 +947,28 @@ model UploadedFile {
 enum UploadedFileKind {
   DOCUMENT
   IMAGE
+}
+
+/// A durable fact the AI has learned about a student (name, university, current
+/// subject, weak topics, goals…), recalled into the system prompt so future
+/// conversations stay personal. Keyed per user so updates upsert in place.
+model AiMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Stable slug, e.g. "name", "university", "current_subject", "weak_subject".
+  key       String
+  value     String
+  // profile | study | goals | exams | habits | general
+  category  String   @default("general")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key])
+  @@index([userId, updatedAt])
+  @@map("ai_memories")
 }
 
 enum UploadedFileStatus {

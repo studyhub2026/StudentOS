@@ -15,6 +15,7 @@ import {
 } from '@/server/services/ai-prompts';
 import { geminiService, type GeminiMessage } from '@/server/services/gemini.service';
 import { aiFileService } from '@/server/services/ai-file.service';
+import { aiMemoryService } from '@/server/services/ai-memory.service';
 
 /**
  * Conversational AI and the structured generators that back the AI suite.
@@ -190,9 +191,13 @@ export async function sendMessage(
     orderBy: { createdAt: 'asc' },
   });
   const fileContext = await aiFileService.buildFileContext(files);
-  const systemInstruction = fileContext.textPreamble
-    ? `${baseInstruction}\n\n${fileContext.textPreamble}`
-    : baseInstruction;
+
+  // Long-term memory keeps the assistant personal across separate conversations.
+  const memoryContext = await aiMemoryService.getMemoryContext(userId);
+
+  const systemInstruction = [baseInstruction, memoryContext, fileContext.textPreamble]
+    .filter(Boolean)
+    .join('\n\n');
 
   const result = await geminiService.generateText({
     messages: toGeminiMessages(conversation.messages),
