@@ -52,16 +52,38 @@ const schema = z.object({
 
 const parsed = schema.safeParse(process.env);
 
-if (!parsed.success) {
+// `next build` imports every route module to collect page data, which evaluates
+// this file. The build never connects to the database or signs a token, so it
+// must not require the real secrets — otherwise a first deploy can never build.
+// During the build phase we fall back to placeholders and warn; at request time
+// (any other phase) a missing secret still fails fast.
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
+
+let raw: z.infer<typeof schema>;
+
+if (parsed.success) {
+  raw = parsed.data;
+} else {
   const issues = parsed.error.issues
     .map((issue) => `  • ${issue.path.join('.')}: ${issue.message}`)
     .join('\n');
-  // Fail fast: a route handler running with a missing secret is worse than a
-  // clear boot-time error.
-  throw new Error(`Invalid server environment:\n${issues}`);
-}
 
-const raw = parsed.data;
+  if (!isBuildPhase) {
+    throw new Error(`Invalid server environment:\n${issues}`);
+  }
+
+  console.warn(
+    `[env] Building with an incomplete environment; these are validated at runtime:\n${issues}`,
+  );
+  raw = schema.parse({
+    ...process.env,
+    DATABASE_URL: process.env.DATABASE_URL || 'postgresql://build:build@localhost:5432/build',
+    JWT_ACCESS_SECRET:
+      process.env.JWT_ACCESS_SECRET || 'build-time-placeholder-secret-unused-at-runtime',
+    JWT_REFRESH_SECRET:
+      process.env.JWT_REFRESH_SECRET || 'build-time-placeholder-secret-unused-at-runtime',
+  });
+}
 
 export const env = {
   ...raw,
