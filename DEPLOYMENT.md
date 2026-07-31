@@ -1,19 +1,12 @@
 # Deploying StudentOS AI
 
-The app is two independent services with **different hosting needs**:
+The app is a **single Next.js service** — the UI, the API routes, and Prisma
+all run in one process — so it deploys like any Next.js app. **Vercel** is the
+default target.
 
-| Service | Stack | Host |
-|---|---|---|
-| `frontend/` | Next.js 15 | **Vercel** |
-| `backend/` | Express + Socket.io + Prisma | **Railway or Render** |
-
-**The backend cannot run on Vercel.** Socket.io (group chat) needs persistent
-WebSocket connections and the AI chat uses long-lived SSE streams; Vercel's
-serverless functions are short-lived and stateless, so neither works there. The
-backend is packaged as a Docker container (`backend/Dockerfile`) for a host that
-runs a normal long-lived server.
-
-Deploy the **backend first** — the frontend needs its URL at build time.
+Live group chat runs over **Supabase Realtime** (the browser talks to Supabase
+directly, not through a long-lived socket on our server), so there is no
+WebSocket server to host and nothing that Vercel's serverless model can't run.
 
 ---
 
@@ -26,6 +19,10 @@ Use the **Connection Pooler** URL (IPv4-compatible), not the direct
 postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true
 ```
 
+The transaction pooler (port 6543) cannot run migrations, so also set a
+`DIRECT_URL` to the **session** pooler (same host, port 5432) — Prisma uses it
+for `db push` while the app uses the transaction pooler at runtime.
+
 Percent-encode any special character in the password: `%`→`%25`, `@`→`%40`,
 `#`→`%23`, `/`→`%2F`, `?`→`%3F`. Generate a safe value with:
 
@@ -37,59 +34,12 @@ Apply the schema once from your machine (see the safety note at the end):
 
 ```bash
 npm run prisma:push
-npm run prisma:seed   # optional demo data
+npm run prisma:seed   # optional demo data (creates the demo + admin accounts)
 ```
 
 ---
 
-## 2. Backend → Railway or Render
-
-Point the service at `backend/Dockerfile`. Set these environment variables:
-
-```ini
-NODE_ENV=production
-PORT=4000
-DATABASE_URL=<the pooler URL from step 1>
-JWT_ACCESS_SECRET=<64-byte hex>
-JWT_REFRESH_SECRET=<a different 64-byte hex>
-
-# Cross-domain cookies: the frontend and API live on different domains, so the
-# browser only sends the refresh cookie when it is SameSite=None.
-COOKIE_SAMESITE=none
-COOKIE_DOMAIN=
-
-# Filled in after step 3 — the Vercel URL. Drives CORS and OAuth redirects.
-APP_URL=https://<your-app>.vercel.app
-API_URL=https://<your-service>.up.railway.app
-
-# Optional integrations
-GEMINI_API_KEY=
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-DISCORD_CLIENT_ID=
-DISCORD_CLIENT_SECRET=
-```
-
-Generate a secret with:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-```
-
-After it deploys, confirm it is healthy:
-
-```
-GET https://<your-service>.up.railway.app/health/ready   → {"status":"ready","database":"up"}
-```
-
----
-
-## 3. Frontend → Vercel
+## 2. Deploy to Vercel
 
 In the Vercel dashboard, **Add New → Project** and import
 `studyhub2026/StudentOS`, then:
@@ -98,51 +48,74 @@ In the Vercel dashboard, **Add New → Project** and import
    the monorepo work; Vercel then auto-detects Next.js.
 2. **Environment Variables** → add:
 
-   ```
-   NEXT_PUBLIC_API_URL = https://<your-service>.up.railway.app
+   ```ini
+   DATABASE_URL=<the transaction-pooler URL from step 1>
+   DIRECT_URL=<the session-pooler URL from step 1>
+
+   JWT_ACCESS_SECRET=<64-byte hex>
+   JWT_REFRESH_SECRET=<a different 64-byte hex>
+
+   APP_URL=https://<your-app>.vercel.app   # own URL, for OAuth + email links
+
+   # Live group chat (Supabase Realtime)
+   SUPABASE_URL=https://<ref>.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=<service role key>
+   NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon/publishable key>
+
+   # Optional integrations — leave unset to run without them
+   GEMINI_API_KEY=
+   CLOUDINARY_CLOUD_NAME=
+   CLOUDINARY_API_KEY=
+   CLOUDINARY_API_SECRET=
+   GOOGLE_CLIENT_ID=
+   GOOGLE_CLIENT_SECRET=
+   GITHUB_CLIENT_ID=
+   GITHUB_CLIENT_SECRET=
+   DISCORD_CLIENT_ID=
+   DISCORD_CLIENT_SECRET=
    ```
 
-   This is inlined into the client bundle **at build time**, so it must be set
-   before the first build. If it is missing, the app silently falls back to
-   `http://localhost:4000` and every request fails for real visitors.
+   The API is same-origin, so there is no `NEXT_PUBLIC_API_URL` to set and no
+   CORS to configure. The refresh cookie is first-party, so `COOKIE_SAMESITE`
+   stays on its `lax` default.
+
 3. **Deploy.** Vercel builds `frontend/` and gives you
    `https://<your-app>.vercel.app`.
 
-Then go back to the backend host and set `APP_URL` to that Vercel URL, and
-redeploy the backend — the API's CORS allowlist and OAuth redirects read it.
+Generate a JWT secret with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+### Self-hosting with Docker (optional)
+
+`frontend/Dockerfile` produces a standalone image, and `docker-compose.yml`
+brings up Postgres plus the app for a local production-like stack.
 
 ---
 
-## 4. OAuth redirect URIs (only if you use social login)
+## 3. OAuth redirect URIs (only if you use social login)
 
-Register the callback URL with each provider, pointing at the **API**, not the
-frontend:
+Register the callback URL with each provider, pointing at your deployment
+(the API is same-origin):
 
 ```
-https://<your-service>.up.railway.app/api/v1/auth/oauth/google/callback
-https://<your-service>.up.railway.app/api/v1/auth/oauth/github/callback
-https://<your-service>.up.railway.app/api/v1/auth/oauth/discord/callback
+https://<your-app>.vercel.app/api/v1/auth/oauth/google/callback
+https://<your-app>.vercel.app/api/v1/auth/oauth/github/callback
+https://<your-app>.vercel.app/api/v1/auth/oauth/discord/callback
 ```
 
 ---
 
-## 5. Verify the live deployment
+## 4. Verify the live deployment
 
 - Open the Vercel URL, register an account, sign in.
-- **Reload the page** — you should stay signed in. If you get logged out on
-  reload, the cross-domain cookie is not being sent: recheck
-  `COOKIE_SAMESITE=none` on the backend and that both services are on HTTPS.
+- **Reload the page** — you should stay signed in.
 - Open a study group and send a message in two tabs — it should appear live
-  (confirms the WebSocket connection).
-
----
-
-## Alternative: one domain (cleaner cookies)
-
-If you own a domain, put both services on subdomains — `app.yourdomain.com`
-(Vercel) and `api.yourdomain.com` (Railway/Render). Then set
-`COOKIE_SAMESITE=lax` and `COOKIE_DOMAIN=.yourdomain.com`. Same-site cookies are
-more robust than `SameSite=None`, which some browsers restrict.
+  (confirms Supabase Realtime).
+- Open the AI Assistant and send a message (needs `GEMINI_API_KEY`).
 
 ---
 
