@@ -71,6 +71,14 @@ export function useAiStatus() {
   });
 }
 
+/** Creates an empty chat conversation and returns its id. */
+export async function createChatConversation(): Promise<string> {
+  const { data } = await apiClient.post<ApiEnvelope<ConversationDetail>>('/ai/conversations', {
+    feature: 'CHAT',
+  });
+  return data.data.id;
+}
+
 export function useConversations() {
   return useQuery({
     queryKey: aiKeys.conversations(),
@@ -108,12 +116,14 @@ export function useSendChat() {
       conversationId?: string;
       content: string;
       tier?: AiTier;
+      fileIds?: string[];
     }) => {
       const { data } = await apiClient.post<ApiEnvelope<ChatResult>>('/ai/chat', {
         feature: 'CHAT',
         content: input.content,
         ...(input.conversationId ? { conversationId: input.conversationId } : {}),
         ...(input.tier ? { tier: input.tier } : {}),
+        ...(input.fileIds && input.fileIds.length > 0 ? { fileIds: input.fileIds } : {}),
       });
       return data.data;
     },
