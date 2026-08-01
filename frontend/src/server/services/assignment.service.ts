@@ -234,16 +234,37 @@ export async function updateAssignment(
   }
 
   // Keep completedAt consistent with status transitions in both directions.
+  let justCompleted = false;
   if (input.status !== undefined && input.status !== existing.status) {
     if (TERMINAL_STATUSES.includes(input.status)) {
       data.completedAt = new Date();
       if (input.progress === undefined) data.progress = 100;
+      justCompleted = true;
     } else if (TERMINAL_STATUSES.includes(existing.status)) {
       data.completedAt = null;
     }
   }
 
-  return prisma.assignment.update({ where: { id }, data, include: assignmentInclude });
+  const updated = await prisma.assignment.update({ where: { id }, data, include: assignmentInclude });
+
+  if (justCompleted) {
+    // Fire-and-forget gamification: completing an assignment advances daily
+    // missions and weekly challenges and grants XP. Never block the response.
+    void (async () => {
+      try {
+        const { awardXp, updateMissionProgress, updateChallengeProgress } = await import(
+          './gamification.service'
+        );
+        await awardXp(userId, 40);
+        await updateMissionProgress(userId, 'complete_1', 1);
+        await updateChallengeProgress(userId, 'complete_5', 1);
+      } catch {
+        // gamification is best-effort
+      }
+    })();
+  }
+
+  return updated;
 }
 
 /**

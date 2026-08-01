@@ -175,6 +175,8 @@ model User {
   currentStreak  Int       @default(0)
   longestStreak  Int       @default(0)
   totalXp        Int       @default(0)
+  coins          Int       @default(0)
+  level          Int       @default(1)
   lastActiveDate DateTime?
 
   createdAt DateTime  @default(now())
@@ -214,11 +216,16 @@ model User {
   sentFriendships     Friendship[] @relation("FriendshipRequester")
   receivedFriendships Friendship[] @relation("FriendshipAddressee")
 
-  sharedNotes NoteShare[] @relation("NoteSharedWith")
+  sharedNotes          NoteShare[]           @relation("NoteSharedWith")
+  dailyMissions        DailyMission[]
+  weeklyChallenges     WeeklyChallenge[]
+  knowledgeCollections KnowledgeCollection[]
+  knowledgeDocuments   KnowledgeDocument[]
 
   @@index([role])
   @@index([deletedAt])
   @@index([lastActiveDate])
+  @@index([totalXp(sort: Desc)])
   @@map("users")
 }
 
@@ -1253,4 +1260,123 @@ model TutorSession {
 
   @@index([tutorId, startedAt])
   @@map("tutor_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Knowledge Base
+// ---------------------------------------------------------------------------
+
+model KnowledgeCollection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  color       String  @default("#6366f1")
+  icon        String  @default("folder")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents KnowledgeDocument[]
+
+  @@index([userId])
+  @@map("knowledge_collections")
+}
+
+model KnowledgeDocument {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  collectionId String?
+  collection   KnowledgeCollection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  filename      String
+  mimeType      String
+  sizeBytes     Int
+  storageUrl    String
+  storageKey    String
+  tags          String[]
+  extractedText String?
+
+  chunkCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chunks KnowledgeChunk[]
+
+  @@index([userId])
+  @@index([collectionId])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id         String            @id @default(cuid())
+  documentId String
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  chunkIndex Int
+  content    String
+  pageNumber Int?
+  heading    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([documentId, chunkIndex])
+  @@map("knowledge_chunks")
+}
+
+// ---------------------------------------------------------------------------
+// Gamification — Daily Missions & Weekly Challenges
+// ---------------------------------------------------------------------------
+
+model DailyMission {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date        DateTime  @db.Date
+  missionKey  String
+  title       String
+  description String
+  icon        String    @default("target")
+  xpReward    Int       @default(25)
+  coinReward  Int       @default(10)
+  targetValue Int       @default(1)
+  progress    Int       @default(0)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date, missionKey])
+  @@index([userId, date])
+  @@map("daily_missions")
+}
+
+model WeeklyChallenge {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  weekStart    DateTime  @db.Date
+  challengeKey String
+  title        String
+  description  String
+  icon         String    @default("trophy")
+  xpReward     Int       @default(200)
+  coinReward   Int       @default(100)
+  targetValue  Int       @default(1)
+  progress     Int       @default(0)
+  completed    Boolean   @default(false)
+  completedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, weekStart, challengeKey])
+  @@index([userId, weekStart])
+  @@map("weekly_challenges")
 }

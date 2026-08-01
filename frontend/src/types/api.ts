@@ -58,6 +58,8 @@ export interface User {
   twoFactorEnabled: boolean;
   currentStreak: number;
   totalXp: number;
+  coins: number;
+  level: number;
   createdAt: string;
 }
 

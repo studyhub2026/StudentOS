@@ -28,6 +28,8 @@ export interface PublicUser {
   twoFactorEnabled: boolean;
   currentStreak: number;
   totalXp: number;
+  coins: number;
+  level: number;
   createdAt: Date;
 }
 
@@ -56,6 +58,8 @@ export function toPublicUser(user: User): PublicUser {
     twoFactorEnabled: user.twoFactorEnabled,
     currentStreak: user.currentStreak,
     totalXp: user.totalXp,
+    coins: user.coins,
+    level: user.level,
     createdAt: user.createdAt,
   };
 }

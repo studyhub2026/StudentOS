@@ -10,6 +10,8 @@ import {
   Bot,
   CalendarDays,
   CheckSquare,
+  Database,
+  FileText,
   Flame,
   GraduationCap,
   Layers,
@@ -20,11 +22,15 @@ import {
   Sparkles,
   Timer,
   TrendingUp,
+  Trophy,
   Users,
   X,
   Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CommandPalette } from '@/components/command-palette';
+import { AiToolbar } from '@/components/ai-toolbar';
+import { NotificationBell } from '@/components/notification-bell';
 import { cn, initialsOf } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -36,8 +42,11 @@ const NAV = [
   { href: '/schedule', label: 'Schedule', icon: CalendarDays },
   { href: '/notes', label: 'Notes', icon: BookOpen },
   { href: '/flashcards', label: 'Flashcards', icon: Layers },
+  { href: '/pdf-reader', label: 'PDF Reader', icon: FileText },
+  { href: '/knowledge', label: 'Knowledge', icon: Database },
   { href: '/focus', label: 'Focus', icon: Timer },
   { href: '/analytics', label: 'Analytics', icon: TrendingUp },
+  { href: '/achievements', label: 'Achievements', icon: Trophy },
   { href: '/groups', label: 'Groups', icon: Users },
 ];
 
@@ -86,7 +95,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         StudentOS <span className="gradient-text">AI</span>
       </Link>
 
-      <nav className="mt-7 flex-1 space-y-1">
+      <div className="mt-5 flex items-center gap-2">
+        <div className="flex-1">
+          <CommandPalette />
+        </div>
+        <div className="hidden lg:block">
+          <NotificationBell />
+        </div>
+      </div>
+
+      <nav className="mt-4 flex-1 space-y-1">
         {[...NAV, ...(user.role === 'ADMIN' ? [ADMIN_NAV] : [])].map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
@@ -225,12 +243,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
-          <span className="font-semibold">
+          <span className="flex-1 font-semibold">
             StudentOS <span className="gradient-text">AI</span>
           </span>
+          <NotificationBell />
+          <CommandPalette />
         </header>
 
         <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        <AiToolbar />
       </div>
     </div>
   );
