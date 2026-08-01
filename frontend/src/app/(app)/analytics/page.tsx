@@ -22,6 +22,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { StatCard } from '@/components/dashboard/stat-card';
+import { GradePredictionPanel } from '@/components/analytics/grade-prediction-panel';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAnalytics } from '@/hooks/use-schedule';
@@ -106,6 +107,8 @@ export default function AnalyticsPage() {
           ))}
         </div>
       </header>
+
+      <GradePredictionPanel />
 
       {data?.burnout.atRisk ? (
         <Card className="flex items-start gap-3 border-warning/30 bg-warning/8">
