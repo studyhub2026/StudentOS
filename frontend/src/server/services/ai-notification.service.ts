@@ -1,6 +1,5 @@
 import 'server-only';
 import { prisma } from '@/server/db';
-import { generateFromPrompt } from './gemini.service';
 
 export async function generateSmartNotifications(userId: string) {
   const [assignments, studySessions, user] = await Promise.all([

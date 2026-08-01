@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { route, readJson } from '@/server/lib/handler';
 import { requireAuth } from '@/server/lib/auth';
 import { ok } from '@/server/lib/response';
+import { enforceRateLimit, TUTOR_LIMITS } from '@/server/lib/rate-limit';
 import { generateText } from '@/server/services/gemini.service';
 import type { GeminiMessage, GeminiInlinePart } from '@/server/services/gemini.service';
 
@@ -25,7 +26,8 @@ const bodySchema = z.object({
 });
 
 export const POST = route(async (req: NextRequest) => {
-  await requireAuth(req);
+  const user = await requireAuth(req);
+  enforceRateLimit(user.id, { bucket: 'ai-pdf-chat', ...TUTOR_LIMITS.generation });
   const body = await readJson(req, bodySchema);
 
   const contextParts: string[] = [];

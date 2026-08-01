@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot,
   Database,
@@ -14,7 +13,6 @@ import {
   Send,
   Trash2,
   Upload,
-  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,9 +24,11 @@ import {
   useDeleteDocument,
   useAskKnowledge,
   useSearchKnowledge,
+  uploadKnowledgeFile,
+  KNOWLEDGE_FILE_ACCEPT,
 } from '@/hooks/use-knowledge';
-import { apiClient } from '@/lib/api-client';
-import type { ApiEnvelope } from '@/types/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { apiErrorMessage } from '@/lib/api-client';
 
 export default function KnowledgePage() {
   const [selectedCollection, setSelectedCollection] = useState<string | undefined>();
@@ -37,7 +37,10 @@ export default function KnowledgePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [question, setQuestion] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai'; content: string; sources?: string[] }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const { data: collections } = useKnowledgeCollections();
   const { data: documents } = useKnowledgeDocuments(selectedCollection);
   const createCollection = useCreateCollection();
@@ -71,24 +74,20 @@ export default function KnowledgePage() {
   };
 
   const handleUpload = async (files: FileList) => {
-    for (const file of Array.from(files)) {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      try {
-        const text = await file.text().catch(() => undefined);
-        await apiClient.post('/knowledge', {
-          filename: file.name,
-          mimeType: file.type || 'application/octet-stream',
-          sizeBytes: file.size,
-          storageUrl: URL.createObjectURL(file),
-          storageKey: `knowledge/${Date.now()}-${file.name}`,
-          collectionId: selectedCollection,
-          extractedText: text,
-        });
-      } catch {
-        // silently skip failed uploads
+    setUploadError(null);
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        // Uploads to Cloudinary, then the server fetches the bytes and
+        // extracts/OCRs the text into searchable chunks.
+        await uploadKnowledgeFile(file, selectedCollection);
       }
+      await queryClient.invalidateQueries({ queryKey: ['knowledge-documents'] });
+      await queryClient.invalidateQueries({ queryKey: ['knowledge-collections'] });
+    } catch (error) {
+      setUploadError(apiErrorMessage(error));
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -156,17 +155,29 @@ export default function KnowledgePage() {
 
         {/* Upload */}
         <div className="border-t border-border p-3">
-          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-3 text-sm text-fg-muted transition-colors hover:border-brand/40 hover:text-fg">
-            <Upload className="h-4 w-4" />
-            Upload Documents
+          <label
+            className={cn(
+              'flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-3 text-sm text-fg-muted transition-colors',
+              uploading ? 'cursor-wait opacity-70' : 'cursor-pointer hover:border-brand/40 hover:text-fg',
+            )}
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {uploading ? 'Uploading & extracting…' : 'Upload Documents'}
             <input
               type="file"
               className="hidden"
               multiple
-              accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.png,.jpg,.jpeg,.webp"
-              onChange={(e) => e.target.files && void handleUpload(e.target.files)}
+              disabled={uploading}
+              accept={KNOWLEDGE_FILE_ACCEPT}
+              onChange={(e) => {
+                if (e.target.files) void handleUpload(e.target.files);
+                e.target.value = '';
+              }}
             />
           </label>
+          {uploadError ? (
+            <p className="mt-2 text-xs text-danger">{uploadError}</p>
+          ) : null}
         </div>
       </div>
 

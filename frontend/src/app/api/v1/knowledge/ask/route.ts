@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { route, readJson } from '@/server/lib/handler';
 import { requireAuth } from '@/server/lib/auth';
 import { ok } from '@/server/lib/response';
+import { enforceRateLimit, TUTOR_LIMITS } from '@/server/lib/rate-limit';
 import { askKnowledge } from '@/server/services/knowledge.service';
 
 const bodySchema = z.object({
@@ -14,6 +15,7 @@ const bodySchema = z.object({
 
 export const POST = route(async (req: NextRequest) => {
   const user = await requireAuth(req);
+  enforceRateLimit(user.id, { bucket: 'knowledge-ask', ...TUTOR_LIMITS.generation });
   const body = await readJson(req, bodySchema);
   const result = await askKnowledge(user.id, body.question, body);
   return ok(result);

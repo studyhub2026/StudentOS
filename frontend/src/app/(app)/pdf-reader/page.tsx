@@ -5,13 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Bot,
-  ChevronLeft,
-  ChevronRight,
-  Copy,
   FileText,
   Loader2,
-  Maximize2,
-  Minimize2,
   PanelRightClose,
   PanelRightOpen,
   Send,
@@ -20,7 +15,6 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import type { ApiEnvelope } from '@/types/api';

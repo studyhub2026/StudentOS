@@ -1,5 +1,4 @@
 import 'server-only';
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/server/db';
 
 export type SearchCategory =
@@ -37,10 +36,6 @@ export interface SearchOptions {
   offset?: number;
 }
 
-function esc(q: string): string {
-  return q.replace(/[%_\\]/g, '\\$&');
-}
-
 export function highlight(text: string, query: string, maxLen = 120): string {
   if (!text) return '';
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
@@ -59,7 +54,6 @@ export async function universalSearch(opts: SearchOptions): Promise<{
 }> {
   const { query, userId, limit = 20, offset = 0 } = opts;
   const cats = opts.categories;
-  const pattern = `%${esc(query)}%`;
   const q = query.trim();
   if (!q) return { results: [], total: 0 };
 

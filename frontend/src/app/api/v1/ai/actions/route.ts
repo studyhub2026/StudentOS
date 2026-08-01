@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { route, readJson } from '@/server/lib/handler';
 import { requireAuth } from '@/server/lib/auth';
 import { ok } from '@/server/lib/response';
+import { enforceRateLimit, TUTOR_LIMITS } from '@/server/lib/rate-limit';
 import { generateFromPrompt } from '@/server/services/gemini.service';
 
 const ACTION_PROMPTS: Record<string, (text: string, extra?: string) => string> = {
@@ -39,7 +40,8 @@ const bodySchema = z.object({
 });
 
 export const POST = route(async (req: NextRequest) => {
-  await requireAuth(req);
+  const user = await requireAuth(req);
+  enforceRateLimit(user.id, { bucket: 'ai-actions', ...TUTOR_LIMITS.generation });
   const { action, text, extra } = await readJson(req, bodySchema);
 
   const promptFn = ACTION_PROMPTS[action];

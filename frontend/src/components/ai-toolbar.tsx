@@ -16,7 +16,6 @@ import {
   MessageSquare,
   Minimize2,
   PenLine,
-  Sparkles,
   Type,
   Wand2,
   X,

@@ -10,14 +10,14 @@ const listSchema = z.object({
 });
 
 const createSchema = z.object({
-  filename: z.string().min(1),
+  filename: z.string().min(1).max(300),
   mimeType: z.string().min(1),
   sizeBytes: z.number().int().positive(),
-  storageUrl: z.string().url(),
+  // The Cloudinary secure URL from the signed upload. Server re-validates the host.
+  url: z.string().url(),
   storageKey: z.string().min(1),
   collectionId: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  extractedText: z.string().optional(),
+  tags: z.array(z.string()).max(20).optional(),
 });
 
 export const GET = route(async (req: NextRequest) => {
@@ -29,7 +29,7 @@ export const GET = route(async (req: NextRequest) => {
 
 export const POST = route(async (req: NextRequest) => {
   const user = await requireAuth(req);
-  const body = await readJson(req, createSchema);
-  const doc = await addDocument(user.id, body);
+  const { url, ...rest } = await readJson(req, createSchema);
+  const doc = await addDocument(user.id, { ...rest, storageUrl: url });
   return created(doc);
 });

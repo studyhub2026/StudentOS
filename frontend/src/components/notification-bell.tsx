@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, Check, CheckCheck, X } from 'lucide-react';
+import { Bell, CheckCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/use-notifications';
 import { formatDistanceToNow } from 'date-fns';

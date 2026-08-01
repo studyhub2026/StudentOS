@@ -14,16 +14,13 @@ import {
   Layers,
   Loader2,
   MessageSquare,
-  Moon,
   Plus,
   Search,
   Settings,
-  Sun,
   Target,
   Timer,
   TrendingUp,
   Users,
-  X,
   Zap,
   Bell,
   Upload,
@@ -31,7 +28,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSearch, type SearchResult, type SearchCategory } from '@/hooks/use-search';
+import { useSearch, type SearchCategory } from '@/hooks/use-search';
 import { useAuthStore } from '@/stores/auth-store';
 
 interface Command {
@@ -128,7 +125,8 @@ export function CommandPalette() {
     );
   }, [commands, query]);
 
-  const searchResults = searchData?.results ?? [];
+  // Stable reference so the keydown handler's deps don't change every render.
+  const searchResults = useMemo(() => searchData?.results ?? [], [searchData]);
   const totalItems = filteredCommands.length + searchResults.length;
 
   useEffect(() => {

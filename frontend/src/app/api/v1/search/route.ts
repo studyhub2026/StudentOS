@@ -5,12 +5,6 @@ import { requireAuth } from '@/server/lib/auth';
 import { ok } from '@/server/lib/response';
 import { universalSearch, type SearchCategory } from '@/server/services/search.service';
 
-const VALID_CATEGORIES: SearchCategory[] = [
-  'assignment', 'note', 'subject', 'flashcard_deck', 'flashcard',
-  'schedule', 'ai_conversation', 'tutor_conversation', 'group',
-  'group_message', 'uploaded_file', 'goal', 'notification',
-];
-
 const querySchema = z.object({
   q: z.string().min(1).max(200),
   categories: z
