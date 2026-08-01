@@ -133,7 +133,9 @@ export async function generatePlan(
     aiModel: null,
   };
 
-  if (input.includeAdvice && geminiService.isConfigured()) {
+  // Skip the AI commentary when there is nothing to schedule — asking the model
+  // to comment on an empty plan wastes a call and yields nonsense advice.
+  if (input.includeAdvice && plan.sessions.length > 0 && geminiService.isConfigured()) {
     const commentary = await describePlan(plan, assignments.length);
     plan.advice = commentary.advice;
     plan.aiModel = commentary.model;

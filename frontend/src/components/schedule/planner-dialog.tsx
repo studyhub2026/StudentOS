@@ -65,7 +65,20 @@ export function PlannerDialog({ onClose }: PlannerDialogProps) {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {plan ? (
+          {plan && plan.sessions.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand/12">
+                <CalendarCheck className="h-6 w-6 text-brand" aria-hidden />
+              </div>
+              <p className="font-medium">Nothing to schedule yet</p>
+              <p className="mx-auto max-w-sm text-sm text-fg-muted">
+                The planner builds a week around your <strong>outstanding assignments</strong>, and
+                you don&apos;t have any due in this range. Create an assignment first (with an
+                estimated time and due date), then plan again — or close this and use{' '}
+                <strong>Add block</strong> to schedule time manually.
+              </p>
+            </div>
+          ) : plan ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-brand/25 bg-brand/8 p-4">
                 <p className="text-sm font-medium">
