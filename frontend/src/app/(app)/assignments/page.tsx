@@ -7,11 +7,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Inbox,
+  Plus,
   Search,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
 import { AssignmentRow } from '@/components/assignments/assignment-row';
+import { AssignmentFormDialog } from '@/components/assignments/assignment-form-dialog';
 import { STATUS_LABEL, PRIORITY_LABEL } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -39,8 +41,15 @@ function AssignmentsView() {
   const bulkUpdate = useBulkUpdateAssignments();
 
   const [showFilters, setShowFilters] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [searchInput, setSearchInput] = useState(filters.search ?? '');
   const debouncedSearch = useDebouncedValue(searchInput, 300);
+
+  // The command palette's "Create Assignment" links to /assignments?new=1.
+  const openNew = searchParams.get('new');
+  useEffect(() => {
+    if (openNew) setShowCreate(true);
+  }, [openNew]);
 
   // Push the debounced value into the store rather than querying on it
   // directly, so the query key stays stable while typing.
@@ -74,6 +83,10 @@ function AssignmentsView() {
             {data ? `${data.pagination.total} total` : 'Loading…'}
           </p>
         </div>
+        <Button onClick={() => setShowCreate(true)}>
+          <Plus className="h-4 w-4" aria-hidden />
+          New assignment
+        </Button>
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -284,7 +297,12 @@ function AssignmentsView() {
             >
               Clear filters
             </Button>
-          ) : null}
+          ) : (
+            <Button size="sm" className="mt-4" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              New assignment
+            </Button>
+          )}
         </Card>
       ) : (
         <ul className={cn('space-y-2 transition-opacity', isPlaceholderData && 'opacity-60')}>
@@ -327,6 +345,8 @@ function AssignmentsView() {
           </div>
         </nav>
       ) : null}
+
+      {showCreate ? <AssignmentFormDialog onClose={() => setShowCreate(false)} /> : null}
     </div>
   );
 }

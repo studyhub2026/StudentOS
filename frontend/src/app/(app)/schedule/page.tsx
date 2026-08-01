@@ -6,11 +6,12 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Loader2,
+  Plus,
   Sparkles,
   Trash2,
 } from 'lucide-react';
 import { PlannerDialog } from '@/components/schedule/planner-dialog';
+import { BlockFormDialog } from '@/components/schedule/block-form-dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,6 +51,7 @@ function toISODate(date: Date): string {
 export default function SchedulePage() {
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
 
   const weekParam = useMemo(() => toISODate(weekStart), [weekStart]);
   const { data, isLoading, isError, error } = useWeekSchedule(weekParam);
@@ -106,6 +108,10 @@ export default function SchedulePage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={() => setBlockOpen(true)}>
+            <Plus className="h-4 w-4" aria-hidden />
+            Add block
+          </Button>
           <Button variant="secondary" size="sm" onClick={() => setPlannerOpen(true)}>
             <Sparkles className="h-4 w-4" aria-hidden />
             Plan my week
@@ -257,16 +263,25 @@ export default function SchedulePage() {
           <CalendarDays className="mx-auto h-9 w-9 text-fg-subtle" aria-hidden />
           <p className="mt-3 font-medium">Nothing scheduled this week</p>
           <p className="mx-auto mt-1 max-w-sm text-sm text-fg-muted">
-            Let the planner build a week around your deadlines and existing commitments.
+            Add a block yourself, or let the planner build a week around your deadlines.
           </p>
-          <Button className="mt-4" size="sm" onClick={() => setPlannerOpen(true)}>
-            <Sparkles className="h-4 w-4" aria-hidden />
-            Plan my week
-          </Button>
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <Button size="sm" onClick={() => setBlockOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Add block
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setPlannerOpen(true)}>
+              <Sparkles className="h-4 w-4" aria-hidden />
+              Plan my week
+            </Button>
+          </div>
         </Card>
       ) : null}
 
       {plannerOpen ? <PlannerDialog onClose={() => setPlannerOpen(false)} /> : null}
+      {blockOpen ? (
+        <BlockFormDialog defaultDate={weekStart} onClose={() => setBlockOpen(false)} />
+      ) : null}
     </div>
   );
 }
