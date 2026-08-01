@@ -42,6 +42,9 @@ const schema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional().or(z.literal('')),
   CLOUDINARY_API_KEY: z.string().optional().or(z.literal('')),
   CLOUDINARY_API_SECRET: z.string().optional().or(z.literal('')),
+  // Cloudinary's dashboard hands you a single URL; accept it as an alternative
+  // to the three vars above so either style of configuration works.
+  CLOUDINARY_URL: z.string().optional().or(z.literal('')),
 
   // Supabase Realtime powers live group chat. The URL and anon key are also
   // exposed to the client via NEXT_PUBLIC_ copies; the service role key stays
@@ -85,14 +88,51 @@ if (parsed.success) {
   });
 }
 
+/**
+ * Cloudinary can be configured either as three separate vars or a single
+ * `CLOUDINARY_URL` (`cloudinary://<api_key>:<api_secret>@<cloud_name>`). The
+ * explicit vars win; otherwise the URL is parsed. Surrounding angle brackets —
+ * a common copy/paste artefact from docs — are stripped from each part.
+ */
+function resolveCloudinary(r: z.infer<typeof schema>): {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+} {
+  const strip = (value: string): string => value.trim().replace(/^<|>$/g, '');
+
+  if (r.CLOUDINARY_CLOUD_NAME && r.CLOUDINARY_API_KEY && r.CLOUDINARY_API_SECRET) {
+    return {
+      cloudName: strip(r.CLOUDINARY_CLOUD_NAME),
+      apiKey: strip(r.CLOUDINARY_API_KEY),
+      apiSecret: strip(r.CLOUDINARY_API_SECRET),
+    };
+  }
+
+  const url = r.CLOUDINARY_URL?.trim();
+  if (url) {
+    const match = /^cloudinary:\/\/([^:]+):([^@]+)@(.+)$/.exec(url);
+    if (match) {
+      return { apiKey: strip(match[1]!), apiSecret: strip(match[2]!), cloudName: strip(match[3]!) };
+    }
+  }
+
+  return { cloudName: '', apiKey: '', apiSecret: '' };
+}
+
+const cloudinary = resolveCloudinary(raw);
+
 export const env = {
   ...raw,
+  // Normalised so callers always read the three fields regardless of how
+  // Cloudinary was configured.
+  CLOUDINARY_CLOUD_NAME: cloudinary.cloudName,
+  CLOUDINARY_API_KEY: cloudinary.apiKey,
+  CLOUDINARY_API_SECRET: cloudinary.apiSecret,
   isProduction: raw.NODE_ENV === 'production',
   isDevelopment: raw.NODE_ENV === 'development',
   hasGemini: Boolean(raw.GEMINI_API_KEY),
-  hasCloudinary: Boolean(
-    raw.CLOUDINARY_CLOUD_NAME && raw.CLOUDINARY_API_KEY && raw.CLOUDINARY_API_SECRET,
-  ),
+  hasCloudinary: Boolean(cloudinary.cloudName && cloudinary.apiKey && cloudinary.apiSecret),
   hasSupabaseRealtime: Boolean(raw.SUPABASE_URL && raw.SUPABASE_SERVICE_ROLE_KEY),
 } as const;
 
