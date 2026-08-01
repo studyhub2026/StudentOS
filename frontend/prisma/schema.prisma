@@ -7,8 +7,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -156,64 +156,65 @@ enum CardState {
 // ---------------------------------------------------------------------------
 
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  username          String    @unique
-  name              String
-  passwordHash      String?
-  avatarUrl         String?
-  bio               String?
-  role              Role      @default(STUDENT)
+  id           String  @id @default(cuid())
+  email        String  @unique
+  username     String  @unique
+  name         String
+  passwordHash String?
+  avatarUrl    String?
+  bio          String?
+  role         Role    @default(STUDENT)
 
-  emailVerified     Boolean   @default(false)
-  emailVerifiedAt   DateTime?
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
 
-  twoFactorEnabled  Boolean   @default(false)
-  twoFactorSecret   String?
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
 
   // Denormalised gamification counters — kept in sync by the streak service.
-  currentStreak     Int       @default(0)
-  longestStreak     Int       @default(0)
-  totalXp           Int       @default(0)
-  lastActiveDate    DateTime?
+  currentStreak  Int       @default(0)
+  longestStreak  Int       @default(0)
+  totalXp        Int       @default(0)
+  lastActiveDate DateTime?
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedAt         DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
-  settings          UserSettings?
-  accounts          OAuthAccount[]
-  sessions          Session[]
-  refreshTokens     RefreshToken[]
+  settings           UserSettings?
+  accounts           OAuthAccount[]
+  sessions           Session[]
+  refreshTokens      RefreshToken[]
   verificationTokens VerificationToken[]
 
-  subjects          Subject[]
-  assignments       Assignment[]
-  goals             Goal[]
-  notes             Note[]
-  noteFolders       NoteFolder[]
-  decks             FlashcardDeck[]
-  cardReviews       FlashcardReview[]
-  scheduleBlocks    ScheduleBlock[]
-  studySessions     StudySession[]
-  dailyStats        DailyStat[]
-  notifications     Notification[]
-  files             FileAsset[]
-  activityLogs      ActivityLog[]
-  aiConversations   AiConversation[]
-  aiFiles           UploadedFile[]
-  aiMemories        AiMemory[]
-  dailyBriefs       DailyBrief[]
-  userAchievements  UserAchievement[]
+  subjects         Subject[]
+  assignments      Assignment[]
+  goals            Goal[]
+  notes            Note[]
+  noteFolders      NoteFolder[]
+  decks            FlashcardDeck[]
+  cardReviews      FlashcardReview[]
+  scheduleBlocks   ScheduleBlock[]
+  studySessions    StudySession[]
+  dailyStats       DailyStat[]
+  notifications    Notification[]
+  files            FileAsset[]
+  activityLogs     ActivityLog[]
+  aiConversations  AiConversation[]
+  aiFiles          UploadedFile[]
+  aiMemories       AiMemory[]
+  dailyBriefs      DailyBrief[]
+  tutors           Tutor[]
+  userAchievements UserAchievement[]
 
-  groupMemberships  GroupMember[]
-  ownedGroups       StudyGroup[]      @relation("GroupOwner")
-  messages          Message[]
+  groupMemberships GroupMember[]
+  ownedGroups      StudyGroup[]  @relation("GroupOwner")
+  messages         Message[]
 
-  sentFriendships     Friendship[]    @relation("FriendshipRequester")
-  receivedFriendships Friendship[]    @relation("FriendshipAddressee")
+  sentFriendships     Friendship[] @relation("FriendshipRequester")
+  receivedFriendships Friendship[] @relation("FriendshipAddressee")
 
-  sharedNotes         NoteShare[]     @relation("NoteSharedWith")
+  sharedNotes NoteShare[] @relation("NoteSharedWith")
 
   @@index([role])
   @@index([deletedAt])
@@ -222,39 +223,39 @@ model User {
 }
 
 model UserSettings {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  theme                 Theme    @default(DARK)
-  locale                String   @default("en")
-  timezone              String   @default("UTC")
+  theme    Theme  @default(DARK)
+  locale   String @default("en")
+  timezone String @default("UTC")
 
-  pomodoroWorkMinutes   Int      @default(25)
-  pomodoroBreakMinutes  Int      @default(5)
-  pomodoroLongBreakMinutes Int   @default(15)
+  pomodoroWorkMinutes        Int @default(25)
+  pomodoroBreakMinutes       Int @default(5)
+  pomodoroLongBreakMinutes   Int @default(15)
   pomodoroCyclesPerLongBreak Int @default(4)
 
-  dailyStudyGoalMinutes Int      @default(120)
-  weekStartsOnMonday    Boolean  @default(true)
+  dailyStudyGoalMinutes Int     @default(120)
+  weekStartsOnMonday    Boolean @default(true)
 
-  emailNotifications    Boolean  @default(true)
-  pushNotifications     Boolean  @default(true)
-  reminderLeadMinutes   Int      @default(30)
+  emailNotifications  Boolean @default(true)
+  pushNotifications   Boolean @default(true)
+  reminderLeadMinutes Int     @default(30)
 
-  aiModel               String   @default("gemini-2.5-flash")
-  aiTone                String   @default("encouraging")
+  aiModel String @default("gemini-2.5-flash")
+  aiTone  String @default("encouraging")
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("user_settings")
 }
 
 model OAuthAccount {
-  id                String        @id @default(cuid())
-  userId            String
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   provider          OAuthProvider
   providerAccountId String
@@ -263,8 +264,8 @@ model OAuthAccount {
   expiresAt         DateTime?
   scope             String?
 
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([provider, providerAccountId])
   @@index([userId])
@@ -272,17 +273,17 @@ model OAuthAccount {
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  userAgent    String?
-  ipAddress    String?
-  lastSeenAt   DateTime @default(now())
-  expiresAt    DateTime
-  revokedAt    DateTime?
+  userAgent  String?
+  ipAddress  String?
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -290,18 +291,18 @@ model Session {
 }
 
 model RefreshToken {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // SHA-256 of the raw token. The raw value is never persisted.
-  tokenHash   String    @unique
-  family      String
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  replacedBy  String?
+  tokenHash  String    @unique
+  family     String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([family])
@@ -310,17 +311,17 @@ model RefreshToken {
 }
 
 model VerificationToken {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tokenHash  String   @unique
+  tokenHash  String    @unique
   // "EMAIL_VERIFICATION" | "PASSWORD_RESET" | "TWO_FACTOR"
   purpose    String
   expiresAt  DateTime
   consumedAt DateTime?
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, purpose])
   @@map("verification_tokens")
@@ -331,29 +332,29 @@ model VerificationToken {
 // ---------------------------------------------------------------------------
 
 model Subject {
-  id            String       @id @default(cuid())
-  userId        String
-  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name          String
-  code          String?
-  color         String       @default("#8b5cf6")
-  icon          String?
-  teacherName   String?
-  room          String?
-  credits       Float?
-  targetGrade   Float?
-  archived      Boolean      @default(false)
+  name        String
+  code        String?
+  color       String  @default("#8b5cf6")
+  icon        String?
+  teacherName String?
+  room        String?
+  credits     Float?
+  targetGrade Float?
+  archived    Boolean @default(false)
 
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  assignments   Assignment[]
-  notes         Note[]
-  decks         FlashcardDeck[]
+  assignments    Assignment[]
+  notes          Note[]
+  decks          FlashcardDeck[]
   scheduleBlocks ScheduleBlock[]
-  studySessions StudySession[]
-  goals         Goal[]
+  studySessions  StudySession[]
+  goals          Goal[]
 
   @@unique([userId, name])
   @@index([userId, archived])
@@ -361,45 +362,45 @@ model Subject {
 }
 
 model Assignment {
-  id             String           @id @default(cuid())
-  userId         String
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subjectId      String?
-  subject        Subject?         @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
 
-  title          String
-  description    String?
-  status         AssignmentStatus @default(TODO)
-  priority       Priority         @default(MEDIUM)
+  title       String
+  description String?
+  status      AssignmentStatus @default(TODO)
+  priority    Priority         @default(MEDIUM)
 
-  dueAt          DateTime?
-  startAt        DateTime?
-  completedAt    DateTime?
+  dueAt       DateTime?
+  startAt     DateTime?
+  completedAt DateTime?
 
   estimatedMinutes Int?
-  actualMinutes    Int            @default(0)
-  progress         Int            @default(0)
+  actualMinutes    Int  @default(0)
+  progress         Int  @default(0)
 
-  grade          Float?
-  maxGrade       Float?
-  weight         Float?
+  grade    Float?
+  maxGrade Float?
+  weight   Float?
 
-  labels         String[]         @default([])
+  labels String[] @default([])
 
   // Recurrence — null frequency means a one-off assignment.
-  recurrence          RecurrenceFrequency?
-  recurrenceInterval  Int?
-  recurrenceUntil     DateTime?
-  parentAssignmentId  String?
-  parentAssignment    Assignment?  @relation("AssignmentRecurrence", fields: [parentAssignmentId], references: [id], onDelete: Cascade)
-  occurrences         Assignment[] @relation("AssignmentRecurrence")
+  recurrence         RecurrenceFrequency?
+  recurrenceInterval Int?
+  recurrenceUntil    DateTime?
+  parentAssignmentId String?
+  parentAssignment   Assignment?          @relation("AssignmentRecurrence", fields: [parentAssignmentId], references: [id], onDelete: Cascade)
+  occurrences        Assignment[]         @relation("AssignmentRecurrence")
 
-  reminderAt     DateTime?
-  reminderSent   Boolean          @default(false)
+  reminderAt   DateTime?
+  reminderSent Boolean   @default(false)
 
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  deletedAt      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   attachments    FileAsset[]
   studySessions  StudySession[]
@@ -413,11 +414,11 @@ model Assignment {
 }
 
 model Goal {
-  id           String     @id @default(cuid())
-  userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subjectId    String?
-  subject      Subject?   @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
 
   title        String
   description  String?
@@ -428,8 +429,8 @@ model Goal {
   dueAt        DateTime?
   achievedAt   DateTime?
 
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, status])
   @@map("goals")
@@ -440,52 +441,52 @@ model Goal {
 // ---------------------------------------------------------------------------
 
 model NoteFolder {
-  id        String       @id @default(cuid())
-  userId    String
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name      String
-  color     String?
-  parentId  String?
-  parent    NoteFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children  NoteFolder[] @relation("FolderTree")
+  name     String
+  color    String?
+  parentId String?
+  parent   NoteFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children NoteFolder[] @relation("FolderTree")
 
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  notes     Note[]
+  notes Note[]
 
   @@index([userId, parentId])
   @@map("note_folders")
 }
 
 model Note {
-  id          String      @id @default(cuid())
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subjectId   String?
-  subject     Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
-  folderId    String?
-  folder      NoteFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  folderId  String?
+  folder    NoteFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   title       String
   // Markdown source of record. `contentJson` holds the editor's rich AST.
-  content     String      @default("")
+  content     String  @default("")
   contentJson Json?
   excerpt     String?
 
-  tags        String[]    @default([])
-  pinned      Boolean     @default(false)
-  favorite    Boolean     @default(false)
-  wordCount   Int         @default(0)
+  tags      String[] @default([])
+  pinned    Boolean  @default(false)
+  favorite  Boolean  @default(false)
+  wordCount Int      @default(0)
 
   aiSummary   String?
   aiSummaryAt DateTime?
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  archivedAt  DateTime?
-  deletedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
+  deletedAt  DateTime?
 
   attachments FileAsset[]
   decks       FlashcardDeck[]
@@ -502,17 +503,17 @@ model Note {
 
 /// Immutable snapshot of a note's content, written before each overwrite.
 model NoteVersion {
-  id        String   @id @default(cuid())
-  noteId    String
-  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   title     String
   content   String
-  wordCount Int      @default(0)
+  wordCount Int     @default(0)
   /// Monotonic per note, so versions order without relying on timestamps.
   version   Int
   /// Set when a save was triggered by autosave rather than an explicit save.
-  automatic Boolean  @default(false)
+  automatic Boolean @default(false)
 
   createdAt DateTime @default(now())
 
@@ -522,20 +523,20 @@ model NoteVersion {
 }
 
 model NoteShare {
-  id          String          @id @default(cuid())
-  noteId      String
-  note        Note            @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   /// Null for link-based shares that are not bound to an account.
   sharedWithId String?
-  sharedWith   User?          @relation("NoteSharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
+  sharedWith   User?   @relation("NoteSharedWith", fields: [sharedWithId], references: [id], onDelete: Cascade)
 
-  permission  SharePermission @default(VIEW)
+  permission SharePermission @default(VIEW)
   /// Random token for unauthenticated link access; null disables link sharing.
-  linkToken   String?         @unique
-  expiresAt   DateTime?
+  linkToken  String?         @unique
+  expiresAt  DateTime?
 
-  createdAt   DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([noteId, sharedWithId])
   @@index([sharedWithId])
@@ -547,55 +548,55 @@ model NoteShare {
 // ---------------------------------------------------------------------------
 
 model FlashcardDeck {
-  id          String      @id @default(cuid())
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subjectId   String?
-  subject     Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId    String?
+  subject      Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   sourceNoteId String?
-  sourceNote  Note?       @relation(fields: [sourceNoteId], references: [id], onDelete: SetNull)
+  sourceNote   Note?    @relation(fields: [sourceNoteId], references: [id], onDelete: SetNull)
 
-  name        String
-  description String?
-  color       String      @default("#14b8a6")
-  isPublic    Boolean     @default(false)
-  generatedByAi Boolean   @default(false)
+  name          String
+  description   String?
+  color         String  @default("#14b8a6")
+  isPublic      Boolean @default(false)
+  generatedByAi Boolean @default(false)
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  cards       Flashcard[]
+  cards Flashcard[]
 
   @@index([userId])
   @@map("flashcard_decks")
 }
 
 model Flashcard {
-  id            String            @id @default(cuid())
-  deckId        String
-  deck          FlashcardDeck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  id     String        @id @default(cuid())
+  deckId String
+  deck   FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
 
   front         String
   back          String
   hint          String?
-  tags          String[]          @default([])
-  difficulty    CardDifficulty    @default(MEDIUM)
-  suspended     Boolean           @default(false)
-  generatedByAi Boolean           @default(false)
+  tags          String[]       @default([])
+  difficulty    CardDifficulty @default(MEDIUM)
+  suspended     Boolean        @default(false)
+  generatedByAi Boolean        @default(false)
 
   // SM-2 scheduling state.
-  state         CardState         @default(NEW)
-  easeFactor    Float             @default(2.5)
-  intervalDays  Int               @default(0)
-  repetitions   Int               @default(0)
-  lapses        Int               @default(0)
-  dueAt         DateTime          @default(now())
+  state          CardState @default(NEW)
+  easeFactor     Float     @default(2.5)
+  intervalDays   Int       @default(0)
+  repetitions    Int       @default(0)
+  lapses         Int       @default(0)
+  dueAt          DateTime  @default(now())
   lastReviewedAt DateTime?
 
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  reviews       FlashcardReview[]
+  reviews FlashcardReview[]
 
   @@index([deckId])
   @@index([dueAt])
@@ -605,22 +606,22 @@ model Flashcard {
 }
 
 model FlashcardReview {
-  id           String    @id @default(cuid())
-  cardId       String
-  card         Flashcard @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String    @id @default(cuid())
+  cardId String
+  card   Flashcard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  userId String
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // SM-2 quality response, 0..5
-  quality      Int
-  responseMs   Int?
+  quality    Int
+  responseMs Int?
 
-  easeBefore   Float
-  easeAfter    Float
+  easeBefore     Float
+  easeAfter      Float
   intervalBefore Int
   intervalAfter  Int
 
-  reviewedAt   DateTime  @default(now())
+  reviewedAt DateTime @default(now())
 
   @@index([userId, reviewedAt])
   @@index([cardId])
@@ -632,34 +633,34 @@ model FlashcardReview {
 // ---------------------------------------------------------------------------
 
 model ScheduleBlock {
-  id           String            @id @default(cuid())
+  id           String      @id @default(cuid())
   userId       String
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   subjectId    String?
-  subject      Subject?          @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  subject      Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   assignmentId String?
-  assignment   Assignment?       @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
 
-  title        String
-  type         ScheduleBlockType @default(STUDY)
-  startAt      DateTime
-  endAt        DateTime
-  location     String?
-  notes        String?
-  color        String?
+  title    String
+  type     ScheduleBlockType @default(STUDY)
+  startAt  DateTime
+  endAt    DateTime
+  location String?
+  notes    String?
+  color    String?
 
   // Set when the AI planner created or moved this block.
-  aiGenerated  Boolean           @default(false)
-  locked       Boolean           @default(false)
+  aiGenerated Boolean @default(false)
+  locked      Boolean @default(false)
 
-  recurrence         RecurrenceFrequency?
-  recurrenceUntil    DateTime?
-  parentBlockId      String?
-  parentBlock        ScheduleBlock?  @relation("BlockRecurrence", fields: [parentBlockId], references: [id], onDelete: Cascade)
-  occurrences        ScheduleBlock[] @relation("BlockRecurrence")
+  recurrence      RecurrenceFrequency?
+  recurrenceUntil DateTime?
+  parentBlockId   String?
+  parentBlock     ScheduleBlock?       @relation("BlockRecurrence", fields: [parentBlockId], references: [id], onDelete: Cascade)
+  occurrences     ScheduleBlock[]      @relation("BlockRecurrence")
 
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, startAt])
   @@index([assignmentId])
@@ -667,21 +668,21 @@ model ScheduleBlock {
 }
 
 model StudySession {
-  id            String           @id @default(cuid())
-  userId        String
-  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subjectId     String?
-  subject       Subject?         @relation(fields: [subjectId], references: [id], onDelete: SetNull)
-  assignmentId  String?
-  assignment    Assignment?      @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId    String?
+  subject      Subject?    @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
 
-  type          StudySessionType @default(POMODORO)
-  startedAt     DateTime         @default(now())
-  endedAt       DateTime?
-  durationSeconds Int            @default(0)
+  type            StudySessionType @default(POMODORO)
+  startedAt       DateTime         @default(now())
+  endedAt         DateTime?
+  durationSeconds Int              @default(0)
 
-  completed     Boolean          @default(false)
-  interruptions Int              @default(0)
+  completed     Boolean @default(false)
+  interruptions Int     @default(0)
   focusScore    Int?
   ambientSound  String?
   notes         String?
@@ -696,24 +697,24 @@ model StudySession {
 // ---------------------------------------------------------------------------
 
 model DailyStat {
-  id                String   @id @default(cuid())
-  userId            String
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Midnight UTC of the day being summarised.
-  date              DateTime @db.Date
+  date DateTime @db.Date
 
-  studySeconds      Int      @default(0)
-  focusSeconds      Int      @default(0)
-  sessionsCompleted Int      @default(0)
-  assignmentsCompleted Int   @default(0)
-  cardsReviewed     Int      @default(0)
-  notesCreated      Int      @default(0)
-  productivityScore Int      @default(0)
-  xpEarned          Int      @default(0)
+  studySeconds         Int @default(0)
+  focusSeconds         Int @default(0)
+  sessionsCompleted    Int @default(0)
+  assignmentsCompleted Int @default(0)
+  cardsReviewed        Int @default(0)
+  notesCreated         Int @default(0)
+  productivityScore    Int @default(0)
+  xpEarned             Int @default(0)
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, date])
   @@index([userId, date])
@@ -725,19 +726,19 @@ model DailyStat {
 // ---------------------------------------------------------------------------
 
 model Achievement {
-  id          String            @id @default(cuid())
-  key         String            @unique
+  id          String @id @default(cuid())
+  key         String @unique
   name        String
   description String
   icon        String
-  xpReward    Int               @default(0)
-  tier        String            @default("BRONZE")
+  xpReward    Int    @default(0)
+  tier        String @default("BRONZE")
   // Machine-readable unlock rule, e.g. { "metric": "streak", "gte": 7 }
   criteria    Json
 
-  createdAt   DateTime          @default(now())
+  createdAt DateTime @default(now())
 
-  users       UserAchievement[]
+  users UserAchievement[]
 
   @@map("achievements")
 }
@@ -749,8 +750,8 @@ model UserAchievement {
   achievementId String
   achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
 
-  progress      Float       @default(0)
-  unlockedAt    DateTime?
+  progress   Float     @default(0)
+  unlockedAt DateTime?
 
   @@unique([userId, achievementId])
   @@index([userId])
@@ -762,37 +763,37 @@ model UserAchievement {
 // ---------------------------------------------------------------------------
 
 model StudyGroup {
-  id          String        @id @default(cuid())
-  ownerId     String
-  owner       User          @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  ownerId String
+  owner   User   @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   name        String
-  slug        String        @unique
+  slug        String  @unique
   description String?
   avatarUrl   String?
-  isPublic    Boolean       @default(false)
-  inviteCode  String        @unique
-  maxMembers  Int           @default(50)
+  isPublic    Boolean @default(false)
+  inviteCode  String  @unique
+  maxMembers  Int     @default(50)
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  members     GroupMember[]
-  channels    Channel[]
+  members  GroupMember[]
+  channels Channel[]
 
   @@index([ownerId])
   @@map("study_groups")
 }
 
 model GroupMember {
-  id        String     @id @default(cuid())
-  groupId   String
-  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id      String     @id @default(cuid())
+  groupId String
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  role      GroupRole  @default(MEMBER)
-  joinedAt  DateTime   @default(now())
+  role       GroupRole @default(MEMBER)
+  joinedAt   DateTime  @default(now())
   mutedUntil DateTime?
 
   @@unique([groupId, userId])
@@ -801,39 +802,39 @@ model GroupMember {
 }
 
 model Channel {
-  id        String      @id @default(cuid())
-  groupId   String?
-  group     StudyGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  id      String      @id @default(cuid())
+  groupId String?
+  group   StudyGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
-  name      String
-  type      ChannelType @default(TEXT)
-  topic     String?
+  name  String
+  type  ChannelType @default(TEXT)
+  topic String?
 
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  messages  Message[]
+  messages Message[]
 
   @@index([groupId])
   @@map("channels")
 }
 
 model Message {
-  id          String      @id @default(cuid())
-  channelId   String
-  channel     Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  authorId    String
-  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  channelId String
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  content     String
-  editedAt    DateTime?
-  deletedAt   DateTime?
+  content   String
+  editedAt  DateTime?
+  deletedAt DateTime?
 
-  replyToId   String?
-  replyTo     Message?    @relation("MessageThread", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies     Message[]   @relation("MessageThread")
+  replyToId String?
+  replyTo   Message?  @relation("MessageThread", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("MessageThread")
 
-  createdAt   DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   attachments FileAsset[]
 
@@ -843,16 +844,16 @@ model Message {
 }
 
 model Friendship {
-  id          String           @id @default(cuid())
+  id          String @id @default(cuid())
   requesterId String
-  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  requester   User   @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
   addresseeId String
-  addressee   User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  addressee   User   @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
 
   status      FriendshipStatus @default(PENDING)
   respondedAt DateTime?
 
-  createdAt   DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([requesterId, addresseeId])
   @@index([addresseeId, status])
@@ -864,23 +865,23 @@ model Friendship {
 // ---------------------------------------------------------------------------
 
 model AiConversation {
-  id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  feature   AiFeature   @default(CHAT)
-  title     String      @default("New conversation")
-  model     String      @default("gemini-2.5-flash")
+  feature AiFeature @default(CHAT)
+  title   String    @default("New conversation")
+  model   String    @default("gemini-2.5-flash")
   // Feature-specific context, e.g. { "noteId": "...", "subjectId": "..." }
-  context   Json?
-  pinned    Boolean     @default(false)
+  context Json?
+  pinned  Boolean   @default(false)
 
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  messages  AiMessage[]
-  files     UploadedFile[]
+  messages AiMessage[]
+  files    UploadedFile[]
 
   @@index([userId, feature])
   @@index([userId, updatedAt])
@@ -892,19 +893,19 @@ model AiMessage {
   conversationId String
   conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  role           AiRole
-  content        String
+  role    AiRole
+  content String
   // Structured payload for generator features (quiz JSON, flashcard arrays…).
-  data           Json?
+  data    Json?
 
   promptTokens     Int?
   completionTokens Int?
   latencyMs        Int?
   finishReason     String?
 
-  createdAt      DateTime       @default(now())
+  createdAt DateTime @default(now())
 
-  files          UploadedFile[]
+  files UploadedFile[]
 
   @@index([conversationId, createdAt])
   @@map("ai_messages")
@@ -914,33 +915,39 @@ model AiMessage {
 /// binary lives in object storage; extracted text (for documents) is cached
 /// here so the model can be prompted without re-fetching on every turn.
 model UploadedFile {
-  id             String          @id @default(cuid())
-  userId         String
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  conversationId String
-  conversation   AiConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // A file belongs to either an AI-chat conversation or a tutor conversation.
+  // Exactly one of these is set; both nullable so the same table serves both.
+  conversationId String?
+  conversation   AiConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  tutorConversationId String?
+  tutorConversation   TutorConversation? @relation(fields: [tutorConversationId], references: [id], onDelete: Cascade)
 
   // Set once the file is referenced by a specific sent message.
-  messageId      String?
-  message        AiMessage?      @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  messageId String?
+  message   AiMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
 
-  filename       String
-  mimeType       String
-  size           Int
-  storageUrl     String
+  filename   String
+  mimeType   String
+  size       Int
+  storageUrl String
   // Cloudinary public id / storage key, for deletion.
-  storageKey     String?
-  kind           UploadedFileKind @default(DOCUMENT)
+  storageKey String?
+  kind       UploadedFileKind @default(DOCUMENT)
 
   // Extracted text for documents; null for images (handed to Gemini natively).
-  extractedText  String?
-  status         UploadedFileStatus @default(PENDING)
-  error          String?
+  extractedText String?
+  status        UploadedFileStatus @default(PENDING)
+  error         String?
 
-  createdAt      DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([conversationId, createdAt])
+  @@index([tutorConversationId, createdAt])
   @@index([userId])
   @@map("uploaded_files")
 }
@@ -954,15 +961,15 @@ enum UploadedFileKind {
 /// subject, weak topics, goals…), recalled into the system prompt so future
 /// conversations stay personal. Keyed per user so updates upsert in place.
 model AiMemory {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Stable slug, e.g. "name", "university", "current_subject", "weak_subject".
-  key       String
-  value     String
+  key      String
+  value    String
   // profile | study | goals | exams | habits | general
-  category  String   @default("general")
+  category String @default("general")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -976,12 +983,12 @@ model AiMemory {
 /// workload estimate, a recommendation and a motivational line — built from the
 /// student's real data. Cached once per day so it is generated, not recomputed.
 model DailyBrief {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  date      DateTime @db.Date
-  content   Json
+  date    DateTime @db.Date
+  content Json
 
   createdAt DateTime @default(now())
 
@@ -1000,9 +1007,9 @@ enum UploadedFileStatus {
 // ---------------------------------------------------------------------------
 
 model FileAsset {
-  id           String      @id @default(cuid())
-  userId       String
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   assignmentId String?
   assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
@@ -1011,16 +1018,16 @@ model FileAsset {
   messageId    String?
   message      Message?    @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
-  filename     String
-  mimeType     String
-  sizeBytes    Int
-  url          String
+  filename  String
+  mimeType  String
+  sizeBytes Int
+  url       String
   // Cloudinary public_id, required for deletion.
-  publicId     String?
-  width        Int?
-  height       Int?
+  publicId  String?
+  width     Int?
+  height    Int?
 
-  createdAt    DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([assignmentId])
@@ -1029,19 +1036,19 @@ model FileAsset {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  type      NotificationType
-  title     String
-  body      String?
+  type     NotificationType
+  title    String
+  body     String?
   // Deep-link target within the app, e.g. "/assignments/abc123".
-  link      String?
-  metadata  Json?
+  link     String?
+  metadata Json?
 
   readAt    DateTime?
-  createdAt DateTime         @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -1049,9 +1056,9 @@ model Notification {
 }
 
 model ActivityLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id     String  @id @default(cuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   action     String
   entityType String?
@@ -1060,10 +1067,190 @@ model ActivityLog {
   ipAddress  String?
   userAgent  String?
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([action])
   @@index([entityType, entityId])
   @@map("activity_logs")
+}
+
+// ---------------------------------------------------------------------------
+// AI Tutors — a dedicated, subject-scoped tutor per student. Each tutor keeps
+// its own conversations, files and learning state, so context never leaks
+// between subjects (the Maths tutor never sees Physics history).
+// ---------------------------------------------------------------------------
+
+enum TutorDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ADAPTIVE
+}
+
+/// One subject tutor owned by a student. Created lazily the first time a
+/// student opens a subject from the catalogue. `subjectKey` is the catalogue
+/// slug (e.g. "mathematics"); custom subjects use a slug derived from the name.
+model Tutor {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subjectKey String
+  subject    String
+  // Emoji avatar and accent colour, seeded from the catalogue but overridable.
+  emoji      String @default("📘")
+  accent     String @default("#6366f1")
+
+  difficulty       TutorDifficulty @default(ADAPTIVE)
+  // The student's preferred explanation style, in their own words.
+  explanationStyle String?
+  goals            String?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastActiveAt DateTime?
+
+  conversations   TutorConversation[]
+  progress        TutorProgress?
+  recommendations TutorRecommendation[]
+  insights        TutorInsight[]
+  sessions        TutorSession[]
+
+  @@unique([userId, subjectKey])
+  @@index([userId, lastActiveAt])
+  @@map("tutors")
+}
+
+model TutorConversation {
+  id      String @id @default(cuid())
+  tutorId String
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  userId  String
+
+  title  String  @default("New conversation")
+  pinned Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  messages TutorMessage[]
+  files    UploadedFile[]
+
+  @@index([tutorId, updatedAt])
+  @@index([userId])
+  @@map("tutor_conversations")
+}
+
+model TutorMessage {
+  id             String            @id @default(cuid())
+  conversationId String
+  conversation   TutorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role    AiRole
+  content String
+  // Structured payload for generator turns (quiz JSON, flashcard arrays…).
+  data    Json?
+  // Whether the student pinned this message, and whether they later edited it.
+  pinned  Boolean @default(false)
+  edited  Boolean @default(false)
+
+  promptTokens     Int?
+  completionTokens Int?
+  latencyMs        Int?
+  finishReason     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("tutor_messages")
+}
+
+/// The persistent learning state for a tutor — updated incrementally as the
+/// student works. One row per tutor. This is the "context memory" the tutor
+/// recalls into every prompt.
+model TutorProgress {
+  id      String @id @default(cuid())
+  tutorId String @unique
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  weakTopics   String[] @default([])
+  strongTopics String[] @default([])
+  // [{ topic, mistake, correctedAt }]
+  mistakes     Json     @default("[]")
+
+  // 0–100 self-consistent estimates maintained by the insight generator.
+  masteryScore    Float @default(0)
+  confidenceScore Float @default(0)
+
+  // Quiz performance, accumulated so an average can be shown without a scan.
+  quizzesTaken  Int @default(0)
+  quizQuestions Int @default(0)
+  quizCorrect   Int @default(0)
+
+  studyMinutes  Int @default(0)
+  messagesCount Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("tutor_progress")
+}
+
+/// A single actionable recommendation surfaced to the student (e.g. "Revise
+/// integration by parts"). Generated by the insight pass; the student can mark
+/// it done or dismiss it.
+model TutorRecommendation {
+  id      String @id @default(cuid())
+  tutorId String
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  userId  String
+
+  // daily | revision | practice | study_plan
+  kind  String  @default("daily")
+  title String
+  body  String?
+  done  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([tutorId, createdAt])
+  @@map("tutor_recommendations")
+}
+
+/// A cached, AI-generated analysis snapshot for a tutor: today's
+/// recommendation, weak topics, suggested revision, estimated mastery and a
+/// confidence score. Regenerated on demand rather than recomputed per request.
+model TutorInsight {
+  id      String @id @default(cuid())
+  tutorId String
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  userId  String
+
+  // { todaysRecommendation, weakTopics[], suggestedRevision, estimatedMastery, confidenceScore, summary }
+  content Json
+
+  createdAt DateTime @default(now())
+
+  @@index([tutorId, createdAt])
+  @@map("tutor_insights")
+}
+
+/// A study session with a tutor — a bounded window of interaction, used to
+/// power "last conversation" and to accumulate study minutes for progress.
+model TutorSession {
+  id      String @id @default(cuid())
+  tutorId String
+  tutor   Tutor  @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  userId  String
+
+  conversationId String?
+  topic          String?
+  messageCount   Int     @default(0)
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  @@index([tutorId, startedAt])
+  @@map("tutor_sessions")
 }

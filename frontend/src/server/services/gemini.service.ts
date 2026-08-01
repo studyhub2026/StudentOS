@@ -290,7 +290,7 @@ export async function* streamText(
   try {
     stream = await ai.models.generateContentStream({
       model,
-      contents: toContents(request.messages),
+      contents: toContents(request.messages, request.attachments),
       config: {
         ...(request.systemInstruction
           ? { systemInstruction: request.systemInstruction }

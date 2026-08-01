@@ -11,6 +11,7 @@ import {
   CalendarDays,
   CheckSquare,
   Flame,
+  GraduationCap,
   Layers,
   LogOut,
   Menu,
@@ -30,6 +31,7 @@ import { useAuthStore } from '@/stores/auth-store';
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/ai', label: 'AI Assistant', icon: Bot },
+  { href: '/tutors', label: 'AI Tutors', icon: GraduationCap },
   { href: '/assignments', label: 'Assignments', icon: CheckSquare },
   { href: '/schedule', label: 'Schedule', icon: CalendarDays },
   { href: '/notes', label: 'Notes', icon: BookOpen },
