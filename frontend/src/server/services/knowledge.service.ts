@@ -87,7 +87,9 @@ export async function addDocument(
         content: c.content,
       })),
     });
-    await prisma.knowledgeDocument.update({
+    // Return the updated row so the response carries the real chunkCount rather
+    // than the stale 0 from the initial create.
+    return prisma.knowledgeDocument.update({
       where: { id: doc.id },
       data: { chunkCount: chunks.length },
     });
