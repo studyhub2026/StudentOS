@@ -17,6 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   useKnowledgeCollections,
   useKnowledgeDocuments,
@@ -42,7 +43,7 @@ export default function KnowledgePage() {
 
   const queryClient = useQueryClient();
   const { data: collections } = useKnowledgeCollections();
-  const { data: documents } = useKnowledgeDocuments(selectedCollection);
+  const { data: documents, isLoading: loadingDocs } = useKnowledgeDocuments(selectedCollection);
   const createCollection = useCreateCollection();
   const deleteDocument = useDeleteDocument();
   const askKnowledge = useAskKnowledge();
@@ -212,7 +213,17 @@ export default function KnowledgePage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {documents?.length === 0 ? (
+              {loadingDocs ? (
+                Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl border border-border p-3">
+                    <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-1/2" />
+                      <Skeleton className="h-3 w-1/3" />
+                    </div>
+                  </div>
+                ))
+              ) : documents?.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-12 text-fg-subtle">
                   <Database className="h-12 w-12 opacity-30" />
                   <p>No documents yet. Upload files to build your knowledge base.</p>
