@@ -65,7 +65,7 @@ export default function TutorsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-7xl">
       <header className="mb-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
