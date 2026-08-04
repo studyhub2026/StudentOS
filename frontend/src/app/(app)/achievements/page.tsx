@@ -13,6 +13,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useGamification, useLeaderboard } from '@/hooks/use-gamification';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -23,10 +24,22 @@ export default function AchievementsPage() {
 
   if (isLoading || !profile) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center text-fg-muted">
-        <div className="flex items-center gap-3">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-          Loading achievements...
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-80" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+          ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Skeleton className="h-96 w-full rounded-2xl" />
+          <div className="space-y-6">
+            <Skeleton className="h-56 w-full rounded-2xl" />
+            <Skeleton className="h-36 w-full rounded-2xl" />
+          </div>
         </div>
       </div>
     );
