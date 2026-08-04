@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { motion, type Variants } from 'framer-motion';
 import {
   AlertTriangle,
@@ -21,12 +22,22 @@ import {
 import { AiBriefCard } from '@/components/dashboard/ai-brief-card';
 import { ProgressRing } from '@/components/dashboard/progress-ring';
 import { StatCard } from '@/components/dashboard/stat-card';
-import { StudyTrendChart } from '@/components/dashboard/study-trend-chart';
-import { SubjectBreakdownChart } from '@/components/dashboard/subject-breakdown-chart';
 import { PriorityBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCardSkeleton, Skeleton } from '@/components/ui/skeleton';
+
+// Recharts is heavy (~100KB). The charts sit below the fold behind a loading
+// skeleton, so deferring them keeps it out of the initial dashboard bundle and
+// lets the hero, stats and lists paint immediately.
+const StudyTrendChart = dynamic(
+  () => import('@/components/dashboard/study-trend-chart').then((m) => m.StudyTrendChart),
+  { ssr: false, loading: () => <Skeleton className="h-56 w-full" /> },
+);
+const SubjectBreakdownChart = dynamic(
+  () => import('@/components/dashboard/subject-breakdown-chart').then((m) => m.SubjectBreakdownChart),
+  { ssr: false, loading: () => <Skeleton className="h-52 w-full" /> },
+);
 import { useDashboard } from '@/hooks/use-dashboard';
 import { apiErrorMessage } from '@/lib/api-client';
 import { cn, formatDueDate, formatMinutes } from '@/lib/utils';

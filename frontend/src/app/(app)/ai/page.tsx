@@ -66,6 +66,14 @@ function iconForExt(ext: string) {
   return FileText;
 }
 
+/** Starter prompts shown on an empty conversation to lower the blank-page cost. */
+const SUGGESTIONS = [
+  { icon: Sparkles, label: 'Explain a concept in simple terms', prompt: 'Explain in simple terms: ' },
+  { icon: CheckCircle2, label: 'Make a practice quiz on a topic', prompt: 'Create a 5-question practice quiz about ' },
+  { icon: FileText, label: 'Summarise my notes or a text', prompt: 'Summarise the key points of the following:\n\n' },
+  { icon: Wrench, label: 'Plan how to study for an exam', prompt: 'Help me build a study plan for an exam on ' },
+] as const;
+
 export default function AiChatPage() {
   const { data: status } = useAiStatus();
   const { data: conversations, isLoading: loadingList } = useConversations();
@@ -320,12 +328,28 @@ export default function AiChatPage() {
           <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
             {messages.length === 0 ? (
               <div className="grid h-full place-items-center text-center">
-                <div className="max-w-xs">
-                  <Bot className="mx-auto h-8 w-8 text-fg-subtle" aria-hidden />
-                  <p className="mt-2 text-sm font-medium">Ask anything</p>
+                <div className="w-full max-w-md">
+                  <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-brand/20 to-accent/15">
+                    <Bot className="h-6 w-6 text-brand-bright" aria-hidden />
+                  </span>
+                  <p className="mt-3 text-sm font-medium">Ask anything</p>
                   <p className="mt-1 text-xs text-fg-subtle">
-                    Explanations, study help, practice questions — start a conversation below.
+                    Explanations, study help, practice questions — or attach a file to discuss it.
                   </p>
+                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                    {SUGGESTIONS.map((s) => (
+                      <button
+                        key={s.prompt}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => setDraft(s.prompt)}
+                        className="group flex items-start gap-2.5 rounded-xl border border-border bg-surface-raised/50 p-3 text-left transition-colors hover:border-brand/40 hover:bg-brand/8 disabled:opacity-50"
+                      >
+                        <s.icon className="mt-0.5 h-4 w-4 shrink-0 text-brand-bright" aria-hidden />
+                        <span className="text-xs text-fg-muted group-hover:text-fg">{s.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (
