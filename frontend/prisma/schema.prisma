@@ -250,6 +250,11 @@ model UserSettings {
   pushNotifications   Boolean @default(true)
   reminderLeadMinutes Int     @default(30)
 
+  // When true, a stripped-down profile at /u/{username} is discoverable to
+  // anyone. False (the default) makes that page 404. Only aggregate stats
+  // are ever shown — never assignments, notes, files or messages.
+  profilePublic Boolean @default(false)
+
   aiModel String @default("gemini-2.5-flash")
   aiTone  String @default("encouraging")
 

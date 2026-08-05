@@ -1,6 +1,9 @@
 'use client';
 
-import { BadgeCheck, Brain, Flame, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { BadgeCheck, Brain, ExternalLink, Flame, Globe, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { AvatarUploader } from '@/components/uploads/file-uploader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,7 +11,16 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAiMemory, useClearMemory, useDeleteMemory } from '@/hooks/use-ai-memory';
 import { useAuthStore } from '@/stores/auth-store';
+import { apiClient, apiErrorMessage } from '@/lib/api-client';
+import type { ApiEnvelope } from '@/types/api';
 import { cn } from '@/lib/utils';
+
+interface AccountSettings {
+  profilePublic: boolean;
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  bio: string | null;
+}
 
 const ROLE_TONE = { ADMIN: 'danger', TEACHER: 'warning', STUDENT: 'neutral' } as const;
 
@@ -95,6 +107,8 @@ export default function SettingsPage() {
         </dl>
       </Card>
 
+      <PublicProfileCard username={user.username} />
+
       <AiMemoryCard />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -119,6 +133,117 @@ export default function SettingsPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function PublicProfileCard({ username }: { username: string }) {
+  const [settings, setSettings] = useState<AccountSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [bio, setBio] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await apiClient.get<ApiEnvelope<AccountSettings>>('/auth/settings');
+        if (cancelled) return;
+        setSettings(data.data);
+        setBio(data.data.bio ?? '');
+      } catch (error) {
+        toast.error(apiErrorMessage(error));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function save(patch: Partial<AccountSettings>) {
+    if (!settings) return;
+    setSaving(true);
+    try {
+      const { data } = await apiClient.patch<ApiEnvelope<AccountSettings>>(
+        '/auth/settings',
+        patch,
+      );
+      setSettings(data.data);
+      setBio(data.data.bio ?? '');
+      toast.success('Saved');
+    } catch (error) {
+      toast.error(apiErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const profileUrl = `/u/${username}`;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <Globe className="h-4 w-4 text-brand-bright" aria-hidden /> Public profile
+        </CardTitle>
+      </CardHeader>
+
+      {!settings ? (
+        <div className="p-4">
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : (
+        <div className="space-y-4 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                Show a public profile at{' '}
+                <Link
+                  href={profileUrl}
+                  target="_blank"
+                  className="text-brand-bright hover:underline"
+                >
+                  {profileUrl}
+                  <ExternalLink className="ml-1 inline h-3 w-3" aria-hidden />
+                </Link>
+              </p>
+              <p className="mt-1 text-xs text-fg-muted">
+                Only aggregate stats (XP, streak, hours) and unlocked achievements are shown —
+                never your assignments, notes, files or messages.
+              </p>
+            </div>
+            <label className="relative inline-flex shrink-0 cursor-pointer items-center">
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                checked={settings.profilePublic}
+                disabled={saving}
+                onChange={(e) => void save({ profilePublic: e.target.checked })}
+              />
+              <span className="h-6 w-11 rounded-full bg-surface-raised transition-colors peer-checked:bg-brand" />
+              <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
+            </label>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="bio">
+              Short bio (optional, {bio.length}/280)
+            </label>
+            <textarea
+              id="bio"
+              rows={2}
+              value={bio}
+              maxLength={280}
+              disabled={saving}
+              onChange={(e) => setBio(e.target.value)}
+              onBlur={() => {
+                if ((settings.bio ?? '') !== bio) void save({ bio });
+              }}
+              placeholder="A line about yourself, shown on your public profile."
+              className="w-full rounded-xl border border-border bg-surface-raised p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40"
+            />
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 
