@@ -15,6 +15,7 @@ import {
   Flame,
   GraduationCap,
   Layers,
+  ListTree,
   LogOut,
   Menu,
   Settings,
@@ -46,6 +47,7 @@ const NAV = [
   { href: '/knowledge', label: 'Knowledge', icon: Database },
   { href: '/focus', label: 'Focus', icon: Timer },
   { href: '/analytics', label: 'Analytics', icon: TrendingUp },
+  { href: '/timeline', label: 'Timeline', icon: ListTree },
   { href: '/achievements', label: 'Achievements', icon: Trophy },
   { href: '/groups', label: 'Groups', icon: Users },
 ];
