@@ -234,17 +234,15 @@ export default function PdfReaderPage() {
       </div>
 
       {/* Split view */}
-      <div className={cn(
-        'grid min-h-0 flex-1',
-        chatOpen
-          ? 'grid-cols-1 lg:grid-cols-[1fr_minmax(380px,40%)]'
-          : 'grid-cols-1',
-      )}>
-        {/* PDF Viewer */}
-        <div className={cn(
-          'min-w-0 overflow-hidden bg-neutral-900/30',
-          mobileTab === 'pdf' ? 'block' : 'hidden lg:block',
-        )}>
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {/* PDF Viewer — absolute so the iframe cannot push the chat away */}
+        <div
+          className={cn(
+            'absolute inset-0 bg-neutral-900/30',
+            chatOpen && 'lg:right-[40%]',
+            mobileTab !== 'pdf' && 'hidden lg:block',
+          )}
+        >
           <iframe
             src={`${pdfUrl}#toolbar=1&view=FitH`}
             className="h-full w-full border-0"
@@ -253,12 +251,15 @@ export default function PdfReaderPage() {
           />
         </div>
 
-        {/* AI Chat Panel */}
+        {/* AI Chat Panel — pinned to the right 40% */}
         {(mobileTab === 'chat' || chatOpen) ? (
-          <div className={cn(
-            'flex flex-col border-l border-border bg-surface',
-            mobileTab === 'chat' ? 'block' : 'hidden lg:flex',
-          )}>
+          <div
+            className={cn(
+              'absolute inset-y-0 right-0 flex flex-col border-l border-border bg-surface',
+              chatOpen ? 'lg:w-[40%]' : 'lg:hidden',
+              mobileTab === 'chat' ? 'left-0 lg:left-auto' : 'hidden lg:flex',
+            )}
+          >
               <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                 <Bot className="h-4 w-4 text-brand" />
                 <h3 className="text-sm font-semibold">PDF AI Assistant</h3>
