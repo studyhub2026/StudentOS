@@ -6,6 +6,38 @@ Legend: **DONE** = fully covered · **PARTIAL** = exists but spec asks for more 
 
 ---
 
+## Delivery status (updated after execution)
+
+| # | Feature | Status | Ships in commit |
+|---|---|---|---|
+| 1 | Smart Search | ✅ **Shipped** (fuzzy scoring, highlights, recent/pinned, palette commands) | 8be99ec |
+| 2 | AI Actions toolbar | ✅ **Shipped** (Simplify, Save-as-Note, Save-as-Assignment, Ask AI Tutor, Share, Export) | 9b9cb03 |
+| 3 | PDF Reader upgrade | ⚠️ **Partial** — bookmarks + recent library + richer AI actions shipped. Full react-pdf swap deferred (documented in commit). | b9597d0 |
+| 4 | Command Palette | ✅ **Shipped** with Feature 1 (7 new commands: PDF, KB, AI Tools, Achievements, Timer, Deck, Group, Theme, Timeline, Replay, Exam, Voice, Whiteboard, Graph, Custom Dashboard) | 8be99ec+ |
+| 5 | AI Voice | ✅ **Shipped** (Web Speech STT + TTS + waveform + interruption + voice picker) | 21dff2d |
+| 6 | KB — PPTX + audio/video | ✅ **Shipped** (audio/video transcribe via Gemini; PPTX already existed) | 77ffb3f |
+| 7 | AI Study Timeline | ✅ **Shipped** (9-kind aggregator + /timeline page with sticky day headers) | 487641c |
+| 8 | Knowledge Graph | ✅ **Shipped** (radial SVG layout, kind filters, zoom, hover, click-through) | af22141 |
+| 9 | Google / Outlook Calendar sync | 🔴 **BLOCKED** — needs OAuth client credentials (not stored in this repo) | — |
+| 10 | Whiteboard AI | ✅ **Shipped** (canvas draw, tools/colours/sizes, Gemini vision interpret) | 7e04152 |
+| 11 | Exam Mode workspace | ✅ **Shipped** (live countdown, upcoming list, weak topics, mock exam generator) | 119ba6d |
+| 12 | AI Notifications | ✅ **Already existed** — no change | — |
+| 13 | Gamification 2.0 | ⚠️ **Partial** — monthly challenges + confetti shipped. Coin shop deferred. | 09c2492 |
+| 14 | AI Productivity Engine | ✅ **Already existed** — no change | — |
+| 15 | Multi-Agent (role-based) | ✅ **Shipped** (Coach, Planner, Motivator, Exam Coach, Writer, Reviewer, Researcher) | 162e01e |
+| 16+17 | Dynamic + Drag-Drop Dashboard | ✅ **Shipped** (/dashboard/custom with dnd-kit reorder, hide, save layout) | c97c666 |
+| 18 | Public Profile | ✅ **Shipped** (/u/{username}, opt-in toggle, aggregate stats only) | 7b77f53 |
+| 19 | Yearly Study Replay | ✅ **Shipped** (8-scene Wrapped-style animation, share) | 9b8ea42 |
+| 20 | Natural Language dispatcher | ✅ **Shipped** (/api/v1/ai/dispatch + AI Tools "Plan in words") | 4bf139b |
+
+**Score: 15 shipped, 2 partial, 2 pre-existing, 1 blocked on credentials.**
+
+Every shipped feature was verified live against the demo account (screenshots, API calls, or DOM assertions) and pushed to `main` for Vercel Production deploy.
+
+---
+
+---
+
 ## 1. Smart Search — **PARTIAL**
 
 **Exists**
