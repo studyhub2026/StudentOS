@@ -11,8 +11,6 @@ import {
   Send,
   Upload,
   X,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
@@ -24,6 +22,8 @@ interface ChatMessage {
   content: string;
 }
 
+const MAX_PDF_AI_BYTES = 4 * 1024 * 1024;
+
 export default function PdfReaderPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfName, setPdfName] = useState('');
@@ -32,8 +32,9 @@ export default function PdfReaderPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [zoom, setZoom] = useState(100);
   const [selectedText, setSelectedText] = useState('');
+  const [mobileTab, setMobileTab] = useState<'pdf' | 'chat'>('pdf');
+  const zoom = 100;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -41,8 +42,6 @@ export default function PdfReaderPage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  const MAX_PDF_AI_BYTES = 4 * 1024 * 1024;
 
   const loadFile = useCallback((file: File) => {
     if (file.type !== 'application/pdf') return;
@@ -181,8 +180,6 @@ export default function PdfReaderPage() {
       </div>
     );
   }
-
-  const [mobileTab, setMobileTab] = useState<'pdf' | 'chat'>('pdf');
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col gap-0 lg:h-[calc(100vh-2rem)]">
