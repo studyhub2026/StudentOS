@@ -1,21 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  Bookmark,
+  BookmarkPlus,
   Bot,
+  Clock,
   FileText,
   Loader2,
   PanelRightClose,
   PanelRightOpen,
   Send,
+  Trash2,
   Upload,
   X,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import type { ApiEnvelope } from '@/types/api';
 import { Button } from '@/components/ui/button';
+import { useRecentPdfs, usePdfBookmarks } from '@/hooks/use-pdf-library';
 
 interface ChatMessage {
   role: 'user' | 'model';
@@ -27,8 +33,10 @@ const MAX_PDF_AI_BYTES = 4 * 1024 * 1024;
 export default function PdfReaderPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfName, setPdfName] = useState('');
+  const [pdfSize, setPdfSize] = useState<number | null>(null);
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
+  const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,28 +47,39 @@ export default function PdfReaderPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
 
+  const { recent, record: recordRecent, clear: clearRecent } = useRecentPdfs();
+  const { bookmarks, add: addBookmark, remove: removeBookmark } = usePdfBookmarks(
+    pdfName || null,
+    pdfSize,
+  );
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const loadFile = useCallback((file: File) => {
-    if (file.type !== 'application/pdf') return;
-    setPdfName(file.name);
-    const url = URL.createObjectURL(file);
-    setPdfUrl(url);
+  const loadFile = useCallback(
+    (file: File) => {
+      if (file.type !== 'application/pdf') return;
+      setPdfName(file.name);
+      setPdfSize(file.size);
+      const url = URL.createObjectURL(file);
+      setPdfUrl(url);
+      recordRecent(file.name, file.size);
 
-    if (file.size <= MAX_PDF_AI_BYTES) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = (reader.result as string).split(',')[1];
-        setPdfBase64(base64 ?? null);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setPdfBase64(null);
-    }
-    setMessages([]);
-  }, []);
+      if (file.size <= MAX_PDF_AI_BYTES) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          setPdfBase64(base64 ?? null);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setPdfBase64(null);
+      }
+      setMessages([]);
+    },
+    [recordRecent],
+  );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -132,14 +151,30 @@ export default function PdfReaderPage() {
     return () => document.removeEventListener('selectionchange', onSelectionChange);
   }, []);
 
-  const quickActions = [
-    { label: 'Summarize this PDF', prompt: 'Summarize this entire PDF document concisely.' },
-    { label: 'Key concepts', prompt: 'What are the key concepts in this document?' },
-    { label: 'Generate flashcards', prompt: 'Generate flashcards from this PDF document.' },
-    { label: 'Generate quiz', prompt: 'Generate a quiz from this PDF document.' },
-    { label: 'Find formulas', prompt: 'Find and list all formulas in this document.' },
-    { label: 'Important definitions', prompt: 'Find all important definitions in this document.' },
-  ];
+  const quickActions = useMemo(
+    () => [
+      { label: 'Summarize this PDF', prompt: 'Summarize this entire PDF document concisely.' },
+      { label: 'Key concepts', prompt: 'What are the key concepts in this document?' },
+      { label: 'Generate flashcards', prompt: 'Generate flashcards from this PDF document.' },
+      { label: 'Generate quiz', prompt: 'Generate a quiz from this PDF document.' },
+      { label: 'Find formulas', prompt: 'Find and list all formulas in this document.' },
+      { label: 'Important definitions', prompt: 'Find all important definitions in this document.' },
+      { label: 'Study plan for this material', prompt: 'Propose a 3-day study plan covering the material in this PDF, ordered from foundational to advanced.' },
+      { label: 'Explain diagrams', prompt: 'For each diagram or figure in this document, describe what it shows and what it teaches.' },
+      { label: 'Common exam questions', prompt: 'Predict 5 exam-style questions that could be drawn from this document, and answer each.' },
+    ],
+    [],
+  );
+
+  function bookmarkSelection() {
+    if (!selectedText.trim()) {
+      toast.info('Select text in the PDF first, then tap Bookmark.');
+      return;
+    }
+    addBookmark(selectedText);
+    toast.success('Bookmarked');
+    setSelectedText('');
+  }
 
   if (!pdfUrl) {
     return (
@@ -177,6 +212,43 @@ export default function PdfReaderPage() {
           className="hidden"
           onChange={handleFileSelect}
         />
+
+        {recent.length > 0 ? (
+          <div className="mt-8 w-full max-w-md">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
+                <Clock className="h-3.5 w-3.5" aria-hidden /> Recent
+              </p>
+              <button
+                type="button"
+                onClick={clearRecent}
+                className="text-xs text-fg-subtle hover:text-fg"
+              >
+                Clear
+              </button>
+            </div>
+            <ul className="space-y-1.5">
+              {recent.map((r) => (
+                <li
+                  key={`${r.name}-${r.size}`}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-raised/60 p-2 text-sm"
+                >
+                  <span className="min-w-0 flex-1 truncate" title={r.name}>{r.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs text-brand-bright hover:underline"
+                  >
+                    Reopen
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[10px] text-fg-subtle">
+              Browser security requires you to re-pick the file when reopening.
+            </p>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -222,6 +294,32 @@ export default function PdfReaderPage() {
           </button>
         </div>
 
+        <button
+          type="button"
+          className="grid h-8 w-8 place-items-center rounded-lg text-fg-muted transition-colors hover:bg-surface-raised hover:text-fg"
+          onClick={bookmarkSelection}
+          title="Bookmark selected text"
+          aria-label="Bookmark selection"
+          disabled={!selectedText.trim()}
+        >
+          <BookmarkPlus className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          className={cn(
+            'grid h-8 w-8 place-items-center rounded-lg transition-colors',
+            bookmarksOpen ? 'bg-brand/12 text-brand-bright' : 'text-fg-muted hover:bg-surface-raised hover:text-fg',
+          )}
+          onClick={() => setBookmarksOpen((v) => !v)}
+          title="Bookmarks"
+          aria-label="Toggle bookmarks"
+        >
+          <Bookmark className="h-4 w-4" />
+          {bookmarks.length > 0 ? (
+            <span className="ml-1 text-[10px] font-medium">{bookmarks.length}</span>
+          ) : null}
+        </button>
+
         {/* Desktop toggle */}
         <button
           type="button"
@@ -232,6 +330,48 @@ export default function PdfReaderPage() {
           {chatOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
         </button>
       </div>
+
+      {bookmarksOpen ? (
+        <div className="border-b border-border bg-surface-raised/60 px-4 py-2">
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-widest text-fg-subtle">
+              Bookmarks · {bookmarks.length}
+            </p>
+            <button
+              type="button"
+              onClick={() => setBookmarksOpen(false)}
+              className="rounded p-0.5 text-fg-subtle hover:text-fg"
+              aria-label="Close bookmarks"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          {bookmarks.length === 0 ? (
+            <p className="text-xs text-fg-subtle">
+              Select any text in the PDF and tap the bookmark icon to save it.
+            </p>
+          ) : (
+            <ul className="max-h-40 space-y-1 overflow-y-auto">
+              {bookmarks.map((b) => (
+                <li
+                  key={b.id}
+                  className="flex items-start gap-2 rounded-lg bg-surface p-2 text-xs"
+                >
+                  <span className="line-clamp-2 flex-1">{b.text}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeBookmark(b.id)}
+                    className="rounded p-0.5 text-fg-subtle hover:text-danger"
+                    aria-label="Remove bookmark"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
 
       {/* Split view */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
