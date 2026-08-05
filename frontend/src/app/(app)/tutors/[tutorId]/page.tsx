@@ -123,6 +123,28 @@ export default function TutorChatPage() {
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [dragging, setDragging] = useState(false);
 
+  // Consume any text handed off by the AI Toolbar's "Ask AI Tutor" action.
+  // Runs once per mount and clears the handoff so re-navigating doesn't
+  // resurrect stale selections.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = sessionStorage.getItem('studentos.aiToolbarPrefill');
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && 'text' in parsed) {
+        const text = String((parsed as { text: unknown }).text ?? '').trim();
+        if (text) {
+          setDraft(text);
+          requestAnimationFrame(() => composerRef.current?.focus());
+        }
+      }
+      sessionStorage.removeItem('studentos.aiToolbarPrefill');
+    } catch {
+      /* malformed handoff — drop it */
+    }
+  }, []);
+
   const tutor = detail?.tutor;
   const difficulty = tutor?.difficulty ?? 'ADAPTIVE';
 

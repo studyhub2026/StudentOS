@@ -1,10 +1,13 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { AssignmentStatus, Priority } from '@prisma/client';
 import { route, readJson } from '@/server/lib/handler';
 import { requireAuth } from '@/server/lib/auth';
 import { ok } from '@/server/lib/response';
 import { enforceRateLimit, TUTOR_LIMITS } from '@/server/lib/rate-limit';
 import { generateFromPrompt } from '@/server/services/gemini.service';
+import { createNote } from '@/server/services/note.service';
+import { createAssignment } from '@/server/services/assignment.service';
 
 const ACTION_PROMPTS: Record<string, (text: string, extra?: string) => string> = {
   explain: (t) =>
@@ -13,6 +16,8 @@ const ACTION_PROMPTS: Record<string, (text: string, extra?: string) => string> =
     `Summarize the following text in a concise paragraph. Keep the key points.\n\nText:\n${t}`,
   rewrite: (t) =>
     `Rewrite the following text to be clearer and more professional while keeping the same meaning.\n\nText:\n${t}`,
+  simplify: (t) =>
+    `Rewrite the following text in the simplest possible language a beginner could understand. Prefer short sentences, everyday words, and a friendly tone. Preserve meaning.\n\nText:\n${t}`,
   shorten: (t) =>
     `Shorten the following text significantly while keeping the essential meaning.\n\nText:\n${t}`,
   expand: (t) =>
@@ -39,10 +44,50 @@ const bodySchema = z.object({
   extra: z.string().max(500).optional(),
 });
 
+function firstLine(text: string, max = 80): string {
+  const line = text.replace(/\s+/g, ' ').trim();
+  return line.length <= max ? line : line.slice(0, max - 1).trimEnd() + '…';
+}
+
 export const POST = route(async (req: NextRequest) => {
   const user = await requireAuth(req);
   enforceRateLimit(user.id, { bucket: 'ai-actions', ...TUTOR_LIMITS.generation });
   const { action, text, extra } = await readJson(req, bodySchema);
+
+  // Persistence actions live outside the Gemini action set. They reuse the
+  // real create endpoints via their services so validation, ownership checks
+  // and side effects (excerpts, word counts, etc.) all fire.
+  if (action === 'save_as_note') {
+    const title = extra?.trim() || firstLine(text);
+    const note = await createNote(user.id, {
+      title,
+      content: text,
+      tags: ['from-selection'],
+    });
+    return ok({
+      result: `Saved as note "${note.title}".`,
+      savedType: 'note',
+      savedId: note.id,
+      savedUrl: '/notes',
+    });
+  }
+
+  if (action === 'save_as_assignment') {
+    const title = extra?.trim() || firstLine(text);
+    const assignment = await createAssignment(user.id, {
+      title,
+      description: text,
+      status: AssignmentStatus.TODO,
+      priority: Priority.MEDIUM,
+      labels: ['from-selection'],
+    });
+    return ok({
+      result: `Saved as assignment "${assignment.title}".`,
+      savedType: 'assignment',
+      savedId: assignment.id,
+      savedUrl: '/assignments',
+    });
+  }
 
   const promptFn = ACTION_PROMPTS[action];
   if (!promptFn) {
