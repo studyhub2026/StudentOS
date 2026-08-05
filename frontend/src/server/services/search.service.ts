@@ -16,6 +16,8 @@ export type SearchCategory =
   | 'goal'
   | 'notification';
 
+export type HighlightRange = [number, number];
+
 export interface SearchResult {
   id: string;
   category: SearchCategory;
@@ -26,6 +28,10 @@ export interface SearchResult {
   icon: string | null;
   color: string | null;
   updatedAt: string;
+  titleHighlights?: HighlightRange[];
+  excerptHighlights?: HighlightRange[];
+  /** Client-side rerank score; higher = better. Populated from token overlap. */
+  score?: number;
 }
 
 export interface SearchOptions {
@@ -34,6 +40,43 @@ export interface SearchOptions {
   categories?: SearchCategory[];
   limit?: number;
   offset?: number;
+}
+
+/**
+ * Split a query into lowercase tokens (≥2 chars) plus the full trimmed phrase.
+ * Tokens power both server-side per-word matching and client-side highlighting.
+ */
+export function tokenizeQuery(query: string): string[] {
+  const full = query.trim().toLowerCase();
+  if (!full) return [];
+  const parts = full.split(/\s+/).filter((t) => t.length >= 2);
+  const set = new Set<string>([full, ...parts]);
+  return [...set];
+}
+
+/** Non-overlapping [start,end] ranges in `text` (case-insensitive) for any token. */
+export function highlightRanges(text: string, tokens: string[]): HighlightRange[] {
+  if (!text || !tokens.length) return [];
+  const lower = text.toLowerCase();
+  const hits: HighlightRange[] = [];
+  for (const tok of tokens) {
+    if (!tok) continue;
+    let from = 0;
+    while (from < lower.length) {
+      const idx = lower.indexOf(tok, from);
+      if (idx === -1) break;
+      hits.push([idx, idx + tok.length]);
+      from = idx + tok.length;
+    }
+  }
+  hits.sort((a, b) => a[0] - b[0]);
+  const merged: HighlightRange[] = [];
+  for (const [s, e] of hits) {
+    const last = merged[merged.length - 1];
+    if (last && s <= last[1]) last[1] = Math.max(last[1], e);
+    else merged.push([s, e]);
+  }
+  return merged;
 }
 
 export function highlight(text: string, query: string, maxLen = 120): string {
@@ -46,6 +89,22 @@ export function highlight(text: string, query: string, maxLen = 120): string {
   if (start > 0) slice = '...' + slice;
   if (end < text.length) slice += '...';
   return slice;
+}
+
+/**
+ * Score a result by token coverage: fraction of query tokens hit in title (2×) or excerpt (1×).
+ * Score is normalised to [0, 1] so results across categories are comparable.
+ */
+function scoreResult(title: string, excerpt: string | null, tokens: string[]): number {
+  if (!tokens.length) return 0;
+  const t = title.toLowerCase();
+  const e = (excerpt ?? '').toLowerCase();
+  let hits = 0;
+  for (const tok of tokens) {
+    if (t.includes(tok)) hits += 2;
+    else if (e.includes(tok)) hits += 1;
+  }
+  return hits / (tokens.length * 2);
 }
 
 export async function universalSearch(opts: SearchOptions): Promise<{
@@ -585,7 +644,21 @@ export async function universalSearch(opts: SearchOptions): Promise<{
 
   await Promise.all(promises);
 
-  results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  // Decorate every result with highlight ranges (for the UI to render <mark>)
+  // and a relevance score derived from token overlap. Results are then sorted
+  // by score first, recency second — so a fresh but weakly-matching row can
+  // still sit above a stale exact match if the caller has typed a long query.
+  const tokens = tokenizeQuery(q);
+  for (const r of results) {
+    r.titleHighlights = highlightRanges(r.title, tokens);
+    r.excerptHighlights = r.excerpt ? highlightRanges(r.excerpt, tokens) : [];
+    r.score = scoreResult(r.title, r.excerpt, tokens);
+  }
+  results.sort((a, b) => {
+    const s = (b.score ?? 0) - (a.score ?? 0);
+    if (Math.abs(s) > 0.001) return s;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
 
   const total = results.length;
   const paged = results.slice(offset, offset + limit);
