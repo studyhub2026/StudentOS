@@ -144,6 +144,7 @@ export function CommandPalette() {
       { id: 'nav-achievements', label: 'Go to Achievements', icon: Target, section: 'Navigation', action: () => navigate('/achievements'), keywords: 'badges xp gamification' },
       { id: 'nav-timeline', label: 'Open Study Timeline', icon: Clock, section: 'Navigation', action: () => navigate('/timeline'), keywords: 'history activity feed' },
       { id: 'nav-replay', label: 'Open Yearly Replay', icon: Sparkles, section: 'Navigation', action: () => navigate('/replay'), keywords: 'wrapped recap year' },
+      { id: 'nav-exam', label: 'Open Exam Mode', icon: GraduationCap, section: 'Navigation', action: () => navigate('/exam'), keywords: 'exam countdown mock' },
       { id: 'act-new-assignment', label: 'Create Assignment', icon: Plus, section: 'Actions', action: () => navigate('/assignments?new=1'), keywords: 'add task homework' },
       { id: 'act-new-note', label: 'Create Note', icon: Plus, section: 'Actions', action: () => navigate('/notes?new=1'), keywords: 'add document' },
       { id: 'act-new-flashcard', label: 'Create Flashcard Deck', icon: Plus, section: 'Actions', action: () => navigate('/flashcards?new=1'), keywords: 'add deck study cards' },

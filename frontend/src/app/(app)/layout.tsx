@@ -13,6 +13,7 @@ import {
   Database,
   FileText,
   Flame,
+  ClipboardList,
   GraduationCap,
   Layers,
   ListTree,
@@ -48,6 +49,7 @@ const NAV = [
   { href: '/focus', label: 'Focus', icon: Timer },
   { href: '/analytics', label: 'Analytics', icon: TrendingUp },
   { href: '/timeline', label: 'Timeline', icon: ListTree },
+  { href: '/exam', label: 'Exam Mode', icon: ClipboardList },
   { href: '/achievements', label: 'Achievements', icon: Trophy },
   { href: '/groups', label: 'Groups', icon: Users },
 ];
