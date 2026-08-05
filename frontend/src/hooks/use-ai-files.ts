@@ -18,6 +18,16 @@ const EXT_MIME: Record<string, string> = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  // Audio — transcribed by Gemini on ingest so they're searchable in the KB.
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  weba: 'audio/webm',
+  // Video — same path; Gemini reads dialogue + on-screen text.
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
 };
 
 /** The `accept` attribute for the file picker. */
@@ -58,7 +68,7 @@ export function validateAiFile(file: File): string | null {
     return `"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB — the limit is 25 MB.`;
   }
   if (!(extensionOf(file.name) in EXT_MIME)) {
-    return `"${file.name}" isn't a supported type. Use PDF, DOCX, PPTX, XLSX, CSV, TXT, MD or an image.`;
+    return `"${file.name}" isn't a supported type. Use PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, an image, audio (MP3/WAV/M4A) or video (MP4/WebM/MOV).`;
   }
   return null;
 }

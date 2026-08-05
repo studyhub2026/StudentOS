@@ -53,10 +53,16 @@ const POLICIES: Record<
     formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf'],
     resourceType: 'auto',
   },
-  // Attachments for the AI chat: documents the model reads plus images it sees.
+  // Attachments for the AI chat: documents the model reads plus images it sees,
+  // and audio/video that Gemini transcribes on ingest.
   ai: {
     maxBytes: 25 * 1024 * 1024,
-    formats: ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'txt', 'md', 'csv', 'docx', 'xlsx', 'pptx'],
+    formats: [
+      'pdf', 'png', 'jpg', 'jpeg', 'webp',
+      'txt', 'md', 'csv', 'docx', 'xlsx', 'pptx',
+      'mp3', 'm4a', 'wav', 'ogg', 'weba',
+      'mp4', 'webm', 'mov',
+    ],
     resourceType: 'auto',
   },
 };
