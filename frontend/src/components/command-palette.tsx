@@ -148,6 +148,7 @@ export function CommandPalette() {
       { id: 'nav-exam', label: 'Open Exam Mode', icon: GraduationCap, section: 'Navigation', action: () => navigate('/exam'), keywords: 'exam countdown mock' },
       { id: 'nav-voice', label: 'Open AI Voice', icon: MessageSquare, section: 'Navigation', action: () => navigate('/ai/voice'), keywords: 'voice speech microphone talk' },
       { id: 'nav-whiteboard', label: 'Open Whiteboard', icon: PenLine, section: 'Navigation', action: () => navigate('/whiteboard'), keywords: 'draw canvas diagram sketch' },
+      { id: 'nav-graph', label: 'Open Knowledge Graph', icon: Layers, section: 'Navigation', action: () => navigate('/graph'), keywords: 'network map concepts' },
       { id: 'act-new-assignment', label: 'Create Assignment', icon: Plus, section: 'Actions', action: () => navigate('/assignments?new=1'), keywords: 'add task homework' },
       { id: 'act-new-note', label: 'Create Note', icon: Plus, section: 'Actions', action: () => navigate('/notes?new=1'), keywords: 'add document' },
       { id: 'act-new-flashcard', label: 'Create Flashcard Deck', icon: Plus, section: 'Actions', action: () => navigate('/flashcards?new=1'), keywords: 'add deck study cards' },
