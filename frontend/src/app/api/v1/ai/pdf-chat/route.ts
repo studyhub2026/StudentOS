@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { route, readJson } from '@/server/lib/handler';

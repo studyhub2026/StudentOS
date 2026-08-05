@@ -43,18 +43,24 @@ export default function PdfReaderPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const MAX_PDF_AI_BYTES = 4 * 1024 * 1024;
+
   const loadFile = useCallback((file: File) => {
     if (file.type !== 'application/pdf') return;
     setPdfName(file.name);
     const url = URL.createObjectURL(file);
     setPdfUrl(url);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      setPdfBase64(base64 ?? null);
-    };
-    reader.readAsDataURL(file);
+    if (file.size <= MAX_PDF_AI_BYTES) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        setPdfBase64(base64 ?? null);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPdfBase64(null);
+    }
     setMessages([]);
   }, []);
 
@@ -85,18 +91,31 @@ export default function PdfReaderPage() {
     setLoading(true);
 
     try {
-      const { data } = await apiClient.post<ApiEnvelope<{ reply: string }>>('/ai/pdf-chat', {
-        message: msg,
-        history: messages.slice(-20),
-        documentName: pdfName,
-        selectedText: selectedText || undefined,
-        pdfBase64: pdfBase64 ?? undefined,
-      });
+      const isFirstMessage = messages.length === 0;
+      const { data } = await apiClient.post<ApiEnvelope<{ reply: string }>>(
+        '/ai/pdf-chat',
+        {
+          message: msg,
+          history: messages.slice(-20),
+          documentName: pdfName,
+          selectedText: selectedText || undefined,
+          pdfBase64: isFirstMessage ? (pdfBase64 ?? undefined) : undefined,
+        },
+        { timeout: 90_000 },
+      );
       setMessages((prev) => [...prev, { role: 'model', content: data.data.reply }]);
-    } catch {
+    } catch (err) {
+      const detail =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { error?: { message?: string } } } }).response?.data
+              ?.error?.message
+          : undefined;
       setMessages((prev) => [
         ...prev,
-        { role: 'model', content: 'Sorry, something went wrong. Please try again.' },
+        {
+          role: 'model',
+          content: detail || 'Sorry, something went wrong. Please try again.',
+        },
       ]);
     } finally {
       setLoading(false);
@@ -238,7 +257,9 @@ export default function PdfReaderPage() {
                 {messages.length === 0 ? (
                   <div className="flex flex-col gap-3">
                     <p className="text-sm text-fg-muted">
-                      Ask me anything about this PDF. I can explain, summarize, generate study materials, and more.
+                      {pdfBase64
+                        ? 'Ask me anything about this PDF. I can explain, summarize, generate study materials, and more.'
+                        : 'This PDF is too large for AI analysis (max 4 MB). You can still read it here, but AI features are unavailable for this file.'}
                     </p>
                     {selectedText ? (
                       <div className="rounded-lg border border-brand/20 bg-brand/8 p-2.5">
@@ -308,9 +329,10 @@ export default function PdfReaderPage() {
                 }}
               >
                 <textarea
-                  className="min-h-[2.5rem] max-h-32 min-w-0 flex-1 resize-none rounded-xl border border-border bg-surface-raised px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand/50"
-                  placeholder="Ask about this PDF..."
+                  className="min-h-[2.5rem] max-h-32 min-w-0 flex-1 resize-none rounded-xl border border-border bg-surface-raised px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand/50 disabled:opacity-50"
+                  placeholder={pdfBase64 ? 'Ask about this PDF...' : 'PDF too large for AI'}
                   value={input}
+                  disabled={!pdfBase64}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -322,7 +344,7 @@ export default function PdfReaderPage() {
                 />
                 <button
                   type="submit"
-                  disabled={!input.trim() || loading}
+                  disabled={!pdfBase64 || !input.trim() || loading}
                   className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand text-white transition-colors hover:bg-brand-bright disabled:opacity-50"
                 >
                   <Send className="h-4 w-4" />
