@@ -1,21 +1,29 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlignLeft,
+  ArrowRight,
   BookOpen,
   Bot,
   Check,
   ChevronDown,
   ClipboardCopy,
+  Download,
   FileText,
+  GraduationCap,
   Languages,
   Layers,
   Loader2,
   MessageSquare,
   Minimize2,
+  NotebookPen,
   PenLine,
+  Share2,
+  Sparkles,
+  SquareCheckBig,
   Type,
   Wand2,
   X,
@@ -23,6 +31,7 @@ import {
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import type { ApiEnvelope } from '@/types/api';
+import { toast } from 'sonner';
 
 interface ActionDef {
   id: string;
@@ -30,12 +39,15 @@ interface ActionDef {
   icon: React.ElementType;
   needsExtra?: boolean;
   extraPlaceholder?: string;
+  /** Client-only actions (share/export/ask-tutor) skip the /ai/actions call. */
+  clientOnly?: boolean;
 }
 
 const ACTIONS: ActionDef[] = [
   { id: 'explain', label: 'Explain', icon: Bot },
   { id: 'summarize', label: 'Summarize', icon: AlignLeft },
   { id: 'rewrite', label: 'Rewrite', icon: PenLine },
+  { id: 'simplify', label: 'Simplify', icon: Sparkles },
   { id: 'shorten', label: 'Shorten', icon: Minimize2 },
   { id: 'expand', label: 'Expand', icon: Type },
   { id: 'improve', label: 'Improve', icon: Wand2 },
@@ -44,20 +56,30 @@ const ACTIONS: ActionDef[] = [
   { id: 'generate_quiz', label: 'Quiz', icon: FileText },
   { id: 'generate_flashcards', label: 'Flashcards', icon: Layers },
   { id: 'generate_notes', label: 'Notes', icon: BookOpen },
+  { id: 'save_as_note', label: 'Save as Note', icon: NotebookPen },
+  { id: 'save_as_assignment', label: 'Save as Assignment', icon: SquareCheckBig },
   { id: 'ask_ai', label: 'Ask AI', icon: MessageSquare, needsExtra: true, extraPlaceholder: 'Your question...' },
+  { id: 'ask_tutor', label: 'Ask AI Tutor', icon: GraduationCap, clientOnly: true },
+  { id: 'share', label: 'Share', icon: Share2, clientOnly: true },
+  { id: 'export', label: 'Export', icon: Download, clientOnly: true },
 ];
 
 interface ActionResult {
   result: string;
-  model: string;
-  tokens: number;
+  model?: string;
+  tokens?: number;
+  savedType?: 'note' | 'assignment';
+  savedId?: string;
+  savedUrl?: string;
 }
 
 export function AiToolbar() {
+  const router = useRouter();
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect } | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [savedInfo, setSavedInfo] = useState<{ url: string; type: string } | null>(null);
   const [extraInput, setExtraInput] = useState<{ action: ActionDef; text: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -128,6 +150,57 @@ export function AiToolbar() {
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
+  const runClientOnly = useCallback(
+    async (action: ActionDef, text: string) => {
+      if (action.id === 'share') {
+        // Prefer the platform Share sheet on mobile / supported browsers, fall
+        // back to clipboard everywhere else so the button is never a no-op.
+        if (typeof navigator !== 'undefined' && 'share' in navigator) {
+          try {
+            await navigator.share({ text, title: 'From StudentOS AI' });
+            toast.success('Shared');
+            return;
+          } catch {
+            /* user cancelled or share unsupported for this payload — fall through */
+          }
+        }
+        await navigator.clipboard.writeText(text);
+        toast.success('Copied to clipboard');
+        return;
+      }
+      if (action.id === 'export') {
+        const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `selection-${new Date().toISOString().slice(0, 10)}.md`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast.success('Downloaded');
+        return;
+      }
+      if (action.id === 'ask_tutor') {
+        // sessionStorage handoff so the tutor page can pre-fill its composer
+        // without leaking selection text into the URL (which browser history,
+        // referer headers and analytics would then capture).
+        try {
+          sessionStorage.setItem(
+            'studentos.aiToolbarPrefill',
+            JSON.stringify({ text, at: new Date().toISOString() }),
+          );
+        } catch {
+          /* storage disabled */
+        }
+        router.push('/tutors');
+        setSelection(null);
+        return;
+      }
+    },
+    [router],
+  );
+
   const runAction = useCallback(
     async (action: ActionDef, extra?: string) => {
       if (!selection) return;
@@ -135,8 +208,13 @@ export function AiToolbar() {
         setExtraInput({ action, text: '' });
         return;
       }
+      if (action.clientOnly) {
+        await runClientOnly(action, selection.text);
+        return;
+      }
       setLoading(true);
       setResult(null);
+      setSavedInfo(null);
       setExtraInput(null);
       try {
         const { data } = await apiClient.post<ApiEnvelope<ActionResult>>('/ai/actions', {
@@ -145,13 +223,16 @@ export function AiToolbar() {
           extra,
         });
         setResult(data.data.result);
+        if (data.data.savedUrl && data.data.savedType) {
+          setSavedInfo({ url: data.data.savedUrl, type: data.data.savedType });
+        }
       } catch {
         setResult('Failed to process. Please try again.');
       } finally {
         setLoading(false);
       }
     },
-    [selection],
+    [selection, runClientOnly],
   );
 
   const copyResult = useCallback(async () => {
@@ -172,7 +253,7 @@ export function AiToolbar() {
     ),
   );
 
-  const visibleActions = expanded ? ACTIONS : ACTIONS.slice(0, 6);
+  const visibleActions = expanded ? ACTIONS : ACTIONS.slice(0, 7);
 
   return (
     <AnimatePresence>
@@ -260,7 +341,7 @@ export function AiToolbar() {
                   {result}
                 </pre>
               </div>
-              <div className="flex items-center gap-2 border-t border-border px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2">
                 <button
                   type="button"
                   className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-fg-muted transition-colors hover:bg-surface-raised hover:text-fg"
@@ -273,10 +354,25 @@ export function AiToolbar() {
                   )}
                   {copied ? 'Copied' : 'Copy'}
                 </button>
+                {savedInfo ? (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 rounded-lg bg-brand/12 px-2 py-1 text-xs font-medium text-brand-bright transition-colors hover:bg-brand/20"
+                    onClick={() => {
+                      router.push(savedInfo.url);
+                      setResult(null);
+                      setSavedInfo(null);
+                      setSelection(null);
+                    }}
+                  >
+                    <ArrowRight className="h-3.5 w-3.5" />
+                    Open {savedInfo.type}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-fg-muted transition-colors hover:bg-surface-raised hover:text-fg"
-                  onClick={() => { setResult(null); setSelection(null); }}
+                  onClick={() => { setResult(null); setSavedInfo(null); setSelection(null); }}
                 >
                   <X className="h-3.5 w-3.5" />
                   Close
