@@ -234,12 +234,16 @@ export default function PdfReaderPage() {
       </div>
 
       {/* Split view */}
-      <div className="flex min-h-0 flex-1">
+      <div className={cn(
+        'grid min-h-0 flex-1',
+        chatOpen
+          ? 'grid-cols-1 lg:grid-cols-[1fr_minmax(380px,40%)]'
+          : 'grid-cols-1',
+      )}>
         {/* PDF Viewer */}
         <div className={cn(
-          'min-w-0 overflow-auto bg-neutral-900/30',
-          mobileTab === 'pdf' ? 'flex-1' : 'hidden lg:block',
-          chatOpen ? 'lg:flex-[3]' : 'lg:flex-1',
+          'min-w-0 overflow-hidden bg-neutral-900/30',
+          mobileTab === 'pdf' ? 'block' : 'hidden lg:block',
         )}>
           <iframe
             src={`${pdfUrl}#toolbar=1&view=FitH`}
@@ -249,11 +253,11 @@ export default function PdfReaderPage() {
           />
         </div>
 
-        {/* AI Chat Panel — always visible on mobile chat tab, toggleable on desktop */}
+        {/* AI Chat Panel */}
         {(mobileTab === 'chat' || chatOpen) ? (
           <div className={cn(
             'flex flex-col border-l border-border bg-surface',
-            mobileTab === 'chat' ? 'flex-1 lg:flex-[2]' : 'hidden lg:flex lg:flex-[2]',
+            mobileTab === 'chat' ? 'block' : 'hidden lg:flex',
           )}>
               <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                 <Bot className="h-4 w-4 text-brand" />
