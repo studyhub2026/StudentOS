@@ -141,6 +141,7 @@ export function CommandPalette() {
       { id: 'nav-knowledge', label: 'Open Knowledge Base', icon: BookOpen, section: 'Navigation', action: () => navigate('/knowledge'), keywords: 'files documents ask' },
       { id: 'nav-ai-tools', label: 'Open AI Tools', icon: Wrench, section: 'Navigation', action: () => navigate('/ai/tools'), keywords: 'utilities toolkit' },
       { id: 'nav-achievements', label: 'Go to Achievements', icon: Target, section: 'Navigation', action: () => navigate('/achievements'), keywords: 'badges xp gamification' },
+      { id: 'nav-timeline', label: 'Open Study Timeline', icon: Clock, section: 'Navigation', action: () => navigate('/timeline'), keywords: 'history activity feed' },
       { id: 'act-new-assignment', label: 'Create Assignment', icon: Plus, section: 'Actions', action: () => navigate('/assignments?new=1'), keywords: 'add task homework' },
       { id: 'act-new-note', label: 'Create Note', icon: Plus, section: 'Actions', action: () => navigate('/notes?new=1'), keywords: 'add document' },
       { id: 'act-new-flashcard', label: 'Create Flashcard Deck', icon: Plus, section: 'Actions', action: () => navigate('/flashcards?new=1'), keywords: 'add deck study cards' },
