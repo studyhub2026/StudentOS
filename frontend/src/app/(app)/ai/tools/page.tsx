@@ -5,7 +5,9 @@ import Link from 'next/link';
 import {
   AlertTriangle,
   BookMarked,
+  CalendarClock,
   Check,
+  CheckSquare,
   FileQuestion,
   GraduationCap,
   HeartHandshake,
@@ -14,7 +16,11 @@ import {
   Loader2,
   MessageSquare,
   Route as RouteIcon,
+  Sparkles,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { apiClient, apiErrorMessage } from '@/lib/api-client';
+import type { ApiEnvelope } from '@/types/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,9 +36,26 @@ import {
 } from '@/hooks/use-ai';
 import { cn } from '@/lib/utils';
 
-type ToolKey = 'quiz' | 'exam' | 'explain' | 'summarise' | 'revision' | 'path' | 'coach';
+interface DispatchResult {
+  summary: string;
+  createdAssignments: { id: string; title: string }[];
+  createdBlocks: { id: string; title: string; startAt: string }[];
+  createdNotifications: { id: string; title: string }[];
+  warnings: string[];
+}
+
+type ToolKey =
+  | 'dispatch'
+  | 'quiz'
+  | 'exam'
+  | 'explain'
+  | 'summarise'
+  | 'revision'
+  | 'path'
+  | 'coach';
 
 const TOOLS: { key: ToolKey; label: string; icon: typeof FileQuestion; blurb: string }[] = [
+  { key: 'dispatch', label: 'Plan in words', icon: Sparkles, blurb: 'One sentence → schedule blocks + assignments' },
   { key: 'quiz', label: 'Quiz generator', icon: FileQuestion, blurb: 'Multiple-choice questions from your notes' },
   { key: 'exam', label: 'Exam simulator', icon: GraduationCap, blurb: 'A timed paper with a mark scheme' },
   { key: 'explain', label: 'Concept explainer', icon: Lightbulb, blurb: 'A clear breakdown of any idea' },
@@ -95,6 +118,7 @@ export default function AiToolsPage() {
         ))}
       </nav>
 
+      {tool === 'dispatch' ? <DispatchTool /> : null}
       {tool === 'quiz' ? <QuizTool /> : null}
       {tool === 'exam' ? <ExamTool /> : null}
       {tool === 'explain' ? <ExplainTool /> : null}
@@ -121,6 +145,112 @@ const inputCls =
   'h-10 w-full rounded-xl border border-border bg-surface-raised px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40';
 const areaCls =
   'w-full rounded-xl border border-border bg-surface-raised p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40';
+
+/* --- Natural-language dispatcher ------------------------------------------ */
+
+function DispatchTool() {
+  const [text, setText] = useState('');
+  const [pending, setPending] = useState(false);
+  const [result, setResult] = useState<DispatchResult | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text.trim() || pending) return;
+    setPending(true);
+    setResult(null);
+    try {
+      const { data } = await apiClient.post<ApiEnvelope<DispatchResult>>('/ai/dispatch', {
+        text: text.trim(),
+      });
+      setResult(data.data);
+      const total =
+        data.data.createdAssignments.length +
+        data.data.createdBlocks.length +
+        data.data.createdNotifications.length;
+      toast.success(
+        total > 0 ? `Created ${total} record${total === 1 ? '' : 's'}` : 'Nothing to create',
+      );
+      setText('');
+    } catch (error) {
+      toast.error(apiErrorMessage(error));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Plan in plain English</CardTitle>
+        </CardHeader>
+        <form onSubmit={submit} className="space-y-3 p-6 pt-0">
+          <Field label="Say what you want to happen">
+            <textarea
+              className={areaCls}
+              rows={3}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder='e.g. "Study calculus tomorrow from 7pm for 90 minutes, and remind me on Thursday to hand in the physics lab."'
+              disabled={pending}
+              aria-label="Natural language plan"
+            />
+          </Field>
+          <div className="flex items-center justify-between text-xs text-fg-subtle">
+            <span>Creates assignments, schedule blocks and reminders in one call.</span>
+            <RunButton pending={pending} disabled={!text.trim()} label="Create it" />
+          </div>
+        </form>
+      </Card>
+
+      {result ? (
+        <ResultCard title="Done">
+          <p className="text-sm text-fg-muted">{result.summary}</p>
+          <ul className="mt-4 space-y-2 text-sm">
+            {result.createdAssignments.map((a) => (
+              <li key={`a-${a.id}`} className="flex items-start gap-2">
+                <CheckSquare className="mt-0.5 h-4 w-4 text-brand-bright" aria-hidden />
+                <span>
+                  Assignment created:{' '}
+                  <Link className="text-brand-bright hover:underline" href="/assignments">
+                    {a.title}
+                  </Link>
+                </span>
+              </li>
+            ))}
+            {result.createdBlocks.map((b) => (
+              <li key={`b-${b.id}`} className="flex items-start gap-2">
+                <CalendarClock className="mt-0.5 h-4 w-4 text-brand-bright" aria-hidden />
+                <span>
+                  Block scheduled:{' '}
+                  <Link className="text-brand-bright hover:underline" href="/schedule">
+                    {b.title}
+                  </Link>{' '}
+                  <span className="text-xs text-fg-subtle">
+                    {new Date(b.startAt).toLocaleString()}
+                  </span>
+                </span>
+              </li>
+            ))}
+            {result.createdNotifications.map((n) => (
+              <li key={`n-${n.id}`} className="flex items-start gap-2">
+                <Check className="mt-0.5 h-4 w-4 text-brand-bright" aria-hidden />
+                <span>Reminder queued: {n.title}</span>
+              </li>
+            ))}
+          </ul>
+          {result.warnings.length > 0 ? (
+            <ul className="mt-4 space-y-1 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
+              {result.warnings.map((w, i) => (
+                <li key={`w-${i}`}>{w}</li>
+              ))}
+            </ul>
+          ) : null}
+        </ResultCard>
+      ) : null}
+    </div>
+  );
+}
 
 function RunButton({ pending, disabled, label }: { pending: boolean; disabled: boolean; label: string }) {
   return (
