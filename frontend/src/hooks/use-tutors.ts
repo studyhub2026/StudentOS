@@ -26,6 +26,8 @@ export interface TutorCard {
   conversationCount: number;
   lastConversation: { id: string; title: string; updatedAt: string } | null;
   lastActiveAt: string | null;
+  /** 'subject' = academic tutor; 'role' = cross-subject sidekick (coach, planner, …). */
+  kind: 'subject' | 'role';
 }
 
 export interface TutorMessage {

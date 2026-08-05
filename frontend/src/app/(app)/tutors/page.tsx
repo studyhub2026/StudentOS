@@ -50,6 +50,15 @@ export default function TutorsPage() {
     );
   }, [tutors, query]);
 
+  const subjectTutors = useMemo(
+    () => filtered.filter((t) => (t.kind ?? 'subject') === 'subject'),
+    [filtered],
+  );
+  const roleTutors = useMemo(
+    () => filtered.filter((t) => t.kind === 'role'),
+    [filtered],
+  );
+
   const activeCount = tutors?.filter((t) => t.activated).length ?? 0;
 
   async function open(tutor: TutorCard) {
@@ -110,16 +119,47 @@ export default function TutorsPage() {
           <p className="mt-2 text-sm font-medium">No subjects match “{query}”.</p>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((tutor, index) => (
-            <TutorCardView
-              key={tutor.subjectKey}
-              tutor={tutor}
-              index={index}
-              opening={opening === tutor.subjectKey}
-              onOpen={() => void open(tutor)}
-            />
-          ))}
+        <div className="space-y-8">
+          {subjectTutors.length > 0 ? (
+            <section>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
+                Subjects
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {subjectTutors.map((tutor, index) => (
+                  <TutorCardView
+                    key={tutor.subjectKey}
+                    tutor={tutor}
+                    index={index}
+                    opening={opening === tutor.subjectKey}
+                    onOpen={() => void open(tutor)}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {roleTutors.length > 0 ? (
+            <section>
+              <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
+                Specialist agents
+                <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal text-brand-bright">
+                  New
+                </span>
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {roleTutors.map((tutor, index) => (
+                  <TutorCardView
+                    key={tutor.subjectKey}
+                    tutor={tutor}
+                    index={index}
+                    opening={opening === tutor.subjectKey}
+                    onOpen={() => void open(tutor)}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
         </div>
       )}
     </div>

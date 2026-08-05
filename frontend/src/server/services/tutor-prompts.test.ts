@@ -56,6 +56,19 @@ describe('buildTutorSystemPrompt', () => {
     expect(prompt).toMatch(/70%/); // 7/10 quiz record
   });
 
+  it('swaps in the role persona and drops the "expert subject tutor" opener', () => {
+    const prompt = buildTutorSystemPrompt({
+      subject: 'Study Coach',
+      difficulty: 'ADAPTIVE',
+      personaOverride:
+        'You are a warm, no-nonsense study coach who diagnoses bottlenecks.',
+    });
+    expect(prompt).toContain('warm, no-nonsense study coach');
+    expect(prompt).not.toMatch(/expert Study Coach tutor/);
+    // Shared teaching-boundary rule still applies.
+    expect(prompt).toMatch(/Teach the student rather than doing their work/i);
+  });
+
   it('omits the progress block entirely when there is nothing to report', () => {
     const prompt = buildTutorSystemPrompt({
       subject: 'History',

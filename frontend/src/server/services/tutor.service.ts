@@ -5,7 +5,7 @@ import { NotFoundError } from '@/server/lib/errors';
 import { geminiService, type GeminiMessage } from '@/server/services/gemini.service';
 import { aiFileService } from '@/server/services/ai-file.service';
 import { aiMemoryService } from '@/server/services/ai-memory.service';
-import { SUBJECT_CATALOG, catalogEntry, slugifySubject } from '@/server/services/tutor-catalog';
+import { ROLE_CATALOG, SUBJECT_CATALOG, catalogEntry, slugifySubject } from '@/server/services/tutor-catalog';
 import {
   buildTutorSystemPrompt,
   type TutorProgressSnapshot,
@@ -134,6 +134,8 @@ export interface TutorCard extends TutorRecord {
   quizzesTaken: number;
   conversationCount: number;
   lastConversation: { id: string; title: string; updatedAt: Date } | null;
+  /** 'subject' for academic tutors, 'role' for coach/planner/motivator/etc. */
+  kind: 'subject' | 'role';
 }
 
 /**
@@ -161,6 +163,7 @@ export async function listTutors(userId: string): Promise<TutorCard[]> {
   const toCard = (
     base: TutorRecord & { tagline: string },
     row: (typeof tutors)[number] | undefined,
+    kind: 'subject' | 'role',
   ): TutorCard => ({
     ...base,
     activated: Boolean(row),
@@ -170,10 +173,10 @@ export async function listTutors(userId: string): Promise<TutorCard[]> {
     quizzesTaken: row?.progress?.quizzesTaken ?? 0,
     conversationCount: row?._count.conversations ?? 0,
     lastConversation: row?.conversations[0] ?? null,
+    kind,
   });
 
-  // Catalogue subjects first, in catalogue order.
-  const cards: TutorCard[] = SUBJECT_CATALOG.map((template) => {
+  const mapTemplate = (template: (typeof SUBJECT_CATALOG)[number]): TutorCard => {
     const row = byKey.get(template.key);
     const base: TutorRecord & { tagline: string } = row
       ? { ...row, tagline: template.tagline }
@@ -191,18 +194,17 @@ export async function listTutors(userId: string): Promise<TutorCard[]> {
           updatedAt: new Date(0),
           tagline: template.tagline,
         };
-    return toCard(base, row);
-  });
+    return toCard(base, row, template.kind ?? 'subject');
+  };
 
-  // Any custom subjects the student added that aren't in the catalogue.
+  // Subjects first (catalogue order), then role-based agents, then any
+  // student-created custom subjects.
+  const cards: TutorCard[] = SUBJECT_CATALOG.map(mapTemplate);
+  for (const template of ROLE_CATALOG) cards.push(mapTemplate(template));
+
   for (const row of tutors) {
     if (catalogEntry(row.subjectKey)) continue;
-    cards.push(
-      toCard(
-        { ...row, tagline: `Your ${row.subject} tutor.` },
-        row,
-      ),
-    );
+    cards.push(toCard({ ...row, tagline: `Your ${row.subject} tutor.` }, row, 'subject'));
   }
 
   return cards;
@@ -348,6 +350,7 @@ async function buildContext(
   const fileContext = await aiFileService.buildFileContext(files);
   const memoryContext = await aiMemoryService.getMemoryContext(userId);
 
+  const template = catalogEntry(tutor.subjectKey);
   const systemInstruction = buildTutorSystemPrompt({
     subject: tutor.subject,
     difficulty: overrideDifficulty ?? tutor.difficulty,
@@ -356,6 +359,7 @@ async function buildContext(
     progress: progressSnapshot(tutor.progress),
     memoryContext,
     fileContext: fileContext.textPreamble,
+    ...(template?.personaOverride ? { personaOverride: template.personaOverride } : {}),
   });
 
   return { systemInstruction, inlineParts: fileContext.inlineParts };
