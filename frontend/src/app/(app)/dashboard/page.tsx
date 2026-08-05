@@ -220,31 +220,29 @@ export default function DashboardPage() {
         )}
       </motion.section>
 
-      {/* Charts */}
-      <motion.section variants={item} className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Study hours</CardTitle>
-            <span className="text-xs text-fg-subtle">Last 14 days</span>
-          </CardHeader>
-          {isLoading || !data ? (
-            <Skeleton className="h-56 w-full" />
-          ) : (
+      {/* Charts — only rendered when there is real study data */}
+      {isLoading || !data ? (
+        <motion.section variants={item} className="grid gap-4 lg:grid-cols-3">
+          <Skeleton className="h-48 w-full rounded-2xl lg:col-span-2" />
+          <Skeleton className="h-48 w-full rounded-2xl" />
+        </motion.section>
+      ) : (data.trend.some((p) => p.studyMinutes > 0) || data.subjectBreakdown.some((s) => s.studyMinutes > 0)) ? (
+        <motion.section variants={item} className="grid gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Study hours</CardTitle>
+              <span className="text-xs text-fg-subtle">Last 14 days</span>
+            </CardHeader>
             <StudyTrendChart data={data.trend} />
-          )}
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Time by subject</CardTitle>
-          </CardHeader>
-          {isLoading || !data ? (
-            <Skeleton className="h-52 w-full" />
-          ) : (
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Time by subject</CardTitle>
+            </CardHeader>
             <SubjectBreakdownChart data={data.subjectBreakdown} />
-          )}
-        </Card>
-      </motion.section>
+          </Card>
+        </motion.section>
+      ) : null}
 
       {/* Up next + Today */}
       <motion.section variants={item} className="grid gap-4 lg:grid-cols-2">
