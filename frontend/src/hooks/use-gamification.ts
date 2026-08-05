@@ -63,6 +63,7 @@ export interface GamificationProfile {
   xpProgress: XpProgress;
   missions: Mission[];
   challenges: Challenge[];
+  monthlyChallenges: Challenge[];
   achievements: Achievement[];
 }
 
