@@ -9,18 +9,25 @@ import {
   Bot,
   CalendarDays,
   CheckSquare,
+  Clock,
   FileText,
   GraduationCap,
   Layers,
   Loader2,
   MessageSquare,
+  Moon,
+  Pin,
+  PinOff,
   Plus,
   Search,
   Settings,
+  Sun,
   Target,
   Timer,
   TrendingUp,
   Users,
+  Wrench,
+  X,
   Zap,
   Bell,
   Upload,
@@ -29,6 +36,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSearch, type SearchCategory } from '@/hooks/use-search';
+import { useSearchHistory } from '@/hooks/use-search-history';
+import { HighlightedText } from '@/components/highlighted-text';
 import { useAuthStore } from '@/stores/auth-store';
 
 interface Command {
@@ -72,6 +81,18 @@ const CATEGORY_LABELS: Record<SearchCategory, string> = {
   notification: 'Notification',
 };
 
+function toggleTheme(): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  const nowDark = !root.classList.contains('dark');
+  root.classList.toggle('dark', nowDark);
+  try {
+    window.localStorage.setItem('studentos.theme', nowDark ? 'dark' : 'light');
+  } catch {
+    /* storage disabled */
+  }
+}
+
 export function CommandPalette() {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
@@ -80,8 +101,19 @@ export function CommandPalette() {
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const { recent, pinned, record, clearRecent, togglePin, isPinned } =
+    useSearchHistory();
 
   const { data: searchData, isLoading } = useSearch(query);
+
+  // Persist searches once results come back, so the recent list reflects
+  // queries that actually returned something. Prevents typos and single-char
+  // scratches from polluting history.
+  useEffect(() => {
+    if (searchData && searchData.results.length > 0 && query.trim().length >= 2) {
+      record(query);
+    }
+  }, [searchData, query, record]);
 
   const navigate = useCallback(
     (path: string) => {
@@ -105,10 +137,18 @@ export function CommandPalette() {
       { id: 'nav-analytics', label: 'Go to Analytics', icon: TrendingUp, section: 'Navigation', action: () => navigate('/analytics'), keywords: 'stats progress' },
       { id: 'nav-groups', label: 'Go to Groups', icon: Users, section: 'Navigation', action: () => navigate('/groups'), keywords: 'study group chat' },
       { id: 'nav-settings', label: 'Go to Settings', icon: Settings, section: 'Navigation', action: () => navigate('/settings'), keywords: 'preferences profile' },
+      { id: 'nav-pdf', label: 'Open PDF Reader', icon: FileText, section: 'Navigation', action: () => navigate('/pdf-reader'), keywords: 'read document' },
+      { id: 'nav-knowledge', label: 'Open Knowledge Base', icon: BookOpen, section: 'Navigation', action: () => navigate('/knowledge'), keywords: 'files documents ask' },
+      { id: 'nav-ai-tools', label: 'Open AI Tools', icon: Wrench, section: 'Navigation', action: () => navigate('/ai/tools'), keywords: 'utilities toolkit' },
+      { id: 'nav-achievements', label: 'Go to Achievements', icon: Target, section: 'Navigation', action: () => navigate('/achievements'), keywords: 'badges xp gamification' },
       { id: 'act-new-assignment', label: 'Create Assignment', icon: Plus, section: 'Actions', action: () => navigate('/assignments?new=1'), keywords: 'add task homework' },
       { id: 'act-new-note', label: 'Create Note', icon: Plus, section: 'Actions', action: () => navigate('/notes?new=1'), keywords: 'add document' },
+      { id: 'act-new-flashcard', label: 'Create Flashcard Deck', icon: Plus, section: 'Actions', action: () => navigate('/flashcards?new=1'), keywords: 'add deck study cards' },
+      { id: 'act-new-group', label: 'Create Study Group', icon: Plus, section: 'Actions', action: () => navigate('/groups?new=1'), keywords: 'add team collaborate' },
       { id: 'act-ask-ai', label: 'Ask AI', icon: Bot, section: 'Actions', action: () => navigate('/ai'), keywords: 'question help' },
       { id: 'act-focus', label: 'Start Focus Session', icon: Zap, section: 'Actions', action: () => navigate('/focus'), keywords: 'pomodoro timer concentrate' },
+      { id: 'act-timer', label: 'Start Timer', icon: Timer, section: 'Actions', action: () => navigate('/focus?timer=1'), keywords: 'pomodoro stopwatch countdown' },
+      { id: 'act-theme', label: 'Toggle Dark Mode', icon: typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? Sun : Moon, section: 'Preferences', action: () => { toggleTheme(); setOpen(false); }, keywords: 'theme light dark mode' },
       { id: 'act-logout', label: 'Sign Out', icon: LogOut, section: 'Account', action: () => { void logout().then(() => router.replace('/login')); setOpen(false); }, keywords: 'logout exit' },
     ];
     return cmds;
@@ -188,8 +228,8 @@ export function CommandPalette() {
     key: string,
     index: number,
     icon: React.ReactNode,
-    label: string,
-    subtitle: string | null,
+    label: React.ReactNode,
+    subtitle: React.ReactNode,
     badge: string | null,
     badgeColor: string | null,
     onClick: () => void,
@@ -326,11 +366,35 @@ export function CommandPalette() {
                   return nodes;
                 })()}
 
-                {/* Search results */}
-                {searchResults.length > 0 ? (
+                {/* Search results — only when the user is actively querying.
+                    Without the query guard, react-query's placeholderData keeps
+                    the last result set visible after Escape, which collides with
+                    the empty-state Recent/Pinned lists below. */}
+                {query.trim() && searchResults.length > 0 ? (
                   <>
-                    <div className="mb-1 px-2 pt-3 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
-                      Search Results
+                    <div className="mt-3 mb-1 flex items-center justify-between px-2 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
+                      <span>Search Results</span>
+                      {query.trim() ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePin(query);
+                          }}
+                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-fg-subtle transition-colors hover:bg-surface-raised hover:text-fg"
+                          aria-label={isPinned(query) ? 'Unpin query' : 'Pin query'}
+                        >
+                          {isPinned(query) ? (
+                            <>
+                              <PinOff className="h-3 w-3" /> Unpin
+                            </>
+                          ) : (
+                            <>
+                              <Pin className="h-3 w-3" /> Pin
+                            </>
+                          )}
+                        </button>
+                      ) : null}
                     </div>
                     {searchResults.map((r) => {
                       const idx = itemIndex++;
@@ -343,8 +407,12 @@ export function CommandPalette() {
                         ) : (
                           <Icon className="h-4 w-4" />
                         ),
-                        r.title,
-                        r.excerpt ?? r.subtitle,
+                        <HighlightedText text={r.title} ranges={r.titleHighlights} />,
+                        r.excerpt ? (
+                          <HighlightedText text={r.excerpt} ranges={r.excerptHighlights} />
+                        ) : (
+                          r.subtitle
+                        ),
                         CATEGORY_LABELS[r.category],
                         r.color,
                         () => {
@@ -364,7 +432,67 @@ export function CommandPalette() {
                   </div>
                 ) : null}
 
-                {!query.trim() && filteredCommands.length === 0 ? (
+                {/* Recent + pinned searches — shown only on an empty query */}
+                {!query.trim() && (pinned.length > 0 || recent.length > 0) ? (
+                  <div className="mt-2 border-t border-border pt-2">
+                    {pinned.length > 0 ? (
+                      <>
+                        <div className="mb-1 px-2 pt-1 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
+                          Pinned
+                        </div>
+                        {pinned.map((q) => (
+                          <button
+                            key={`pin-${q}`}
+                            type="button"
+                            onClick={() => setQuery(q)}
+                            className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-surface-raised"
+                          >
+                            <Pin className="h-3.5 w-3.5 text-brand" />
+                            <span className="min-w-0 flex-1 truncate">{q}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePin(q);
+                              }}
+                              className="rounded p-1 text-fg-subtle opacity-0 transition-opacity hover:bg-surface hover:text-fg group-hover:opacity-100"
+                              aria-label="Unpin"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </button>
+                        ))}
+                      </>
+                    ) : null}
+                    {recent.length > 0 ? (
+                      <>
+                        <div className="mt-2 mb-1 flex items-center justify-between px-2 pt-1 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
+                          <span>Recent</span>
+                          <button
+                            type="button"
+                            onClick={clearRecent}
+                            className="rounded px-1.5 py-0.5 normal-case tracking-normal text-fg-subtle transition-colors hover:bg-surface-raised hover:text-fg"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        {recent.map((q) => (
+                          <button
+                            key={`rec-${q}`}
+                            type="button"
+                            onClick={() => setQuery(q)}
+                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-surface-raised"
+                          >
+                            <Clock className="h-3.5 w-3.5 text-fg-subtle" />
+                            <span className="min-w-0 flex-1 truncate">{q}</span>
+                          </button>
+                        ))}
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {!query.trim() && filteredCommands.length === 0 && pinned.length === 0 && recent.length === 0 ? (
                   <div className="py-6 text-center text-sm text-fg-subtle">
                     Start typing to search...
                   </div>

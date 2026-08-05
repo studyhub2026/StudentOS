@@ -20,6 +20,8 @@ export type SearchCategory =
   | 'goal'
   | 'notification';
 
+export type HighlightRange = [number, number];
+
 export interface SearchResult {
   id: string;
   category: SearchCategory;
@@ -30,6 +32,9 @@ export interface SearchResult {
   icon: string | null;
   color: string | null;
   updatedAt: string;
+  titleHighlights?: HighlightRange[];
+  excerptHighlights?: HighlightRange[];
+  score?: number;
 }
 
 interface SearchResponse {
