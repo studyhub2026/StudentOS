@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Bot,
@@ -183,6 +182,8 @@ export default function PdfReaderPage() {
     );
   }
 
+  const [mobileTab, setMobileTab] = useState<'pdf' | 'chat'>('pdf');
+
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col gap-0 lg:h-[calc(100vh-2rem)]">
       {/* Header */}
@@ -198,26 +199,36 @@ export default function PdfReaderPage() {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{pdfName}</p>
         </div>
-        <div className="flex items-center gap-1">
+
+        {/* Mobile tab switcher */}
+        <div className="flex rounded-lg border border-border bg-surface-raised p-0.5 lg:hidden">
           <button
             type="button"
-            className="grid h-8 w-8 place-items-center rounded-lg text-fg-muted transition-colors hover:bg-surface-raised hover:text-fg"
-            onClick={() => setZoom((z) => Math.max(50, z - 25))}
+            onClick={() => setMobileTab('pdf')}
+            className={cn(
+              'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+              mobileTab === 'pdf' ? 'bg-brand text-white' : 'text-fg-muted hover:text-fg',
+            )}
           >
-            <ZoomOut className="h-4 w-4" />
+            PDF
           </button>
-          <span className="w-12 text-center text-xs text-fg-subtle">{zoom}%</span>
           <button
             type="button"
-            className="grid h-8 w-8 place-items-center rounded-lg text-fg-muted transition-colors hover:bg-surface-raised hover:text-fg"
-            onClick={() => setZoom((z) => Math.min(300, z + 25))}
+            onClick={() => setMobileTab('chat')}
+            className={cn(
+              'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+              mobileTab === 'chat' ? 'bg-brand text-white' : 'text-fg-muted hover:text-fg',
+            )}
           >
-            <ZoomIn className="h-4 w-4" />
+            <Bot className="mr-1 inline h-3 w-3" />
+            Chat
           </button>
         </div>
+
+        {/* Desktop toggle */}
         <button
           type="button"
-          className="grid h-8 w-8 place-items-center rounded-lg text-fg-muted transition-colors hover:bg-surface-raised hover:text-fg"
+          className="hidden h-8 w-8 place-items-center rounded-lg text-fg-muted transition-colors hover:bg-surface-raised hover:text-fg lg:grid"
           onClick={() => setChatOpen((v) => !v)}
           title={chatOpen ? 'Hide AI chat' : 'Show AI chat'}
         >
@@ -228,7 +239,11 @@ export default function PdfReaderPage() {
       {/* Split view */}
       <div className="flex min-h-0 flex-1">
         {/* PDF Viewer */}
-        <div className="min-w-0 flex-1 overflow-auto bg-neutral-900/30">
+        <div className={cn(
+          'min-w-0 overflow-auto bg-neutral-900/30',
+          mobileTab === 'pdf' ? 'flex-1' : 'hidden lg:block',
+          chatOpen ? 'lg:flex-[3]' : 'lg:flex-1',
+        )}>
           <iframe
             src={`${pdfUrl}#toolbar=1&view=FitH`}
             className="h-full w-full border-0"
@@ -237,16 +252,12 @@ export default function PdfReaderPage() {
           />
         </div>
 
-        {/* AI Chat Panel */}
-        <AnimatePresence>
-          {chatOpen ? (
-            <motion.div
-              className="flex w-full flex-col border-l border-border bg-surface lg:w-96"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: undefined, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
+        {/* AI Chat Panel — always visible on mobile chat tab, toggleable on desktop */}
+        {(mobileTab === 'chat' || chatOpen) ? (
+          <div className={cn(
+            'flex flex-col border-l border-border bg-surface',
+            mobileTab === 'chat' ? 'flex-1 lg:flex-[2]' : 'hidden lg:flex lg:flex-[2]',
+          )}>
               <div className="flex items-center gap-2 border-b border-border px-4 py-3">
                 <Bot className="h-4 w-4 text-brand" />
                 <h3 className="text-sm font-semibold">PDF AI Assistant</h3>
@@ -350,9 +361,8 @@ export default function PdfReaderPage() {
                   <Send className="h-4 w-4" />
                 </button>
               </form>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+          </div>
+        ) : null}
       </div>
     </div>
   );
