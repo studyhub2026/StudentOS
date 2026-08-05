@@ -256,6 +256,10 @@ model UserSettings {
   // are ever shown — never assignments, notes, files or messages.
   profilePublic Boolean @default(false)
 
+  // Ordered list of widget keys for the customizable /dashboard/custom view.
+  // Null = fall back to the default order. Array of {key, hidden} objects.
+  dashboardLayout Json?
+
   aiModel String @default("gemini-2.5-flash")
   aiTone  String @default("encouraging")
 
