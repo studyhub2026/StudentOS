@@ -9,7 +9,7 @@ export function SubjectBreakdownChart({ data }: { data: SubjectBreakdown[] }) {
 
   if (withTime.length === 0) {
     return (
-      <div className="grid h-52 place-items-center text-center">
+      <div className="grid place-items-center py-4 text-center">
         <div>
           <p className="text-sm text-fg-muted">No time logged against subjects yet.</p>
           <p className="mt-1 text-xs text-fg-subtle">

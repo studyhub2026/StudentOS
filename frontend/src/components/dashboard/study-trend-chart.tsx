@@ -29,7 +29,7 @@ export function StudyTrendChart({ data }: { data: StudyTrendPoint[] }) {
 
   if (!hasActivity) {
     return (
-      <div className="grid h-56 place-items-center text-center">
+      <div className="grid place-items-center py-4 text-center">
         <div>
           <p className="text-sm text-fg-muted">No study sessions recorded yet.</p>
           <p className="mt-1 text-xs text-fg-subtle">

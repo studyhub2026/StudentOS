@@ -456,12 +456,12 @@ function EmptyState({
   cta: { href: string; label: string };
 }) {
   return (
-    <div className="grid place-items-center py-8 text-center">
-      <Icon className={cn('h-8 w-8', tone)} aria-hidden />
-      <p className="mt-2 text-sm font-medium">{title}</p>
+    <div className="grid place-items-center py-4 text-center">
+      <Icon className={cn('h-7 w-7', tone)} aria-hidden />
+      <p className="mt-1.5 text-sm font-medium">{title}</p>
       <p className="mt-0.5 max-w-xs text-xs text-fg-subtle">{body}</p>
       <Link href={cta.href}>
-        <Button variant="secondary" size="sm" className="mt-3">
+        <Button variant="secondary" size="sm" className="mt-2.5">
           {cta.label}
         </Button>
       </Link>
