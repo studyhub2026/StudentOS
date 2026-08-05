@@ -61,6 +61,14 @@ const WEEKLY_CHALLENGE_POOL: MissionTemplate[] = [
   { key: 'notes_3', title: 'Write 3 notes', description: 'Create at least 3 notes this week', icon: 'book-open', target: 3, xp: 150, coins: 75 },
 ];
 
+const MONTHLY_CHALLENGE_POOL: MissionTemplate[] = [
+  { key: 'study_25h', title: 'Study 25 hours this month', description: 'Long-haul goal — averages under an hour a day', icon: 'clock', target: 1500, xp: 600, coins: 300 },
+  { key: 'complete_20', title: 'Complete 20 assignments', description: 'Sustained delivery all month', icon: 'check-square', target: 20, xp: 800, coins: 400 },
+  { key: 'streak_20', title: '20-day study streak', description: 'Show up 20 days out of the month', icon: 'flame', target: 20, xp: 900, coins: 450 },
+  { key: 'review_200', title: 'Review 200 flashcards', description: 'Long-term recall practice', icon: 'layers', target: 200, xp: 500, coins: 250 },
+  { key: 'notes_10', title: 'Write 10 notes', description: 'Turn what you learn into notes you keep', icon: 'book-open', target: 10, xp: 500, coins: 250 },
+];
+
 function pickRandom<T>(pool: T[], count: number): T[] {
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
@@ -76,6 +84,11 @@ function weekStartUtc(): Date {
   const day = d.getUTCDay();
   d.setUTCDate(d.getUTCDate() - (day === 0 ? 6 : day - 1));
   return d;
+}
+
+function monthStartUtc(): Date {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
 export async function getDailyMissions(userId: string) {
@@ -138,6 +151,69 @@ export async function getWeeklyChallenges(userId: string) {
   }
 
   return challenges;
+}
+
+export async function getMonthlyChallenges(userId: string) {
+  const monthStart = monthStartUtc();
+  let challenges = await prisma.monthlyChallenge.findMany({
+    where: { userId, monthStart },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (challenges.length === 0) {
+    const templates = pickRandom(MONTHLY_CHALLENGE_POOL, 2);
+    await prisma.monthlyChallenge.createMany({
+      data: templates.map((t) => ({
+        userId,
+        monthStart,
+        challengeKey: t.key,
+        title: t.title,
+        description: t.description,
+        icon: t.icon,
+        xpReward: t.xp,
+        coinReward: t.coins,
+        targetValue: t.target,
+      })),
+    });
+    challenges = await prisma.monthlyChallenge.findMany({
+      where: { userId, monthStart },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  return challenges;
+}
+
+export async function updateMonthlyChallengeProgress(
+  userId: string,
+  challengeKey: string,
+  increment: number,
+): Promise<void> {
+  const monthStart = monthStartUtc();
+  const challenge = await prisma.monthlyChallenge.findUnique({
+    where: { userId_monthStart_challengeKey: { userId, monthStart, challengeKey } },
+  });
+  if (!challenge || challenge.completed) return;
+
+  const newProgress = Math.min(challenge.progress + increment, challenge.targetValue);
+  const completed = newProgress >= challenge.targetValue;
+
+  await prisma.monthlyChallenge.update({
+    where: { id: challenge.id },
+    data: {
+      progress: newProgress,
+      completed,
+      ...(completed ? { completedAt: new Date() } : {}),
+    },
+  });
+
+  if (completed) {
+    await awardXp(userId, challenge.xpReward);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { coins: { increment: challenge.coinReward } },
+    });
+  }
 }
 
 export async function updateMissionProgress(
@@ -238,20 +314,23 @@ export async function getGamificationProfile(userId: string) {
     user.level = progress.level;
   }
 
-  const missions = await getDailyMissions(userId);
-  const challenges = await getWeeklyChallenges(userId);
-
-  const achievements = await prisma.userAchievement.findMany({
-    where: { userId },
-    include: { achievement: true },
-    orderBy: { unlockedAt: 'desc' },
-  });
+  const [missions, challenges, monthlyChallenges, achievements] = await Promise.all([
+    getDailyMissions(userId),
+    getWeeklyChallenges(userId),
+    getMonthlyChallenges(userId),
+    prisma.userAchievement.findMany({
+      where: { userId },
+      include: { achievement: true },
+      orderBy: { unlockedAt: 'desc' },
+    }),
+  ]);
 
   return {
     ...user,
     xpProgress: progress,
     missions,
     challenges,
+    monthlyChallenges,
     achievements,
   };
 }

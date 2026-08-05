@@ -219,6 +219,7 @@ model User {
   sharedNotes          NoteShare[]           @relation("NoteSharedWith")
   dailyMissions        DailyMission[]
   weeklyChallenges     WeeklyChallenge[]
+  monthlyChallenges    MonthlyChallenge[]
   knowledgeCollections KnowledgeCollection[]
   knowledgeDocuments   KnowledgeDocument[]
 
@@ -1384,4 +1385,31 @@ model WeeklyChallenge {
   @@unique([userId, weekStart, challengeKey])
   @@index([userId, weekStart])
   @@map("weekly_challenges")
+}
+
+/// Month-long stretch goals. Same shape as DailyMission and WeeklyChallenge
+/// but keyed on the first day of the calendar month, so students see one
+/// consistent cadence: daily / weekly / monthly.
+model MonthlyChallenge {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  monthStart   DateTime  @db.Date
+  challengeKey String
+  title        String
+  description  String
+  icon         String    @default("crown")
+  xpReward     Int       @default(600)
+  coinReward   Int       @default(300)
+  targetValue  Int       @default(1)
+  progress     Int       @default(0)
+  completed    Boolean   @default(false)
+  completedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, monthStart, challengeKey])
+  @@index([userId, monthStart])
+  @@map("monthly_challenges")
 }

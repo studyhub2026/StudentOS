@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Award,
@@ -13,14 +14,44 @@ import {
   Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ConfettiBurst } from '@/components/confetti-burst';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGamification, useLeaderboard } from '@/hooks/use-gamification';
 import { useAuthStore } from '@/stores/auth-store';
+
+const RECENT_UNLOCK_KEY = 'studentos.achievements.lastUnlock';
 
 export default function AchievementsPage() {
   const { data: profile, isLoading } = useGamification();
   const { data: leaderboard } = useLeaderboard();
   const currentUser = useAuthStore((s) => s.user);
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
+
+  // When the most recent unlockedAt is newer than what we last celebrated,
+  // fire confetti. localStorage remembers the last cheer so refreshes don't
+  // spam it.
+  useEffect(() => {
+    if (!profile) return;
+    const unlocked = profile.achievements
+      .filter((a) => a.unlockedAt)
+      .map((a) => new Date(a.unlockedAt as string).getTime());
+    if (unlocked.length === 0) return;
+    const latest = Math.max(...unlocked);
+    let last = 0;
+    try {
+      last = Number(window.localStorage.getItem(RECENT_UNLOCK_KEY) ?? '0');
+    } catch {
+      /* storage disabled */
+    }
+    if (latest > last) {
+      setConfettiTrigger((n) => n + 1);
+      try {
+        window.localStorage.setItem(RECENT_UNLOCK_KEY, String(latest));
+      } catch {
+        /* storage disabled */
+      }
+    }
+  }, [profile]);
 
   if (isLoading || !profile) {
     return (
@@ -47,6 +78,7 @@ export default function AchievementsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      <ConfettiBurst trigger={confettiTrigger} />
       <div>
         <h1 className="text-2xl font-bold">Achievements & Rewards</h1>
         <p className="text-fg-muted">Level up, complete missions, and climb the leaderboard.</p>
@@ -201,6 +233,61 @@ export default function AchievementsPage() {
               </div>
             ))}
           </div>
+
+          {profile.monthlyChallenges && profile.monthlyChallenges.length > 0 ? (
+            <>
+              <div className="mb-2 mt-6 flex items-center gap-2">
+                <Crown className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold">Monthly Challenges</h2>
+                <span className="rounded-full bg-accent/12 px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-accent">
+                  New
+                </span>
+              </div>
+              <div className="space-y-3">
+                {profile.monthlyChallenges.map((c) => (
+                  <div
+                    key={c.id}
+                    className={cn(
+                      'rounded-xl border p-3',
+                      c.completed ? 'border-accent/30 bg-accent/8' : 'border-border',
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={cn(
+                          'grid h-8 w-8 shrink-0 place-items-center rounded-lg',
+                          c.completed ? 'bg-accent/20 text-accent' : 'bg-surface-raised text-fg-muted',
+                        )}
+                      >
+                        {c.completed ? <Check className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{c.title}</p>
+                        <p className="text-xs text-fg-subtle">{c.description}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-raised">
+                            <div
+                              className="h-full rounded-full bg-accent transition-all"
+                              style={{ width: `${Math.min(100, (c.progress / c.targetValue) * 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-xs tabular-nums text-fg-subtle">
+                            {c.progress}/{c.targetValue}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-0.5 text-xs">
+                        <span className="flex items-center gap-1 text-teal">
+                          <Zap className="h-3 w-3" />
+                          {c.xpReward}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
 
         {/* Leaderboard + Badges */}
