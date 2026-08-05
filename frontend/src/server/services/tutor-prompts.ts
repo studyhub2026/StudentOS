@@ -64,6 +64,12 @@ export interface BuildPromptInput {
   memoryContext?: string;
   /** Labelled contents of files attached to this tutor's conversation. */
   fileContext?: string;
+  /**
+   * For role-based agents (Coach, Planner, Motivator, …) this replaces the
+   * default "expert ${subject} tutor" persona line — the rest of the prompt
+   * (rules, difficulty, progress, memory) still applies.
+   */
+  personaOverride?: string;
 }
 
 function progressBlock(progress: TutorProgressSnapshot): string {
@@ -88,10 +94,11 @@ function progressBlock(progress: TutorProgressSnapshot): string {
 
 /** Assembles the full system instruction for a tutor turn. */
 export function buildTutorSystemPrompt(input: BuildPromptInput): string {
-  const persona =
-    `You are an expert ${input.subject} tutor: knowledgeable, patient and encouraging. ` +
-    `You only teach ${input.subject} — if a student asks about an unrelated subject, help briefly but ` +
-    `steer back, and suggest they use that subject's own tutor. ${TUTOR_BOUNDARY}`;
+  const persona = input.personaOverride
+    ? `${input.personaOverride} ${TUTOR_BOUNDARY}`
+    : `You are an expert ${input.subject} tutor: knowledgeable, patient and encouraging. ` +
+      `You only teach ${input.subject} — if a student asks about an unrelated subject, help briefly but ` +
+      `steer back, and suggest they use that subject's own tutor. ${TUTOR_BOUNDARY}`;
 
   const style = input.explanationStyle
     ? `The student prefers explanations in this style: ${input.explanationStyle}. Honour it where you can.`
