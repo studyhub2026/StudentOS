@@ -42,12 +42,14 @@ import { useDashboard } from '@/hooks/use-dashboard';
 import { apiErrorMessage } from '@/lib/api-client';
 import { cn, formatDueDate, formatMinutes } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
+import { useLocale, useT } from '@/lib/i18n/provider';
+import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
-function greeting(): string {
+function greetingKey(): TranslationKey {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'dashboard.greet.morning';
+  if (hour < 18) return 'dashboard.greet.afternoon';
+  return 'dashboard.greet.evening';
 }
 
 const QUOTES = [
@@ -70,21 +72,23 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } },
 };
 
-const QUICK_ACTIONS = [
-  { href: '/ai', label: 'Ask AI', icon: Sparkles, tone: 'text-brand-bright bg-brand/12' },
-  { href: '/notes', label: 'New note', icon: PenLine, tone: 'text-accent bg-accent/12' },
-  { href: '/flashcards/review', label: 'Review cards', icon: Layers, tone: 'text-teal bg-teal/12' },
-  { href: '/focus', label: 'Start focus', icon: Timer, tone: 'text-success bg-success/12' },
-  { href: '/schedule', label: 'Plan day', icon: CalendarDays, tone: 'text-warning bg-warning/12' },
-  { href: '/assignments', label: 'Assignments', icon: Target, tone: 'text-brand-bright bg-brand/12' },
+const QUICK_ACTIONS: { href: string; labelKey: TranslationKey; icon: typeof Sparkles; tone: string }[] = [
+  { href: '/ai', labelKey: 'dashboard.qa.askAi', icon: Sparkles, tone: 'text-brand-bright bg-brand/12' },
+  { href: '/notes', labelKey: 'dashboard.qa.newNote', icon: PenLine, tone: 'text-accent bg-accent/12' },
+  { href: '/flashcards/review', labelKey: 'dashboard.qa.reviewCards', icon: Layers, tone: 'text-teal bg-teal/12' },
+  { href: '/focus', labelKey: 'dashboard.qa.startFocus', icon: Timer, tone: 'text-success bg-success/12' },
+  { href: '/schedule', labelKey: 'dashboard.qa.planDay', icon: CalendarDays, tone: 'text-warning bg-warning/12' },
+  { href: '/assignments', labelKey: 'dashboard.qa.assignments', icon: Target, tone: 'text-brand-bright bg-brand/12' },
 ];
 
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   const { data, isLoading, isError, error, refetch } = useDashboard();
+  const t = useT();
+  const { locale } = useLocale();
 
   const quote = useMemo(() => QUOTES[new Date().getDate() % QUOTES.length]!, []);
-  const dateLabel = new Date().toLocaleDateString(undefined, {
+  const dateLabel = new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -94,10 +98,10 @@ export default function DashboardPage() {
     return (
       <Card className="mx-auto max-w-md text-center">
         <AlertTriangle className="mx-auto h-8 w-8 text-warning" aria-hidden />
-        <h2 className="mt-3 font-semibold">Could not load your dashboard</h2>
+        <h2 className="mt-3 font-semibold">{t('dashboard.error.title')}</h2>
         <p className="mt-1 text-sm text-fg-muted">{apiErrorMessage(error)}</p>
         <Button className="mt-5" onClick={() => void refetch()}>
-          Try again
+          {t('dashboard.error.retry')}
         </Button>
       </Card>
     );
@@ -127,7 +131,7 @@ export default function DashboardPage() {
               {dateLabel}
             </p>
             <h1 className="mt-1.5 text-2xl font-semibold tracking-tight sm:text-3xl">
-              {greeting()}
+              {t(greetingKey())}
               {user ? `, ${user.name.split(' ')[0]}` : ''}
             </h1>
             <p className="mt-2 max-w-md text-sm text-fg-muted">{quote}</p>
@@ -136,13 +140,13 @@ export default function DashboardPage() {
               <Link href="/ai">
                 <Button className="shadow-[0_8px_30px_-12px_var(--color-brand)]">
                   <Sparkles className="h-4 w-4" aria-hidden />
-                  Ask your AI tutor
+                  {t('dashboard.askTutor')}
                 </Button>
               </Link>
               <Link href="/focus">
                 <Button variant="secondary">
                   <Timer className="h-4 w-4" aria-hidden />
-                  Start a focus session
+                  {t('dashboard.startFocus')}
                 </Button>
               </Link>
             </div>
@@ -156,7 +160,7 @@ export default function DashboardPage() {
                   <p className="text-[10px] uppercase tracking-widest text-fg-subtle">Score</p>
                 </div>
               </ProgressRing>
-              <p className="mt-1.5 text-xs text-fg-muted">Productivity</p>
+              <p className="mt-1.5 text-xs text-fg-muted">{t('dashboard.stat.productivity')}</p>
             </div>
 
             <div className="text-center">
@@ -167,7 +171,7 @@ export default function DashboardPage() {
                 {data?.stats.currentStreak ?? 0}
                 <span className="text-sm text-fg-subtle">d</span>
               </p>
-              <p className="text-xs text-fg-muted">Streak</p>
+              <p className="text-xs text-fg-muted">{t('dashboard.stat.streak')}</p>
             </div>
           </div>
         </div>
@@ -185,14 +189,14 @@ export default function DashboardPage() {
         ) : (
           <>
             <StatCard
-              label="Studied today"
+              label={t('dashboard.stat.studiedToday')}
               value={formatMinutes(data.stats.studyMinutesToday)}
               icon={Timer}
               tone="brand"
               hint={`${formatMinutes(data.stats.studyMinutesWeek)} this week`}
             />
             <StatCard
-              label="Due this week"
+              label={t('dashboard.stat.dueThisWeek')}
               value={data.assignments.dueThisWeek}
               icon={CalendarClock}
               tone={data.assignments.overdue > 0 ? 'warning' : 'accent'}
@@ -203,14 +207,14 @@ export default function DashboardPage() {
               }
             />
             <StatCard
-              label="Total XP"
+              label={t('dashboard.stat.totalXp')}
               value={data.stats.totalXp.toLocaleString()}
               icon={TrendingUp}
               tone="teal"
               hint={`Best streak: ${data.stats.longestStreak} days`}
             />
             <StatCard
-              label="Assignments done"
+              label={t('dashboard.stat.assignmentsDone')}
               value={`${data.assignments.completed}/${data.assignments.total}`}
               icon={CheckCircle2}
               tone={completion >= 60 ? 'success' : 'warning'}
@@ -230,14 +234,14 @@ export default function DashboardPage() {
         <motion.section variants={item} className="grid gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Study hours</CardTitle>
-              <span className="text-xs text-fg-subtle">Last 14 days</span>
+              <CardTitle>{t('dashboard.trend.title')}</CardTitle>
+              <span className="text-xs text-fg-subtle">{t('dashboard.trend.subtitle')}</span>
             </CardHeader>
             <StudyTrendChart data={data.trend} />
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Time by subject</CardTitle>
+              <CardTitle>{t('dashboard.subjects.title')}</CardTitle>
             </CardHeader>
             <SubjectBreakdownChart data={data.subjectBreakdown} />
           </Card>
@@ -248,9 +252,9 @@ export default function DashboardPage() {
       <motion.section variants={item} className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Up next</CardTitle>
+            <CardTitle>{t('dashboard.upNext')}</CardTitle>
             <Link href="/assignments" className="text-xs text-brand-bright hover:underline">
-              See all
+              {t('dashboard.upNext.seeAll')}
             </Link>
           </CardHeader>
 
@@ -301,7 +305,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Today&apos;s schedule</CardTitle>
+            <CardTitle>{t('dashboard.schedule.today')}</CardTitle>
             <span className="text-xs text-fg-subtle">
               {data ? `${data.stats.focusSessionsToday} focus sessions` : ''}
             </span>
@@ -317,9 +321,9 @@ export default function DashboardPage() {
             <EmptyState
               icon={CalendarClock}
               tone="text-fg-subtle"
-              title="Nothing scheduled today"
-              body="Block out study time and it will appear here."
-              cta={{ href: '/schedule', label: 'Plan your day' }}
+              title={t('dashboard.schedule.empty')}
+              body={t('dashboard.schedule.emptyHint')}
+              cta={{ href: '/schedule', label: t('dashboard.schedule.plan') }}
             />
           ) : (
             <ul className="space-y-2">
@@ -357,10 +361,12 @@ export default function DashboardPage() {
       <motion.section variants={item}>
         <div className="mb-3 flex items-center gap-2 text-sm font-medium text-fg-muted">
           <Sparkles className="h-4 w-4 text-brand-bright" aria-hidden />
-          Quick actions
+          {t('dashboard.quickActions')}
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {QUICK_ACTIONS.map(({ href, label, icon: Icon, tone }) => (
+          {QUICK_ACTIONS.map(({ href, labelKey, icon: Icon, tone }) => {
+            const label = t(labelKey);
+            return (
             <motion.div key={href} whileHover={{ y: -3 }} whileTap={{ scale: 0.97 }}>
               <Link
                 href={href}
@@ -372,7 +378,8 @@ export default function DashboardPage() {
                 <span className="text-xs font-medium text-fg-muted">{label}</span>
               </Link>
             </motion.div>
-          ))}
+          );
+          })}
         </div>
       </motion.section>
 

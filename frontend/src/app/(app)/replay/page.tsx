@@ -21,10 +21,12 @@ import { Button } from '@/components/ui/button';
 import { useReplay, type ReplayData } from '@/hooks/use-replay';
 import { useAuthStore } from '@/stores/auth-store';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
 
 const SCENE_MS = 5000;
 
 export default function ReplayPage() {
+  const t = useT();
   const user = useAuthStore((s) => s.user);
   const [year, setYear] = useState(() => new Date().getUTCFullYear());
   const { data, isLoading } = useReplay(year);
@@ -71,9 +73,9 @@ export default function ReplayPage() {
       <div className="mx-auto grid min-h-[70vh] max-w-md place-items-center px-4 text-center">
         <div>
           <Sparkles className="mx-auto h-8 w-8 text-brand-bright" aria-hidden />
-          <h1 className="mt-3 text-2xl font-semibold">Nothing to replay yet</h1>
+          <h1 className="mt-3 text-2xl font-semibold">{t('replay.empty.title')}</h1>
           <p className="mt-2 text-sm text-fg-muted">
-            Come back once you&apos;ve logged some study time in {year}.
+            {t('replay.empty.body')} {year}.
           </p>
           <YearSwitcher year={year} setYear={setYear} />
         </div>
@@ -88,14 +90,14 @@ export default function ReplayPage() {
       <header className="mb-6 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-fg-subtle">
-            StudentOS Wrapped
+            {t('replay.eyebrow')}
           </p>
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{year}</h1>
         </div>
         <div className="flex items-center gap-2">
           <YearSwitcher year={year} setYear={setYear} />
           <Button variant="ghost" onClick={share}>
-            <Share2 className="h-4 w-4" aria-hidden /> Share
+            <Share2 className="h-4 w-4" aria-hidden /> {t('replay.share')}
           </Button>
         </div>
       </header>
@@ -140,21 +142,21 @@ export default function ReplayPage() {
           onClick={() => setScene((s) => Math.max(0, s - 1))}
           disabled={scene === 0}
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden /> Previous
+          <ArrowLeft className="h-4 w-4" aria-hidden /> {t('replay.previous')}
         </Button>
         <Button
           onClick={() => setPlaying((p) => !p)}
           aria-label={playing ? 'Pause' : 'Play'}
         >
           <Play className={cn('h-4 w-4', playing && 'opacity-40')} aria-hidden />
-          {playing ? 'Playing…' : 'Auto-play'}
+          {playing ? t('replay.playing') : t('replay.autoplay')}
         </Button>
         <Button
           variant="ghost"
           onClick={() => setScene((s) => Math.min(scenes.length - 1, s + 1))}
           disabled={scene >= scenes.length - 1}
         >
-          Next <ArrowRight className="h-4 w-4" aria-hidden />
+          {t('replay.next')} <ArrowRight className="h-4 w-4" aria-hidden />
         </Button>
       </footer>
     </div>

@@ -18,6 +18,7 @@ import { ConfettiBurst } from '@/components/confetti-burst';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGamification, useLeaderboard } from '@/hooks/use-gamification';
 import { useAuthStore } from '@/stores/auth-store';
+import { useT } from '@/lib/i18n/provider';
 
 const RECENT_UNLOCK_KEY = 'studentos.achievements.lastUnlock';
 
@@ -25,6 +26,7 @@ export default function AchievementsPage() {
   const { data: profile, isLoading } = useGamification();
   const { data: leaderboard } = useLeaderboard();
   const currentUser = useAuthStore((s) => s.user);
+  const t = useT();
   const [confettiTrigger, setConfettiTrigger] = useState(0);
 
   // When the most recent unlockedAt is newer than what we last celebrated,
@@ -80,8 +82,8 @@ export default function AchievementsPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <ConfettiBurst trigger={confettiTrigger} />
       <div>
-        <h1 className="text-2xl font-bold">Achievements & Rewards</h1>
-        <p className="text-fg-muted">Level up, complete missions, and climb the leaderboard.</p>
+        <h1 className="text-2xl font-bold">{t('achievements.title')}</h1>
+        <p className="text-fg-muted">{t('achievements.subtitle')}</p>
       </div>
 
       {/* Level & Stats */}
@@ -136,7 +138,7 @@ export default function AchievementsPage() {
         <div className="rounded-2xl border border-border bg-surface p-5">
           <div className="mb-4 flex items-center gap-2">
             <Target className="h-5 w-5 text-brand" />
-            <h2 className="text-lg font-semibold">Daily Missions</h2>
+            <h2 className="text-lg font-semibold">{t('achievements.dailyMissions')}</h2>
           </div>
           <div className="space-y-3">
             {profile.missions.map((m) => (
@@ -188,7 +190,7 @@ export default function AchievementsPage() {
 
           <div className="mb-2 mt-6 flex items-center gap-2">
             <Trophy className="h-5 w-5 text-warning" />
-            <h2 className="text-lg font-semibold">Weekly Challenges</h2>
+            <h2 className="text-lg font-semibold">{t('achievements.weeklyChallenges')}</h2>
           </div>
           <div className="space-y-3">
             {profile.challenges.map((c) => (
@@ -238,9 +240,9 @@ export default function AchievementsPage() {
             <>
               <div className="mb-2 mt-6 flex items-center gap-2">
                 <Crown className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold">Monthly Challenges</h2>
+                <h2 className="text-lg font-semibold">{t('achievements.monthlyChallenges')}</h2>
                 <span className="rounded-full bg-accent/12 px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-accent">
-                  New
+                  {t('achievements.new')}
                 </span>
               </div>
               <div className="space-y-3">
@@ -295,7 +297,7 @@ export default function AchievementsPage() {
           <div className="rounded-2xl border border-border bg-surface p-5">
             <div className="mb-4 flex items-center gap-2">
               <Medal className="h-5 w-5 text-warning" />
-              <h2 className="text-lg font-semibold">Leaderboard</h2>
+              <h2 className="text-lg font-semibold">{t('achievements.leaderboard')}</h2>
             </div>
             <div className="space-y-1">
               {leaderboard?.map((entry, i) => (
@@ -340,11 +342,11 @@ export default function AchievementsPage() {
           <div className="rounded-2xl border border-border bg-surface p-5">
             <div className="mb-4 flex items-center gap-2">
               <Award className="h-5 w-5 text-brand" />
-              <h2 className="text-lg font-semibold">Badges</h2>
+              <h2 className="text-lg font-semibold">{t('achievements.badges')}</h2>
             </div>
             {profile.achievements.length === 0 ? (
               <p className="py-6 text-center text-sm text-fg-subtle">
-                No badges yet. Complete missions and challenges to earn them!
+                {t('achievements.emptyBadges')}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
