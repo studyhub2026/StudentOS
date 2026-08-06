@@ -41,7 +41,7 @@ describe('system prompts', () => {
 
   it('carries the shared accuracy rules into every persona', () => {
     for (const feature of ALL_FEATURES) {
-      expect(SYSTEM_PROMPTS[feature]).toContain('StudentOS AI');
+      expect(SYSTEM_PROMPTS[feature]).toContain('OmnelOS');
       expect(SYSTEM_PROMPTS[feature]).toMatch(/never fabricate/i);
     }
   });

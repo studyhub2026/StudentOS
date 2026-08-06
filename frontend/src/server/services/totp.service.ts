@@ -9,7 +9,7 @@ import { BadRequestError } from '@/server/lib/errors';
  * Authenticator, 1Password, Authy and similar.
  */
 
-const ISSUER = 'StudentOS AI';
+const ISSUER = 'OmnelOS';
 const DIGITS = 6;
 const PERIOD_SECONDS = 30;
 /**

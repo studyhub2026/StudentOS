@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/command-palette';
+import { OmnelMark } from '@/components/brand/brand-mark';
 import { AiToolbar } from '@/components/ai-toolbar';
 import { NotificationBell } from '@/components/notification-bell';
 import { cn, initialsOf } from '@/lib/utils';
@@ -98,10 +99,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const renderSidebar = (prefix: string) => (
     <div className="flex h-full flex-col">
       <Link href="/dashboard" className="flex items-center gap-2 px-2 py-1 font-semibold">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-brand to-accent">
-          <Sparkles className="h-4 w-4 text-white" aria-hidden />
+        <OmnelMark className="h-7 w-7" />
+        <span className="text-lg tracking-tight">
+          <span className="text-fg">Omnel</span>
+          <span className="gradient-text">OS</span>
         </span>
-        StudentOS <span className="gradient-text">AI</span>
       </Link>
 
       <div className="mt-5 flex items-center gap-2">
@@ -253,8 +255,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
-          <span className="flex-1 font-semibold">
-            StudentOS <span className="gradient-text">AI</span>
+          <span className="flex flex-1 items-center gap-2 font-semibold">
+            <OmnelMark className="h-6 w-6" />
+            <span className="text-base tracking-tight">
+              <span className="text-fg">Omnel</span>
+              <span className="gradient-text">OS</span>
+            </span>
           </span>
           <NotificationBell />
           <CommandPalette />

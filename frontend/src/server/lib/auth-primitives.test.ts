@@ -95,7 +95,7 @@ describe('totp', () => {
   it('accepts a code generated from the enrolled secret', async () => {
     const setup = await totpService.generateSetup('student@example.com');
     const code = new OTPAuth.TOTP({
-      issuer: 'StudentOS AI',
+      issuer: 'OmnelOS',
       label: 'student@example.com',
       algorithm: 'SHA1',
       digits: 6,
@@ -117,7 +117,7 @@ describe('totp', () => {
       totpService.generateSetup('student@example.com'),
     ]);
     const codeFromB = new OTPAuth.TOTP({
-      issuer: 'StudentOS AI',
+      issuer: 'OmnelOS',
       label: 'student@example.com',
       algorithm: 'SHA1',
       digits: 6,
@@ -131,7 +131,7 @@ describe('totp', () => {
   it('produces a scannable enrolment payload', async () => {
     const setup = await totpService.generateSetup('student@example.com');
     expect(setup.otpauthUrl).toContain('otpauth://totp/');
-    expect(setup.otpauthUrl).toContain('StudentOS');
+    expect(setup.otpauthUrl).toContain('OmnelOS');
     expect(setup.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
   });
 });

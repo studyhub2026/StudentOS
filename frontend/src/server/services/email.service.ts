@@ -59,7 +59,7 @@ function layout(heading: string, body: string, action?: { label: string; url: st
         }
       </td></tr>
     </table>
-    <p style="max-width:520px;margin:16px auto 0;font-size:12px;color:#52525b;text-align:center;">StudentOS AI</p>
+    <p style="max-width:520px;margin:16px auto 0;font-size:12px;color:#52525b;text-align:center;">OmnelOS</p>
   </body>
 </html>`;
 }
@@ -68,11 +68,11 @@ export async function sendVerificationEmail(to: string, token: string): Promise<
   const url = `${env.APP_URL}/verify-email?token=${encodeURIComponent(token)}`;
   await transport.send({
     to,
-    subject: 'Verify your StudentOS AI email',
-    text: `Welcome to StudentOS AI. Verify your email address: ${url}\n\nThis link expires in 24 hours.`,
+    subject: 'Verify your OmnelOS email',
+    text: `Welcome to OmnelOS. Verify your email address: ${url}\n\nThis link expires in 24 hours.`,
     html: layout(
       'Verify your email',
-      'Welcome to StudentOS AI. Confirm your email address to activate your account. This link expires in 24 hours.',
+      'Welcome to OmnelOS. Confirm your email address to activate your account. This link expires in 24 hours.',
       { label: 'Verify email', url },
     ),
   });
@@ -82,7 +82,7 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
   const url = `${env.APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
   await transport.send({
     to,
-    subject: 'Reset your StudentOS AI password',
+    subject: 'Reset your OmnelOS password',
     text: `Reset your password: ${url}\n\nThis link expires in 1 hour. If you did not request this, you can ignore this email.`,
     html: layout(
       'Reset your password',
@@ -95,7 +95,7 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
 export async function sendPasswordChangedEmail(to: string): Promise<void> {
   await transport.send({
     to,
-    subject: 'Your StudentOS AI password was changed',
+    subject: 'Your OmnelOS password was changed',
     text: 'Your password was just changed. If this was not you, reset your password immediately.',
     html: layout(
       'Your password was changed',

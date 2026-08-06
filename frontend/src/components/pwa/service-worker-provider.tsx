@@ -114,7 +114,7 @@ export function ServiceWorkerProvider() {
         <div className="glass fixed bottom-4 right-4 z-[60] flex items-center gap-3 rounded-xl p-3 shadow-[var(--shadow-float)]">
           <Download className="h-4 w-4 shrink-0 text-brand-bright" aria-hidden />
           <div>
-            <p className="text-sm font-medium">Install StudentOS AI</p>
+            <p className="text-sm font-medium">Install OmnelOS</p>
             <p className="text-xs text-fg-subtle">Works offline, opens like an app.</p>
           </div>
           <Button

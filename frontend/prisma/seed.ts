@@ -47,7 +47,7 @@ function daysFromToday(days: number, hour = 9): Date {
 }
 
 async function main(): Promise<void> {
-  console.log('Seeding StudentOS AI…\n');
+  console.log('Seeding OmnelOS…\n');
 
   const passwordHash = await hash(DEMO_PASSWORD, {
     memoryCost: 19_456,

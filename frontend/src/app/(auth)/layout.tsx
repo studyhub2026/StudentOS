@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
+import { OmnelMark } from '@/components/brand/brand-mark';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,10 +11,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       <div className="w-full max-w-sm">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2 font-semibold">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-brand to-accent">
-            <Sparkles className="h-4 w-4 text-white" aria-hidden />
+          <OmnelMark className="h-8 w-8" />
+          <span className="text-xl tracking-tight">
+            <span className="text-fg">Omnel</span>
+            <span className="gradient-text">OS</span>
           </span>
-          StudentOS <span className="gradient-text">AI</span>
         </Link>
 
         {children}

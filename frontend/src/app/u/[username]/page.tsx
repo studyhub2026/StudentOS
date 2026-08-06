@@ -12,10 +12,10 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata({ params }: Props) {
   const { username } = await params;
   const profile = await getPublicProfile(username);
-  if (!profile) return { title: 'Profile not found · StudentOS AI' };
+  if (!profile) return { title: 'Profile not found · OmnelOS' };
   return {
-    title: `${profile.name} (@${profile.username}) · StudentOS AI`,
-    description: profile.bio ?? `${profile.name}'s public StudentOS profile.`,
+    title: `${profile.name} (@${profile.username}) · OmnelOS`,
+    description: profile.bio ?? `${profile.name}'s public OmnelOS profile.`,
   };
 }
 
@@ -141,7 +141,7 @@ export default async function PublicProfilePage({ params }: Props) {
         <footer className="mt-12 border-t border-border pt-4 text-xs text-fg-subtle">
           Powered by{' '}
           <Link href="/" className="text-brand-bright hover:underline">
-            StudentOS AI
+            OmnelOS
           </Link>
         </footer>
       </div>

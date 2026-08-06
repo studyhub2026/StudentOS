@@ -1,4 +1,4 @@
-// StudentOS AI — database schema
+// OmnelOS — database schema
 // Provider: PostgreSQL. Generated client is consumed by the Next.js app
 // via src/server/db.ts.
 

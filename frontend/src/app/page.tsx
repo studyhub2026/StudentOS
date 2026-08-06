@@ -8,10 +8,10 @@ import {
   Flame,
   Layers,
   MessageSquare,
-  Sparkles,
   Timer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OmnelMark } from '@/components/brand/brand-mark';
 
 const FEATURES = [
   {
@@ -65,10 +65,11 @@ export default function LandingPage() {
 
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-brand to-accent">
-            <Sparkles className="h-4 w-4 text-white" aria-hidden />
+          <OmnelMark className="h-9 w-9" />
+          <span className="text-xl tracking-tight">
+            <span className="text-fg">Omnel</span>
+            <span className="gradient-text">OS</span>
           </span>
-          StudentOS <span className="gradient-text">AI</span>
         </Link>
 
         <nav className="flex items-center gap-2">
@@ -96,7 +97,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-fg-muted">
-          StudentOS AI brings assignments, timetables, notes, flashcards and focus
+          OmnelOS brings assignments, timetables, notes, flashcards and focus
           sessions together — then uses AI to tell you what to work on next.
         </p>
 
@@ -234,7 +235,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-fg-subtle sm:flex-row">
-          <p>© {new Date().getFullYear()} StudentOS AI</p>
+          <p>© {new Date().getFullYear()} OmnelOS</p>
           <p>Built with Next.js, Express and Google Gemini.</p>
         </div>
       </footer>
