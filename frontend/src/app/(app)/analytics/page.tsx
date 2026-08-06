@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAnalytics } from '@/hooks/use-schedule';
 import { apiErrorMessage } from '@/lib/api-client';
 import { cn, formatMinutes } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
 
 // Defer Recharts so it stays out of the analytics page's initial bundle.
 const StudyTimeAreaChart = dynamic(
@@ -39,6 +40,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 18 }, (_, index) => index + 6);
 
 export default function AnalyticsPage() {
+  const t = useT();
   const [days, setDays] = useState(30);
   const { data, isLoading, isError, error } = useAnalytics(days);
 
@@ -73,7 +75,7 @@ export default function AnalyticsPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('analytics.title')}</h1>
           <p className="mt-1 text-sm text-fg-muted">
             {data ? `${data.range.from} to ${data.range.to}` : 'Loading…'}
           </p>

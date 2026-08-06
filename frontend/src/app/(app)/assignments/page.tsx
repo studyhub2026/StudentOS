@@ -28,11 +28,13 @@ import { apiErrorMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import { toQuery, useAssignmentFilters } from '@/stores/assignment-filter-store';
 import type { AssignmentStatus, Priority } from '@/types/api';
+import { useT } from '@/lib/i18n/provider';
 
 const STATUSES: AssignmentStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'SUBMITTED', 'COMPLETED'];
 const PRIORITIES: Priority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
 function AssignmentsView() {
+  const t = useT();
   const searchParams = useSearchParams();
   const highlightId = searchParams.get('highlight');
 
@@ -78,14 +80,14 @@ function AssignmentsView() {
     <div className="mx-auto max-w-5xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Assignments</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('assignments.title')}</h1>
           <p className="mt-1 text-sm text-fg-muted">
             {data ? `${data.pagination.total} total` : 'Loading…'}
           </p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4" aria-hidden />
-          New assignment
+          {t('assignments.new')}
         </Button>
       </header>
 
