@@ -9,6 +9,7 @@ import { useCreateAssignment, useUpdateAssignment } from '@/hooks/use-assignment
 import { useSubjects } from '@/hooks/use-dashboard';
 import { cn } from '@/lib/utils';
 import type { Assignment, AssignmentStatus, CreateAssignmentBody, Priority } from '@/types/api';
+import { useT } from '@/lib/i18n/provider';
 
 const STATUSES: AssignmentStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'SUBMITTED', 'COMPLETED'];
 const PRIORITIES: Priority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
@@ -30,6 +31,7 @@ function toLocalInput(iso: string | null | undefined): string {
 }
 
 export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDialogProps) {
+  const t = useT();
   const isEdit = Boolean(assignment);
   const { data: subjects } = useSubjects();
   const create = useCreateAssignment();
@@ -85,11 +87,11 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={isEdit ? 'Edit assignment' : 'New assignment'}
+      aria-label={isEdit ? t('assignmentForm.editTitle') : t('assignmentForm.newTitle')}
     >
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t('common.close')}
         className="absolute inset-0 bg-black/65 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -98,11 +100,11 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
         <header className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-semibold">
             <CalendarDays className="h-4 w-4 text-brand" aria-hidden />
-            {isEdit ? 'Edit assignment' : 'New assignment'}
+            {isEdit ? t('assignmentForm.editTitle') : t('assignmentForm.newTitle')}
           </h2>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t('common.close')}
             onClick={onClose}
             className="grid h-8 w-8 place-items-center rounded-lg text-fg-subtle transition-colors hover:bg-surface-raised hover:text-fg"
           >
@@ -112,7 +114,7 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <Input
-            label="Title"
+            label={t('assignmentForm.field.title')}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="e.g. Calculus problem set 4"
@@ -123,7 +125,7 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-fg-muted" htmlFor="assignment-desc">
-              Description
+              {t('assignmentForm.field.description')}
             </label>
             <textarea
               id="assignment-desc"
@@ -138,7 +140,7 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-fg-muted" htmlFor="assignment-subject">
-                Subject
+                {t('assignmentForm.field.subject')}
               </label>
               <select
                 id="assignment-subject"
@@ -146,7 +148,7 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
                 onChange={(event) => setSubjectId(event.target.value)}
                 className="h-10 w-full rounded-xl border border-border bg-surface-raised px-3 text-sm focus:border-brand focus:outline-none"
               >
-                <option value="">None</option>
+                <option value="">{t('assignmentForm.subject.none')}</option>
                 {subjects?.map((subject) => (
                   <option key={subject.id} value={subject.id}>
                     {subject.name}
@@ -157,7 +159,7 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-fg-muted" htmlFor="assignment-due">
-                Due date
+                {t('assignmentForm.field.dueAt')}
               </label>
               <input
                 id="assignment-due"
@@ -170,7 +172,7 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">Priority</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">{t('assignmentForm.field.priority')}</p>
             <div className="flex flex-wrap gap-2">
               {PRIORITIES.map((value) => (
                 <button
@@ -193,11 +195,11 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">Status</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">{t('assignmentForm.field.status')}</p>
               <select
                 value={status}
                 onChange={(event) => setStatus(event.target.value as AssignmentStatus)}
-                aria-label="Status"
+                aria-label={t('assignmentForm.field.status')}
                 className="h-10 w-full rounded-xl border border-border bg-surface-raised px-3 text-sm focus:border-brand focus:outline-none"
               >
                 {STATUSES.map((value) => (
@@ -209,7 +211,7 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
             </div>
 
             <Input
-              label="Estimated minutes"
+              label={t('assignmentForm.field.estimatedMinutes')}
               type="number"
               min={0}
               max={100000}
@@ -221,11 +223,11 @@ export function AssignmentFormDialog({ assignment, onClose }: AssignmentFormDial
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
-              Cancel
+              {t('assignmentForm.cancel')}
             </Button>
             <Button type="submit" disabled={pending}>
               {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              {isEdit ? 'Save changes' : 'Create assignment'}
+              {pending ? t('assignmentForm.submitting') : t('assignmentForm.submit')}
             </Button>
           </div>
         </form>

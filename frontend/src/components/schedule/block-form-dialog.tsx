@@ -8,14 +8,16 @@ import { useCreateBlock } from '@/hooks/use-schedule';
 import { useSubjects } from '@/hooks/use-dashboard';
 import { cn } from '@/lib/utils';
 import type { CreateBlockBody, ScheduleBlockType } from '@/types/api';
+import { useT } from '@/lib/i18n/provider';
+import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
-const TYPES: { value: ScheduleBlockType; label: string }[] = [
-  { value: 'STUDY', label: 'Study' },
-  { value: 'CLASS', label: 'Class' },
-  { value: 'FOCUS', label: 'Focus' },
-  { value: 'EXAM', label: 'Exam' },
-  { value: 'BREAK', label: 'Break' },
-  { value: 'PERSONAL', label: 'Personal' },
+const TYPES: { value: ScheduleBlockType; labelKey: TranslationKey }[] = [
+  { value: 'STUDY', labelKey: 'blockForm.type.STUDY' },
+  { value: 'CLASS', labelKey: 'blockForm.type.CLASS' },
+  { value: 'FOCUS', labelKey: 'blockForm.type.FOCUS' },
+  { value: 'EXAM', labelKey: 'blockForm.type.EXAM' },
+  { value: 'BREAK', labelKey: 'blockForm.type.BREAK' },
+  { value: 'PERSONAL', labelKey: 'blockForm.type.PERSONAL' },
 ];
 
 interface BlockFormDialogProps {
@@ -36,6 +38,7 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
   const base = defaultDate ?? new Date();
   const { data: subjects } = useSubjects();
   const create = useCreateBlock();
+  const t = useT();
 
   const [title, setTitle] = useState('');
   const [type, setType] = useState<ScheduleBlockType>('STUDY');
@@ -85,11 +88,11 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="New schedule block"
+      aria-label={t('blockForm.newTitle')}
     >
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t('common.close')}
         className="absolute inset-0 bg-black/65 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -98,11 +101,11 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
         <header className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-semibold">
             <CalendarDays className="h-4 w-4 text-brand" aria-hidden />
-            New schedule block
+            {t('blockForm.newTitle')}
           </h2>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t('common.close')}
             onClick={onClose}
             className="grid h-8 w-8 place-items-center rounded-lg text-fg-subtle transition-colors hover:bg-surface-raised hover:text-fg"
           >
@@ -112,7 +115,7 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <Input
-            label="Title"
+            label={t('blockForm.field.title')}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="e.g. Calculus revision"
@@ -121,7 +124,7 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
           />
 
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">Type</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-fg-subtle">{t('blockForm.field.type')}</p>
             <div className="flex flex-wrap gap-2">
               {TYPES.map((option) => (
                 <button
@@ -136,7 +139,7 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
                       : 'border-border text-fg-muted hover:border-border-strong',
                   )}
                 >
-                  {option.label}
+                  {t(option.labelKey)}
                 </button>
               ))}
             </div>
@@ -145,7 +148,7 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-fg-muted" htmlFor="block-start">
-                Starts
+                {t('blockForm.field.starts')}
               </label>
               <input
                 id="block-start"
@@ -157,7 +160,7 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-fg-muted" htmlFor="block-end">
-                Ends
+                {t('blockForm.field.ends')}
               </label>
               <input
                 id="block-end"
@@ -172,7 +175,7 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-fg-muted" htmlFor="block-subject">
-                Subject
+                {t('blockForm.field.subject')}
               </label>
               <select
                 id="block-subject"
@@ -180,7 +183,7 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
                 onChange={(event) => setSubjectId(event.target.value)}
                 className="h-10 w-full rounded-xl border border-border bg-surface-raised px-3 text-sm focus:border-brand focus:outline-none"
               >
-                <option value="">None</option>
+                <option value="">{t('assignmentForm.subject.none')}</option>
                 {subjects?.map((subject) => (
                   <option key={subject.id} value={subject.id}>
                     {subject.name}
@@ -189,7 +192,7 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
               </select>
             </div>
             <Input
-              label="Location"
+              label={t('blockForm.field.location')}
               value={location}
               onChange={(event) => setLocation(event.target.value)}
               placeholder="e.g. Library"
@@ -201,11 +204,11 @@ export function BlockFormDialog({ defaultDate, onClose }: BlockFormDialogProps) 
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose} disabled={create.isPending}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={create.isPending}>
               {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              Add block
+              {t('blockForm.submit')}
             </Button>
           </div>
         </form>
