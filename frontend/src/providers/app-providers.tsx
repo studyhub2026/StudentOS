@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { isAxiosError } from 'axios';
 import { useAuthStore } from '@/stores/auth-store';
+import { LocaleProvider } from '@/lib/i18n/provider';
 
 function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -40,17 +41,19 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          style: {
-            background: 'var(--color-surface-raised)',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-fg)',
-          },
-        }}
-      />
+      <LocaleProvider>
+        {children}
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: 'var(--color-surface-raised)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-fg)',
+            },
+          }}
+        />
+      </LocaleProvider>
     </QueryClientProvider>
   );
 }

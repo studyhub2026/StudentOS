@@ -42,12 +42,14 @@ import { useSearch, type SearchCategory } from '@/hooks/use-search';
 import { useSearchHistory } from '@/hooks/use-search-history';
 import { HighlightedText } from '@/components/highlighted-text';
 import { useAuthStore } from '@/stores/auth-store';
+import { useT } from '@/lib/i18n/provider';
+import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
 interface Command {
   id: string;
-  label: string;
+  labelKey: TranslationKey;
   icon: LucideIcon;
-  section: string;
+  sectionKey: TranslationKey;
   action: () => void;
   keywords?: string;
 }
@@ -99,6 +101,7 @@ function toggleTheme(): void {
 export function CommandPalette() {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -128,38 +131,42 @@ export function CommandPalette() {
   );
 
   const commands = useMemo<Command[]>(() => {
+    const NAV: TranslationKey = 'palette.section.navigation';
+    const ACT: TranslationKey = 'palette.section.actions';
+    const PREF: TranslationKey = 'palette.section.preferences';
+    const ACC: TranslationKey = 'palette.section.account';
     const cmds: Command[] = [
-      { id: 'nav-dashboard', label: 'Go to Dashboard', icon: BarChart3, section: 'Navigation', action: () => navigate('/dashboard'), keywords: 'home overview' },
-      { id: 'nav-ai', label: 'Go to AI Assistant', icon: Bot, section: 'Navigation', action: () => navigate('/ai'), keywords: 'chat gemini' },
-      { id: 'nav-tutors', label: 'Go to AI Tutors', icon: GraduationCap, section: 'Navigation', action: () => navigate('/tutors'), keywords: 'subject learn' },
-      { id: 'nav-assignments', label: 'Go to Assignments', icon: CheckSquare, section: 'Navigation', action: () => navigate('/assignments'), keywords: 'tasks homework' },
-      { id: 'nav-schedule', label: 'Go to Schedule', icon: CalendarDays, section: 'Navigation', action: () => navigate('/schedule'), keywords: 'calendar timetable' },
-      { id: 'nav-notes', label: 'Go to Notes', icon: BookOpen, section: 'Navigation', action: () => navigate('/notes'), keywords: 'documents writing' },
-      { id: 'nav-flashcards', label: 'Go to Flashcards', icon: Layers, section: 'Navigation', action: () => navigate('/flashcards'), keywords: 'review cards' },
-      { id: 'nav-focus', label: 'Go to Focus', icon: Timer, section: 'Navigation', action: () => navigate('/focus'), keywords: 'pomodoro timer study' },
-      { id: 'nav-analytics', label: 'Go to Analytics', icon: TrendingUp, section: 'Navigation', action: () => navigate('/analytics'), keywords: 'stats progress' },
-      { id: 'nav-groups', label: 'Go to Groups', icon: Users, section: 'Navigation', action: () => navigate('/groups'), keywords: 'study group chat' },
-      { id: 'nav-settings', label: 'Go to Settings', icon: Settings, section: 'Navigation', action: () => navigate('/settings'), keywords: 'preferences profile' },
-      { id: 'nav-pdf', label: 'Open PDF Reader', icon: FileText, section: 'Navigation', action: () => navigate('/pdf-reader'), keywords: 'read document' },
-      { id: 'nav-knowledge', label: 'Open Knowledge Base', icon: BookOpen, section: 'Navigation', action: () => navigate('/knowledge'), keywords: 'files documents ask' },
-      { id: 'nav-ai-tools', label: 'Open AI Tools', icon: Wrench, section: 'Navigation', action: () => navigate('/ai/tools'), keywords: 'utilities toolkit' },
-      { id: 'nav-achievements', label: 'Go to Achievements', icon: Target, section: 'Navigation', action: () => navigate('/achievements'), keywords: 'badges xp gamification' },
-      { id: 'nav-timeline', label: 'Open Study Timeline', icon: Clock, section: 'Navigation', action: () => navigate('/timeline'), keywords: 'history activity feed' },
-      { id: 'nav-replay', label: 'Open Yearly Replay', icon: Sparkles, section: 'Navigation', action: () => navigate('/replay'), keywords: 'wrapped recap year' },
-      { id: 'nav-exam', label: 'Open Exam Mode', icon: GraduationCap, section: 'Navigation', action: () => navigate('/exam'), keywords: 'exam countdown mock' },
-      { id: 'nav-voice', label: 'Open AI Voice', icon: MessageSquare, section: 'Navigation', action: () => navigate('/ai/voice'), keywords: 'voice speech microphone talk' },
-      { id: 'nav-whiteboard', label: 'Open Whiteboard', icon: PenLine, section: 'Navigation', action: () => navigate('/whiteboard'), keywords: 'draw canvas diagram sketch' },
-      { id: 'nav-graph', label: 'Open Knowledge Graph', icon: Layers, section: 'Navigation', action: () => navigate('/graph'), keywords: 'network map concepts' },
-      { id: 'nav-dashboard-custom', label: 'Customize Dashboard', icon: LayoutGrid, section: 'Navigation', action: () => navigate('/dashboard/custom'), keywords: 'widgets drag reorder layout' },
-      { id: 'act-new-assignment', label: 'Create Assignment', icon: Plus, section: 'Actions', action: () => navigate('/assignments?new=1'), keywords: 'add task homework' },
-      { id: 'act-new-note', label: 'Create Note', icon: Plus, section: 'Actions', action: () => navigate('/notes?new=1'), keywords: 'add document' },
-      { id: 'act-new-flashcard', label: 'Create Flashcard Deck', icon: Plus, section: 'Actions', action: () => navigate('/flashcards?new=1'), keywords: 'add deck study cards' },
-      { id: 'act-new-group', label: 'Create Study Group', icon: Plus, section: 'Actions', action: () => navigate('/groups?new=1'), keywords: 'add team collaborate' },
-      { id: 'act-ask-ai', label: 'Ask AI', icon: Bot, section: 'Actions', action: () => navigate('/ai'), keywords: 'question help' },
-      { id: 'act-focus', label: 'Start Focus Session', icon: Zap, section: 'Actions', action: () => navigate('/focus'), keywords: 'pomodoro timer concentrate' },
-      { id: 'act-timer', label: 'Start Timer', icon: Timer, section: 'Actions', action: () => navigate('/focus?timer=1'), keywords: 'pomodoro stopwatch countdown' },
-      { id: 'act-theme', label: 'Toggle Dark Mode', icon: typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? Sun : Moon, section: 'Preferences', action: () => { toggleTheme(); setOpen(false); }, keywords: 'theme light dark mode' },
-      { id: 'act-logout', label: 'Sign Out', icon: LogOut, section: 'Account', action: () => { void logout().then(() => router.replace('/login')); setOpen(false); }, keywords: 'logout exit' },
+      { id: 'nav-dashboard', labelKey: 'palette.cmd.dashboard', icon: BarChart3, sectionKey: NAV, action: () => navigate('/dashboard'), keywords: 'home overview لوحة' },
+      { id: 'nav-ai', labelKey: 'palette.cmd.ai', icon: Bot, sectionKey: NAV, action: () => navigate('/ai'), keywords: 'chat gemini ذكاء' },
+      { id: 'nav-tutors', labelKey: 'palette.cmd.tutors', icon: GraduationCap, sectionKey: NAV, action: () => navigate('/tutors'), keywords: 'subject learn مدرس' },
+      { id: 'nav-assignments', labelKey: 'palette.cmd.assignments', icon: CheckSquare, sectionKey: NAV, action: () => navigate('/assignments'), keywords: 'tasks homework واجب' },
+      { id: 'nav-schedule', labelKey: 'palette.cmd.schedule', icon: CalendarDays, sectionKey: NAV, action: () => navigate('/schedule'), keywords: 'calendar timetable جدول' },
+      { id: 'nav-notes', labelKey: 'palette.cmd.notes', icon: BookOpen, sectionKey: NAV, action: () => navigate('/notes'), keywords: 'documents writing ملاحظات' },
+      { id: 'nav-flashcards', labelKey: 'palette.cmd.flashcards', icon: Layers, sectionKey: NAV, action: () => navigate('/flashcards'), keywords: 'review cards بطاقات' },
+      { id: 'nav-focus', labelKey: 'palette.cmd.focus', icon: Timer, sectionKey: NAV, action: () => navigate('/focus'), keywords: 'pomodoro timer study تركيز' },
+      { id: 'nav-analytics', labelKey: 'palette.cmd.analytics', icon: TrendingUp, sectionKey: NAV, action: () => navigate('/analytics'), keywords: 'stats progress تحليلات' },
+      { id: 'nav-groups', labelKey: 'palette.cmd.groups', icon: Users, sectionKey: NAV, action: () => navigate('/groups'), keywords: 'study group chat مجموعة' },
+      { id: 'nav-settings', labelKey: 'palette.cmd.settings', icon: Settings, sectionKey: NAV, action: () => navigate('/settings'), keywords: 'preferences profile إعدادات' },
+      { id: 'nav-pdf', labelKey: 'palette.cmd.pdf', icon: FileText, sectionKey: NAV, action: () => navigate('/pdf-reader'), keywords: 'read document قارئ' },
+      { id: 'nav-knowledge', labelKey: 'palette.cmd.knowledge', icon: BookOpen, sectionKey: NAV, action: () => navigate('/knowledge'), keywords: 'files documents ask معرفة' },
+      { id: 'nav-ai-tools', labelKey: 'palette.cmd.aiTools', icon: Wrench, sectionKey: NAV, action: () => navigate('/ai/tools'), keywords: 'utilities toolkit أدوات' },
+      { id: 'nav-achievements', labelKey: 'palette.cmd.achievements', icon: Target, sectionKey: NAV, action: () => navigate('/achievements'), keywords: 'badges xp gamification إنجازات' },
+      { id: 'nav-timeline', labelKey: 'palette.cmd.timeline', icon: Clock, sectionKey: NAV, action: () => navigate('/timeline'), keywords: 'history activity feed زمني' },
+      { id: 'nav-replay', labelKey: 'palette.cmd.replay', icon: Sparkles, sectionKey: NAV, action: () => navigate('/replay'), keywords: 'wrapped recap year سنة' },
+      { id: 'nav-exam', labelKey: 'palette.cmd.exam', icon: GraduationCap, sectionKey: NAV, action: () => navigate('/exam'), keywords: 'exam countdown mock امتحان' },
+      { id: 'nav-voice', labelKey: 'palette.cmd.voice', icon: MessageSquare, sectionKey: NAV, action: () => navigate('/ai/voice'), keywords: 'voice speech microphone talk صوت' },
+      { id: 'nav-whiteboard', labelKey: 'palette.cmd.whiteboard', icon: PenLine, sectionKey: NAV, action: () => navigate('/whiteboard'), keywords: 'draw canvas diagram sketch سبورة' },
+      { id: 'nav-graph', labelKey: 'palette.cmd.graph', icon: Layers, sectionKey: NAV, action: () => navigate('/graph'), keywords: 'network map concepts معرفة' },
+      { id: 'nav-dashboard-custom', labelKey: 'palette.cmd.customDashboard', icon: LayoutGrid, sectionKey: NAV, action: () => navigate('/dashboard/custom'), keywords: 'widgets drag reorder layout تخصيص' },
+      { id: 'act-new-assignment', labelKey: 'palette.cmd.newAssignment', icon: Plus, sectionKey: ACT, action: () => navigate('/assignments?new=1'), keywords: 'add task homework واجب' },
+      { id: 'act-new-note', labelKey: 'palette.cmd.newNote', icon: Plus, sectionKey: ACT, action: () => navigate('/notes?new=1'), keywords: 'add document ملاحظة' },
+      { id: 'act-new-flashcard', labelKey: 'palette.cmd.newFlashcard', icon: Plus, sectionKey: ACT, action: () => navigate('/flashcards?new=1'), keywords: 'add deck study cards بطاقات' },
+      { id: 'act-new-group', labelKey: 'palette.cmd.newGroup', icon: Plus, sectionKey: ACT, action: () => navigate('/groups?new=1'), keywords: 'add team collaborate مجموعة' },
+      { id: 'act-ask-ai', labelKey: 'palette.cmd.askAi', icon: Bot, sectionKey: ACT, action: () => navigate('/ai'), keywords: 'question help اسأل' },
+      { id: 'act-focus', labelKey: 'palette.cmd.startFocus', icon: Zap, sectionKey: ACT, action: () => navigate('/focus'), keywords: 'pomodoro timer concentrate تركيز' },
+      { id: 'act-timer', labelKey: 'palette.cmd.startTimer', icon: Timer, sectionKey: ACT, action: () => navigate('/focus?timer=1'), keywords: 'pomodoro stopwatch countdown مؤقّت' },
+      { id: 'act-theme', labelKey: 'palette.cmd.toggleTheme', icon: typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? Sun : Moon, sectionKey: PREF, action: () => { toggleTheme(); setOpen(false); }, keywords: 'theme light dark mode داكن' },
+      { id: 'act-logout', labelKey: 'palette.cmd.signOut', icon: LogOut, sectionKey: ACC, action: () => { void logout().then(() => router.replace('/login')); setOpen(false); }, keywords: 'logout exit خروج' },
     ];
     return cmds;
   }, [navigate, logout, router]);
@@ -169,11 +176,11 @@ export function CommandPalette() {
     const lower = query.toLowerCase();
     return commands.filter(
       (cmd) =>
-        cmd.label.toLowerCase().includes(lower) ||
+        t(cmd.labelKey).toLowerCase().includes(lower) ||
         cmd.keywords?.toLowerCase().includes(lower) ||
-        cmd.section.toLowerCase().includes(lower),
+        t(cmd.sectionKey).toLowerCase().includes(lower),
     );
-  }, [commands, query]);
+  }, [commands, query, t]);
 
   // Stable reference so the keydown handler's deps don't change every render.
   const searchResults = useMemo(() => searchData?.results ?? [], [searchData]);
@@ -290,7 +297,7 @@ export function CommandPalette() {
         className="hidden items-center gap-2 rounded-xl border border-border bg-surface-raised/60 px-3 py-1.5 text-sm text-fg-subtle transition-colors hover:border-brand/40 hover:text-fg lg:flex"
       >
         <Search className="h-3.5 w-3.5" />
-        <span>Search...</span>
+        <span>{t('common.search')}...</span>
         <kbd className="ml-4 rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] font-medium text-fg-subtle">
           Ctrl K
         </kbd>
@@ -300,7 +307,7 @@ export function CommandPalette() {
         type="button"
         onClick={() => setOpen(true)}
         className="grid h-9 w-9 place-items-center rounded-xl border border-border bg-surface-raised/60 text-fg-subtle transition-colors hover:text-fg lg:hidden"
-        aria-label="Search"
+        aria-label={t('common.search')}
       >
         <Search className="h-4 w-4" />
       </button>
@@ -327,7 +334,7 @@ export function CommandPalette() {
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder="Search everything or type a command..."
+                  placeholder={t('palette.placeholder')}
                   className="min-w-0 flex-1 bg-transparent text-sm text-fg placeholder:text-fg-subtle focus:outline-none"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -344,17 +351,17 @@ export function CommandPalette() {
               <div ref={listRef} className="max-h-[50vh] overflow-y-auto p-2">
                 {/* Commands grouped by section */}
                 {(() => {
-                  const sections = new Map<string, Command[]>();
+                  const sections = new Map<TranslationKey, Command[]>();
                   for (const cmd of filteredCommands) {
-                    const arr = sections.get(cmd.section) ?? [];
+                    const arr = sections.get(cmd.sectionKey) ?? [];
                     arr.push(cmd);
-                    sections.set(cmd.section, arr);
+                    sections.set(cmd.sectionKey, arr);
                   }
                   const nodes: React.ReactNode[] = [];
-                  for (const [section, cmds] of sections) {
+                  for (const [sectionKey, cmds] of sections) {
                     nodes.push(
-                      <div key={section} className="mb-1 px-2 pt-2 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
-                        {section}
+                      <div key={sectionKey} className="mb-1 px-2 pt-2 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
+                        {t(sectionKey)}
                       </div>,
                     );
                     for (const cmd of cmds) {
@@ -364,7 +371,7 @@ export function CommandPalette() {
                           cmd.id,
                           idx,
                           <cmd.icon className="h-4 w-4" />,
-                          cmd.label,
+                          t(cmd.labelKey),
                           null,
                           null,
                           null,
@@ -383,7 +390,7 @@ export function CommandPalette() {
                 {query.trim() && searchResults.length > 0 ? (
                   <>
                     <div className="mt-3 mb-1 flex items-center justify-between px-2 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
-                      <span>Search Results</span>
+                      <span>{t('palette.searchResults')}</span>
                       {query.trim() ? (
                         <button
                           type="button"
@@ -392,15 +399,15 @@ export function CommandPalette() {
                             togglePin(query);
                           }}
                           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-fg-subtle transition-colors hover:bg-surface-raised hover:text-fg"
-                          aria-label={isPinned(query) ? 'Unpin query' : 'Pin query'}
+                          aria-label={isPinned(query) ? t('palette.unpin') : t('palette.pin')}
                         >
                           {isPinned(query) ? (
                             <>
-                              <PinOff className="h-3 w-3" /> Unpin
+                              <PinOff className="h-3 w-3" /> {t('palette.unpin')}
                             </>
                           ) : (
                             <>
-                              <Pin className="h-3 w-3" /> Pin
+                              <Pin className="h-3 w-3" /> {t('palette.pin')}
                             </>
                           )}
                         </button>
@@ -438,7 +445,7 @@ export function CommandPalette() {
                 {query.trim() && !isLoading && filteredCommands.length === 0 && searchResults.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-8 text-fg-subtle">
                     <Search className="h-8 w-8 opacity-40" />
-                    <p className="text-sm">No results for &ldquo;{query}&rdquo;</p>
+                    <p className="text-sm">{t('palette.noResults')} &ldquo;{query}&rdquo;</p>
                   </div>
                 ) : null}
 
@@ -448,7 +455,7 @@ export function CommandPalette() {
                     {pinned.length > 0 ? (
                       <>
                         <div className="mb-1 px-2 pt-1 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
-                          Pinned
+                          {t('palette.pinned')}
                         </div>
                         {pinned.map((q) => (
                           <button
@@ -466,7 +473,7 @@ export function CommandPalette() {
                                 togglePin(q);
                               }}
                               className="rounded p-1 text-fg-subtle opacity-0 transition-opacity hover:bg-surface hover:text-fg group-hover:opacity-100"
-                              aria-label="Unpin"
+                              aria-label={t('palette.unpin')}
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -477,13 +484,13 @@ export function CommandPalette() {
                     {recent.length > 0 ? (
                       <>
                         <div className="mt-2 mb-1 flex items-center justify-between px-2 pt-1 text-[10px] font-semibold uppercase tracking-widest text-fg-subtle">
-                          <span>Recent</span>
+                          <span>{t('palette.recent')}</span>
                           <button
                             type="button"
                             onClick={clearRecent}
                             className="rounded px-1.5 py-0.5 normal-case tracking-normal text-fg-subtle transition-colors hover:bg-surface-raised hover:text-fg"
                           >
-                            Clear
+                            {t('palette.clear')}
                           </button>
                         </div>
                         {recent.map((q) => (
@@ -504,20 +511,20 @@ export function CommandPalette() {
 
                 {!query.trim() && filteredCommands.length === 0 && pinned.length === 0 && recent.length === 0 ? (
                   <div className="py-6 text-center text-sm text-fg-subtle">
-                    Start typing to search...
+                    {t('palette.searchPrompt')}
                   </div>
                 ) : null}
               </div>
 
               <div className="flex items-center gap-4 border-t border-border px-4 py-2 text-[10px] text-fg-subtle">
                 <span className="flex items-center gap-1">
-                  <kbd className="rounded border border-border px-1 py-0.5">↑↓</kbd> Navigate
+                  <kbd className="rounded border border-border px-1 py-0.5">↑↓</kbd> {t('palette.hint.navigate')}
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="rounded border border-border px-1 py-0.5">↵</kbd> Select
+                  <kbd className="rounded border border-border px-1 py-0.5">↵</kbd> {t('palette.hint.select')}
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="rounded border border-border px-1 py-0.5">Esc</kbd> Close
+                  <kbd className="rounded border border-border px-1 py-0.5">Esc</kbd> {t('palette.hint.close')}
                 </span>
               </div>
             </motion.div>

@@ -32,10 +32,12 @@ import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import type { ApiEnvelope } from '@/types/api';
 import { toast } from 'sonner';
+import { useT } from '@/lib/i18n/provider';
+import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
 interface ActionDef {
   id: string;
-  label: string;
+  labelKey: TranslationKey;
   icon: React.ElementType;
   needsExtra?: boolean;
   extraPlaceholder?: string;
@@ -44,24 +46,24 @@ interface ActionDef {
 }
 
 const ACTIONS: ActionDef[] = [
-  { id: 'explain', label: 'Explain', icon: Bot },
-  { id: 'summarize', label: 'Summarize', icon: AlignLeft },
-  { id: 'rewrite', label: 'Rewrite', icon: PenLine },
-  { id: 'simplify', label: 'Simplify', icon: Sparkles },
-  { id: 'shorten', label: 'Shorten', icon: Minimize2 },
-  { id: 'expand', label: 'Expand', icon: Type },
-  { id: 'improve', label: 'Improve', icon: Wand2 },
-  { id: 'fix_grammar', label: 'Fix Grammar', icon: Check },
-  { id: 'translate', label: 'Translate', icon: Languages, needsExtra: true, extraPlaceholder: 'Target language (e.g. Spanish)' },
-  { id: 'generate_quiz', label: 'Quiz', icon: FileText },
-  { id: 'generate_flashcards', label: 'Flashcards', icon: Layers },
-  { id: 'generate_notes', label: 'Notes', icon: BookOpen },
-  { id: 'save_as_note', label: 'Save as Note', icon: NotebookPen },
-  { id: 'save_as_assignment', label: 'Save as Assignment', icon: SquareCheckBig },
-  { id: 'ask_ai', label: 'Ask AI', icon: MessageSquare, needsExtra: true, extraPlaceholder: 'Your question...' },
-  { id: 'ask_tutor', label: 'Ask AI Tutor', icon: GraduationCap, clientOnly: true },
-  { id: 'share', label: 'Share', icon: Share2, clientOnly: true },
-  { id: 'export', label: 'Export', icon: Download, clientOnly: true },
+  { id: 'explain', labelKey: 'toolbar.explain', icon: Bot },
+  { id: 'summarize', labelKey: 'toolbar.summarize', icon: AlignLeft },
+  { id: 'rewrite', labelKey: 'toolbar.rewrite', icon: PenLine },
+  { id: 'simplify', labelKey: 'toolbar.simplify', icon: Sparkles },
+  { id: 'shorten', labelKey: 'toolbar.shorten', icon: Minimize2 },
+  { id: 'expand', labelKey: 'toolbar.expand', icon: Type },
+  { id: 'improve', labelKey: 'toolbar.improve', icon: Wand2 },
+  { id: 'fix_grammar', labelKey: 'toolbar.fixGrammar', icon: Check },
+  { id: 'translate', labelKey: 'toolbar.translate', icon: Languages, needsExtra: true, extraPlaceholder: 'Target language (e.g. Spanish)' },
+  { id: 'generate_quiz', labelKey: 'toolbar.quiz', icon: FileText },
+  { id: 'generate_flashcards', labelKey: 'toolbar.flashcards', icon: Layers },
+  { id: 'generate_notes', labelKey: 'toolbar.notes', icon: BookOpen },
+  { id: 'save_as_note', labelKey: 'toolbar.saveAsNote', icon: NotebookPen },
+  { id: 'save_as_assignment', labelKey: 'toolbar.saveAsAssignment', icon: SquareCheckBig },
+  { id: 'ask_ai', labelKey: 'toolbar.askAi', icon: MessageSquare, needsExtra: true, extraPlaceholder: 'Your question...' },
+  { id: 'ask_tutor', labelKey: 'toolbar.askTutor', icon: GraduationCap, clientOnly: true },
+  { id: 'share', labelKey: 'toolbar.share', icon: Share2, clientOnly: true },
+  { id: 'export', labelKey: 'toolbar.export', icon: Download, clientOnly: true },
 ];
 
 interface ActionResult {
@@ -75,6 +77,7 @@ interface ActionResult {
 
 export function AiToolbar() {
   const router = useRouter();
+  const t = useT();
   const [selection, setSelection] = useState<{ text: string; rect: DOMRect } | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -281,7 +284,7 @@ export function AiToolbar() {
                 onClick={() => void runAction(action)}
               >
                 <action.icon className="h-3.5 w-3.5" />
-                {action.label}
+                {t(action.labelKey)}
               </button>
             ))}
             {!expanded ? (
@@ -291,7 +294,7 @@ export function AiToolbar() {
                 onClick={() => setExpanded(true)}
               >
                 <ChevronDown className="h-3 w-3" />
-                More
+                {t('toolbar.more')}
               </button>
             ) : null}
           </div>
@@ -319,7 +322,7 @@ export function AiToolbar() {
                   disabled={!extraInput.text.trim()}
                   className="rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-bright disabled:opacity-50"
                 >
-                  Go
+                  {t('toolbar.go')}
                 </button>
               </form>
             </div>
@@ -329,7 +332,7 @@ export function AiToolbar() {
           {loading ? (
             <div className="flex items-center gap-2 border-t border-border px-3 py-3 text-xs text-fg-subtle">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Processing with AI...
+              {t('toolbar.processing')}
             </div>
           ) : null}
 
@@ -352,7 +355,7 @@ export function AiToolbar() {
                   ) : (
                     <ClipboardCopy className="h-3.5 w-3.5" />
                   )}
-                  {copied ? 'Copied' : 'Copy'}
+                  {copied ? t('toolbar.copied') : t('toolbar.copy')}
                 </button>
                 {savedInfo ? (
                   <button
@@ -366,7 +369,7 @@ export function AiToolbar() {
                     }}
                   >
                     <ArrowRight className="h-3.5 w-3.5" />
-                    Open {savedInfo.type}
+                    {t('common.open')}
                   </button>
                 ) : null}
                 <button
@@ -375,7 +378,7 @@ export function AiToolbar() {
                   onClick={() => { setResult(null); setSavedInfo(null); setSelection(null); }}
                 >
                   <X className="h-3.5 w-3.5" />
-                  Close
+                  {t('common.close')}
                 </button>
               </div>
             </div>

@@ -36,28 +36,30 @@ import { AiToolbar } from '@/components/ai-toolbar';
 import { NotificationBell } from '@/components/notification-bell';
 import { cn, initialsOf } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
+import { useT } from '@/lib/i18n/provider';
+import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
-const NAV = [
-  { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-  { href: '/ai', label: 'AI Assistant', icon: Bot },
-  { href: '/tutors', label: 'AI Tutors', icon: GraduationCap },
-  { href: '/assignments', label: 'Assignments', icon: CheckSquare },
-  { href: '/schedule', label: 'Schedule', icon: CalendarDays },
-  { href: '/notes', label: 'Notes', icon: BookOpen },
-  { href: '/flashcards', label: 'Flashcards', icon: Layers },
-  { href: '/pdf-reader', label: 'PDF Reader', icon: FileText },
-  { href: '/whiteboard', label: 'Whiteboard', icon: PenLine },
-  { href: '/knowledge', label: 'Knowledge', icon: Database },
-  { href: '/focus', label: 'Focus', icon: Timer },
-  { href: '/analytics', label: 'Analytics', icon: TrendingUp },
-  { href: '/timeline', label: 'Timeline', icon: ListTree },
-  { href: '/exam', label: 'Exam Mode', icon: ClipboardList },
-  { href: '/achievements', label: 'Achievements', icon: Trophy },
-  { href: '/groups', label: 'Groups', icon: Users },
+const NAV: { href: string; labelKey: TranslationKey; icon: typeof BarChart3 }[] = [
+  { href: '/dashboard', labelKey: 'nav.dashboard', icon: BarChart3 },
+  { href: '/ai', labelKey: 'nav.ai', icon: Bot },
+  { href: '/tutors', labelKey: 'nav.tutors', icon: GraduationCap },
+  { href: '/assignments', labelKey: 'nav.assignments', icon: CheckSquare },
+  { href: '/schedule', labelKey: 'nav.schedule', icon: CalendarDays },
+  { href: '/notes', labelKey: 'nav.notes', icon: BookOpen },
+  { href: '/flashcards', labelKey: 'nav.flashcards', icon: Layers },
+  { href: '/pdf-reader', labelKey: 'nav.pdfReader', icon: FileText },
+  { href: '/whiteboard', labelKey: 'nav.whiteboard', icon: PenLine },
+  { href: '/knowledge', labelKey: 'nav.knowledge', icon: Database },
+  { href: '/focus', labelKey: 'nav.focus', icon: Timer },
+  { href: '/analytics', labelKey: 'nav.analytics', icon: TrendingUp },
+  { href: '/timeline', labelKey: 'nav.timeline', icon: ListTree },
+  { href: '/exam', labelKey: 'nav.exam', icon: ClipboardList },
+  { href: '/achievements', labelKey: 'nav.achievements', icon: Trophy },
+  { href: '/groups', labelKey: 'nav.groups', icon: Users },
 ];
 
 /** Appended only for administrators. */
-const ADMIN_NAV = { href: '/admin', label: 'Admin', icon: Shield } as const;
+const ADMIN_NAV = { href: '/admin', labelKey: 'nav.admin' as TranslationKey, icon: Shield } as const;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -67,6 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const initialised = useAuthStore((state) => state.initialised);
   const logout = useAuthStore((state) => state.logout);
+  const t = useT();
 
   // Wait for the bootstrap refresh to settle before redirecting, otherwise a
   // signed-in user is bounced to /login on every hard reload.
@@ -111,7 +114,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="mt-4 flex-1 space-y-1">
-        {[...NAV, ...(user.role === 'ADMIN' ? [ADMIN_NAV] : [])].map(({ href, label, icon: Icon }) => {
+        {[...NAV, ...(user.role === 'ADMIN' ? [ADMIN_NAV] : [])].map(({ href, labelKey, icon: Icon }) => {
+          const label = t(labelKey);
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
@@ -150,7 +154,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Flame className="h-4 w-4 shrink-0 text-warning" aria-hidden />
           <div className="min-w-0">
             <p className="text-sm font-semibold leading-none tabular-nums">{user.currentStreak}d</p>
-            <p className="mt-0.5 text-[10px] uppercase tracking-wide text-fg-subtle">Streak</p>
+            <p className="mt-0.5 text-[10px] uppercase tracking-wide text-fg-subtle">{t('dashboard.streak')}</p>
           </div>
         </div>
         <div className="flex flex-1 items-center gap-2 rounded-xl border border-teal/20 bg-teal/8 px-3 py-2">
@@ -159,7 +163,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <p className="truncate text-sm font-semibold leading-none tabular-nums">
               {user.totalXp.toLocaleString()}
             </p>
-            <p className="mt-0.5 text-[10px] uppercase tracking-wide text-fg-subtle">XP</p>
+            <p className="mt-0.5 text-[10px] uppercase tracking-wide text-fg-subtle">{t('dashboard.xp')}</p>
           </div>
         </div>
       </div>
@@ -201,7 +205,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }}
         >
           <LogOut className="h-4 w-4" aria-hidden />
-          Sign out
+          {t('nav.signOut')}
         </Button>
       </div>
     </div>
@@ -219,7 +223,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="fixed inset-0 z-50 lg:hidden">
             <motion.button
               type="button"
-              aria-label="Close navigation"
+              aria-label={t('nav.closeNavigation')}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
               initial={{ opacity: 0 }}
@@ -244,7 +248,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Button
             variant="ghost"
             size="icon"
-            aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
+            aria-label={mobileOpen ? t('nav.closeNavigation') : t('nav.openNavigation')}
             onClick={() => setMobileOpen((open) => !open)}
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
