@@ -18,6 +18,8 @@ import { useKnowledgeGraph, type GraphNode, type GraphNodeKind } from '@/hooks/u
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
+import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
 interface PositionedNode extends GraphNode {
   x: number;
@@ -113,13 +115,13 @@ function layout(nodes: GraphNode[], edges: { from: string; to: string }[]): Posi
   });
 }
 
-const KIND_LABEL: Record<GraphNodeKind, string> = {
-  subject: 'Subjects',
-  note: 'Notes',
-  assignment: 'Assignments',
-  deck: 'Flashcard decks',
-  document: 'Documents',
-  goal: 'Goals',
+const KIND_LABEL_KEY: Record<GraphNodeKind, TranslationKey> = {
+  subject: 'graph.kind.subject',
+  note: 'graph.kind.note',
+  assignment: 'graph.kind.assignment',
+  deck: 'graph.kind.deck',
+  document: 'graph.kind.document',
+  goal: 'graph.kind.goal',
 };
 
 const KIND_ICONS: Record<GraphNodeKind, React.ComponentType<{ className?: string }>> = {
@@ -133,6 +135,7 @@ const KIND_ICONS: Record<GraphNodeKind, React.ComponentType<{ className?: string
 
 export default function KnowledgeGraphPage() {
   const { data, isLoading, error } = useKnowledgeGraph();
+  const t = useT();
   const [filter, setFilter] = useState<Set<GraphNodeKind>>(
     () => new Set<GraphNodeKind>(['subject', 'note', 'assignment', 'deck', 'document', 'goal']),
   );
@@ -173,10 +176,10 @@ export default function KnowledgeGraphPage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
             <Network className="h-5 w-5 text-brand-bright" aria-hidden />
-            Knowledge Graph
+            {t('graph.title')}
           </h1>
           <p className="text-sm text-fg-muted">
-            How your subjects connect to notes, assignments, decks and documents.
+            {t('graph.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -192,7 +195,7 @@ export default function KnowledgeGraphPage() {
 
       {/* Kind filter chips */}
       <div className="flex flex-wrap gap-1.5">
-        {(Object.keys(KIND_LABEL) as GraphNodeKind[]).map((k) => {
+        {(Object.keys(KIND_LABEL_KEY) as GraphNodeKind[]).map((k) => {
           const Icon = KIND_ICONS[k];
           const active = filter.has(k);
           return (
@@ -209,7 +212,7 @@ export default function KnowledgeGraphPage() {
               style={active ? { background: KIND_COLOR[k] } : undefined}
             >
               <Icon className="h-3 w-3" aria-hidden />
-              {KIND_LABEL[k]}
+              {t(KIND_LABEL_KEY[k])}
             </button>
           );
         })}
@@ -222,13 +225,13 @@ export default function KnowledgeGraphPage() {
           </div>
         ) : error ? (
           <div className="grid h-full place-items-center text-sm text-danger">
-            Could not load graph.
+            {t('graph.loadError')}
           </div>
         ) : filteredNodes.length === 0 ? (
           <div className="grid h-full place-items-center text-center text-sm text-fg-subtle">
             <div>
               <MousePointer className="mx-auto mb-2 h-6 w-6" aria-hidden />
-              Nothing to show — enable at least one filter, or add some data.
+              {t('graph.empty')}
             </div>
           </div>
         ) : (

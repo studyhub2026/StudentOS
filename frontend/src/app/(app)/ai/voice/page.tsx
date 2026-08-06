@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { apiClient, apiErrorMessage } from '@/lib/api-client';
 import type { ApiEnvelope } from '@/types/api';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
 
 // ---- Web Speech API typings ---------------------------------------------
 // The Web Speech API isn't in lib.dom.d.ts yet, so we declare the minimum
@@ -56,6 +57,7 @@ interface ChatMessageResult {
 }
 
 export default function AiVoicePage() {
+  const t = useT();
   const [supported, setSupported] = useState<boolean>(true);
   const [listening, setListening] = useState(false);
   const [thinking, setThinking] = useState(false);
@@ -261,7 +263,7 @@ export default function AiVoicePage() {
           href="/ai"
           className="flex items-center gap-1 text-xs text-fg-muted hover:text-fg"
         >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Back to chat
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> {t('voice.backToChat')}
         </Link>
         <div className="flex items-center gap-2">
           <button
@@ -287,14 +289,14 @@ export default function AiVoicePage() {
         </div>
       </header>
 
-      <h1 className="text-2xl font-semibold tracking-tight">AI Voice</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{t('voice.title')}</h1>
       <p className="mt-1 text-sm text-fg-muted">
-        Talk to your AI assistant. Streams back with speech synthesis.
+        {t('voice.subtitle')}
       </p>
 
       {!supported ? (
         <Card className="mt-6 border-warning/30 bg-warning/10 p-4 text-sm text-warning">
-          Speech recognition isn&apos;t supported in this browser. Try Chrome or Edge.
+          {t('voice.unsupported')}
         </Card>
       ) : null}
 
@@ -324,10 +326,10 @@ export default function AiVoicePage() {
         {/* Live transcript */}
         <p className="min-h-[2.5rem] max-w-md text-center text-sm text-fg-muted">
           {listening
-            ? transcript || 'Listening…'
+            ? transcript || t('voice.listening')
             : thinking
-            ? 'Thinking…'
-            : 'Tap the mic and start speaking.'}
+            ? t('voice.thinking')
+            : t('voice.tapHint')}
         </p>
 
         {/* Mic button */}
@@ -356,10 +358,10 @@ export default function AiVoicePage() {
       {/* Transcript history */}
       <section className="mt-6 flex-1">
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
-          Conversation
+          {t('voice.conversation')}
         </h2>
         {turns.length === 0 ? (
-          <p className="text-sm text-fg-subtle">Nothing yet.</p>
+          <p className="text-sm text-fg-subtle">{t('voice.nothingYet')}</p>
         ) : (
           <ol className="space-y-3">
             <AnimatePresence initial={false}>

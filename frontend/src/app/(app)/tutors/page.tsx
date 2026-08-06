@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { activateTutor, useTutors, type TutorCard } from '@/hooks/use-tutors';
 import { apiErrorMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -35,6 +36,7 @@ function timeAgo(iso: string): string {
 export default function TutorsPage() {
   const router = useRouter();
   const { data: tutors, isLoading } = useTutors();
+  const t = useT();
   const [query, setQuery] = useState('');
   const [opening, setOpening] = useState<string | null>(null);
 
@@ -80,17 +82,16 @@ export default function TutorsPage() {
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
               <GraduationCap className="h-6 w-6 text-brand-bright" aria-hidden />
-              AI Tutors
+              {t('tutors.title')}
             </h1>
             <p className="mt-1 text-sm text-fg-muted">
-              A dedicated tutor for every subject — each one remembers your progress, files and weak
-              spots. Free for everyone.
+              {t('tutors.subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Badge tone="brand">
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              {activeCount} active
+              {activeCount} {t('tutors.active')}
             </Badge>
           </div>
         </div>
@@ -100,8 +101,8 @@ export default function TutorsPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search subjects or topics…"
-            aria-label="Search tutors"
+            placeholder={t('tutors.searchPlaceholder')}
+            aria-label={t('tutors.searchPlaceholder')}
             className="w-full rounded-xl border border-border bg-surface-raised py-2 pl-9 pr-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40"
           />
         </div>
@@ -116,14 +117,14 @@ export default function TutorsPage() {
       ) : filtered.length === 0 ? (
         <Card className="grid place-items-center py-16 text-center">
           <BrainCircuit className="h-8 w-8 text-fg-subtle" aria-hidden />
-          <p className="mt-2 text-sm font-medium">No subjects match “{query}”.</p>
+          <p className="mt-2 text-sm font-medium">{t('tutors.noMatch')} “{query}”.</p>
         </Card>
       ) : (
         <div className="space-y-8">
           {subjectTutors.length > 0 ? (
             <section>
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
-                Subjects
+                {t('tutors.section.subjects')}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {subjectTutors.map((tutor, index) => (
@@ -142,9 +143,9 @@ export default function TutorsPage() {
           {roleTutors.length > 0 ? (
             <section>
               <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
-                Specialist agents
+                {t('tutors.section.specialists')}
                 <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[10px] font-medium normal-case tracking-normal text-brand-bright">
-                  New
+                  {t('achievements.new')}
                 </span>
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
