@@ -42,6 +42,7 @@ import {
   validateAiFile,
 } from '@/hooks/use-ai-files';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
 
 interface PendingFile {
   localId: string;
@@ -75,6 +76,7 @@ const SUGGESTIONS = [
 ] as const;
 
 export default function AiChatPage() {
+  const t = useT();
   const { data: status } = useAiStatus();
   const { data: conversations, isLoading: loadingList } = useConversations();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -201,7 +203,7 @@ export default function AiChatPage() {
       <aside className="hidden w-64 shrink-0 flex-col md:flex">
         <Button className="w-full" onClick={() => { setSelectedId(null); setDraft(''); setPendingFiles([]); }}>
           <Plus className="h-4 w-4" aria-hidden />
-          New chat
+          {t('ai.newChat')}
         </Button>
 
         <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto">
@@ -284,7 +286,7 @@ export default function AiChatPage() {
         <header className="mb-3 flex items-center justify-between gap-2">
           <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
             <Sparkles className="h-5 w-5 text-brand-bright" aria-hidden />
-            AI Assistant
+            {t('ai.title')}
           </h1>
           <div className="flex items-center gap-2">
             <Link

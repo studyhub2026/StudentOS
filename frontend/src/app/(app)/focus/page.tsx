@@ -13,6 +13,7 @@ import {
 } from '@/hooks/use-schedule';
 import { useSubjects } from '@/hooks/use-dashboard';
 import { cn, formatMinutes } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
 
 type Phase = 'work' | 'break';
 
@@ -30,6 +31,7 @@ function formatClock(seconds: number): string {
 }
 
 export default function FocusPage() {
+  const t = useT();
   const [presetIndex, setPresetIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('work');
   const [secondsLeft, setSecondsLeft] = useState(PRESETS[0]!.work * 60);
@@ -244,9 +246,9 @@ export default function FocusPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Focus</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('focus.title')}</h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Timed sessions, logged automatically to your analytics.
+          {t('focus.subtitle')}
         </p>
       </header>
 

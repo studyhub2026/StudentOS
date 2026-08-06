@@ -36,15 +36,18 @@ import {
 import { apiErrorMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import type { NoteView } from '@/types/api';
+import { useT } from '@/lib/i18n/provider';
+import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
-const VIEWS: { key: NoteView; label: string; icon: typeof FileText }[] = [
-  { key: 'active', label: 'All notes', icon: FileText },
-  { key: 'favorites', label: 'Favourites', icon: Star },
-  { key: 'archived', label: 'Archived', icon: Archive },
-  { key: 'trash', label: 'Trash', icon: Trash2 },
+const VIEWS: { key: NoteView; labelKey: TranslationKey; icon: typeof FileText }[] = [
+  { key: 'active', labelKey: 'notes.filter.all', icon: FileText },
+  { key: 'favorites', labelKey: 'notes.filter.favorites', icon: Star },
+  { key: 'archived', labelKey: 'notes.filter.archived', icon: Archive },
+  { key: 'trash', labelKey: 'notes.filter.trash', icon: Trash2 },
 ];
 
 export default function NotesPage() {
+  const t = useT();
   const [view, setView] = useState<NoteView>('active');
   const [folderId, setFolderId] = useState<string | undefined>();
   const [page, setPage] = useState(1);
@@ -101,20 +104,20 @@ export default function NotesPage() {
     <div className="mx-auto max-w-7xl">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Notes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('notes.title')}</h1>
           <p className="mt-1 text-sm text-fg-muted">
-            {data ? `${data.pagination.total} in ${VIEWS.find((v) => v.key === view)?.label.toLowerCase()}` : 'Loading…'}
+            {data ? `${data.pagination.total} · ${t(VIEWS.find((v) => v.key === view)?.labelKey ?? 'notes.filter.all')}` : t('common.loading')}
           </p>
         </div>
 
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={handleCreateFolder}>
             <FolderPlus className="h-4 w-4" aria-hidden />
-            New folder
+            {t('notes.newFolder')}
           </Button>
           <Button size="sm" loading={createNote.isPending} onClick={() => void handleCreate()}>
             <Plus className="h-4 w-4" aria-hidden />
-            New note
+            {t('notes.newNote')}
           </Button>
         </div>
       </header>
@@ -123,7 +126,7 @@ export default function NotesPage() {
         {/* Sidebar: views and folders */}
         <aside className="space-y-4">
           <nav className="space-y-1">
-            {VIEWS.map(({ key, label, icon: Icon }) => (
+            {VIEWS.map(({ key, labelKey, icon: Icon }) => (
               <button
                 key={key}
                 type="button"
@@ -137,7 +140,7 @@ export default function NotesPage() {
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                {label}
+                {t(labelKey)}
               </button>
             ))}
           </nav>
@@ -159,7 +162,7 @@ export default function NotesPage() {
                     !folderId ? 'text-fg' : 'text-fg-muted hover:bg-surface-raised',
                   )}
                 >
-                  All folders
+                  {t('notes.folders.all')}
                 </button>
 
                 {folders.map((folder) => (
@@ -220,8 +223,8 @@ export default function NotesPage() {
                     setSearchInput(event.target.value);
                     setPage(1);
                   }}
-                  placeholder="Search notes…"
-                  aria-label="Search notes"
+                  placeholder={t('notes.searchPlaceholder')}
+                  aria-label={t('notes.searchPlaceholder')}
                   className="h-10 w-full rounded-xl border border-border bg-surface-raised pl-9 pr-3 text-sm placeholder:text-fg-subtle focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/40"
                 />
               </div>

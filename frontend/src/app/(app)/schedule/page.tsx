@@ -19,6 +19,7 @@ import { useDeleteBlock, useWeekSchedule } from '@/hooks/use-schedule';
 import { apiErrorMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import type { ScheduleBlockType } from '@/types/api';
+import { useT } from '@/lib/i18n/provider';
 
 /** Grid runs 07:00–23:00; earlier blocks are clamped into view. */
 const DAY_START_HOUR = 7;
@@ -49,6 +50,7 @@ function toISODate(date: Date): string {
 }
 
 export default function SchedulePage() {
+  const t = useT();
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
@@ -96,7 +98,7 @@ export default function SchedulePage() {
     <div className="mx-auto max-w-7xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Timetable</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('schedule.title')}</h1>
           <p className="mt-1 text-sm text-fg-muted">
             {weekStart.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} —{' '}
             {new Date(weekStart.getTime() + 6 * 864e5).toLocaleDateString(undefined, {

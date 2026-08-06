@@ -15,8 +15,10 @@ import {
   useJoinGroup,
 } from '@/hooks/use-groups';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
 
 export default function GroupsPage() {
+  const t = useT();
   const [tab, setTab] = useState<'mine' | 'discover'>('mine');
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
@@ -33,7 +35,7 @@ export default function GroupsPage() {
     <div className="mx-auto max-w-5xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Study groups</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('groups.title')}</h1>
           <p className="mt-1 text-sm text-fg-muted">
             {groups ? `You are in ${groups.length} group${groups.length === 1 ? '' : 's'}` : 'Loading…'}
           </p>
@@ -41,7 +43,7 @@ export default function GroupsPage() {
 
         <Button size="sm" onClick={() => setCreating((open) => !open)}>
           <Plus className="h-4 w-4" aria-hidden />
-          New group
+          {t('groups.new')}
         </Button>
       </header>
 

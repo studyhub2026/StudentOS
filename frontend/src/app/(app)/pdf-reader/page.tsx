@@ -22,6 +22,7 @@ import { apiClient } from '@/lib/api-client';
 import type { ApiEnvelope } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { useRecentPdfs, usePdfBookmarks } from '@/hooks/use-pdf-library';
+import { useT } from '@/lib/i18n/provider';
 
 interface ChatMessage {
   role: 'user' | 'model';
@@ -31,6 +32,7 @@ interface ChatMessage {
 const MAX_PDF_AI_BYTES = 4 * 1024 * 1024;
 
 export default function PdfReaderPage() {
+  const t = useT();
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfName, setPdfName] = useState('');
   const [pdfSize, setPdfSize] = useState<number | null>(null);
@@ -191,18 +193,18 @@ export default function PdfReaderPage() {
           <div className="grid h-20 w-20 place-items-center rounded-2xl bg-brand/12">
             <FileText className="h-10 w-10 text-brand" />
           </div>
-          <h1 className="text-2xl font-bold">PDF Reader + AI</h1>
+          <h1 className="text-2xl font-bold">{t('pdf.title')}</h1>
           <p className="max-w-md text-center text-fg-muted">
-            Upload a PDF to read it with AI assistance. Ask questions, summarize, generate flashcards, and more.
+            {t('pdf.subtitle')}
           </p>
         </div>
 
         <div className="flex flex-col items-center gap-3">
           <Button onClick={() => fileInputRef.current?.click()}>
             <Upload className="mr-2 h-4 w-4" />
-            Upload PDF
+            {t('pdf.upload')}
           </Button>
-          <p className="text-xs text-fg-subtle">or drag and drop a PDF file here</p>
+          <p className="text-xs text-fg-subtle">{t('pdf.dragHint')}</p>
         </div>
 
         <input

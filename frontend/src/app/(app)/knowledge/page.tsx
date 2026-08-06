@@ -30,8 +30,10 @@ import {
 } from '@/hooks/use-knowledge';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiErrorMessage } from '@/lib/api-client';
+import { useT } from '@/lib/i18n/provider';
 
 export default function KnowledgePage() {
+  const t = useT();
   const [selectedCollection, setSelectedCollection] = useState<string | undefined>();
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
@@ -98,7 +100,7 @@ export default function KnowledgePage() {
       <div className="flex w-full flex-col border-b border-border lg:w-80 lg:border-b-0 lg:border-r">
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <Database className="h-4 w-4 text-brand" />
-          <h2 className="text-sm font-semibold">Knowledge Base</h2>
+          <h2 className="text-sm font-semibold">{t('knowledge.title')}</h2>
           <div className="flex-1" />
           <button
             type="button"

@@ -25,12 +25,14 @@ import {
   useImportDeck,
 } from '@/hooks/use-flashcards';
 import { apiErrorMessage } from '@/lib/api-client';
+import { useT } from '@/lib/i18n/provider';
 
 // Same-origin by default; the API lives in this Next.js app. Overridable via
 // NEXT_PUBLIC_API_URL only if the API is ever split out again.
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export default function FlashcardsPage() {
+  const t = useT();
   const { data: decks, isLoading, isError, error } = useDecks();
   const { data: stats } = useFlashcardStats();
 
@@ -58,7 +60,7 @@ export default function FlashcardsPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Flashcards</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('flashcards.title')}</h1>
           <p className="mt-1 text-sm text-fg-muted">
             {totalDue > 0
               ? `${totalDue} card${totalDue === 1 ? '' : 's'} due for review`
@@ -90,7 +92,7 @@ export default function FlashcardsPage() {
 
           <Button size="sm" onClick={() => setCreating((open) => !open)}>
             <Plus className="h-4 w-4" aria-hidden />
-            New deck
+            {t('flashcards.newDeck')}
           </Button>
 
           {totalDue > 0 ? (
