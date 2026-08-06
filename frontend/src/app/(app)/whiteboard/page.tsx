@@ -20,6 +20,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient, apiErrorMessage } from '@/lib/api-client';
 import type { ApiEnvelope } from '@/types/api';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
 
 type Tool = 'pen' | 'eraser';
 type Intent = 'notes' | 'quiz' | 'explain';
@@ -41,6 +42,7 @@ const SIZES = [2, 4, 6, 10];
  * interpret their drawing.
  */
 export default function WhiteboardPage() {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const strokesRef = useRef<Stroke[]>([]);
@@ -169,17 +171,17 @@ export default function WhiteboardPage() {
     <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-6xl flex-col gap-3">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Whiteboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('whiteboard.title')}</h1>
           <p className="text-sm text-fg-muted">
-            Draw diagrams, formulas or notes. Ask AI to interpret them.
+            {t('whiteboard.subtitle')}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Tools */}
-          <ToolChip active={tool === 'pen'} onClick={() => setTool('pen')} title="Pen">
+          <ToolChip active={tool === 'pen'} onClick={() => setTool('pen')} title={t('whiteboard.tool.pen')}>
             <Pen className="h-4 w-4" />
           </ToolChip>
-          <ToolChip active={tool === 'eraser'} onClick={() => setTool('eraser')} title="Eraser">
+          <ToolChip active={tool === 'eraser'} onClick={() => setTool('eraser')} title={t('whiteboard.tool.eraser')}>
             <Eraser className="h-4 w-4" />
           </ToolChip>
 
@@ -223,17 +225,17 @@ export default function WhiteboardPage() {
             ))}
           </div>
 
-          <Button variant="ghost" onClick={undo} aria-label="Undo last stroke">
-            Undo
+          <Button variant="ghost" onClick={undo} aria-label={t('whiteboard.undo')}>
+            {t('whiteboard.undo')}
           </Button>
-          <Button variant="ghost" onClick={clearBoard} aria-label="Clear board">
-            <Trash2 className="h-4 w-4" /> Clear
+          <Button variant="ghost" onClick={clearBoard} aria-label={t('whiteboard.clear')}>
+            <Trash2 className="h-4 w-4" /> {t('whiteboard.clear')}
           </Button>
           <Button variant="ghost" onClick={exportPng}>
-            <Download className="h-4 w-4" /> PNG
+            <Download className="h-4 w-4" /> {t('whiteboard.export')}
           </Button>
           <Button onClick={() => setAiOpen((o) => !o)}>
-            <Sparkles className="h-4 w-4" /> Ask AI
+            <Sparkles className="h-4 w-4" /> {t('whiteboard.askAi')}
           </Button>
         </div>
       </header>
@@ -252,18 +254,18 @@ export default function WhiteboardPage() {
           <Card className="absolute right-4 top-4 w-80 space-y-3 border-border bg-surface p-4 shadow-xl">
             <CardHeader className="p-0">
               <CardTitle>
-                <Sparkles className="h-4 w-4 text-brand-bright" aria-hidden /> Interpret drawing
+                <Sparkles className="h-4 w-4 text-brand-bright" aria-hidden /> {t('whiteboard.interpretTitle')}
               </CardTitle>
             </CardHeader>
             <div className="grid grid-cols-3 gap-2">
               <IntentChip active={intent === 'explain'} onClick={() => setIntent('explain')}>
-                <BookOpen className="h-3.5 w-3.5" /> Explain
+                <BookOpen className="h-3.5 w-3.5" /> {t('whiteboard.intent.explain')}
               </IntentChip>
               <IntentChip active={intent === 'notes'} onClick={() => setIntent('notes')}>
-                <Layers className="h-3.5 w-3.5" /> Notes
+                <Layers className="h-3.5 w-3.5" /> {t('whiteboard.intent.notes')}
               </IntentChip>
               <IntentChip active={intent === 'quiz'} onClick={() => setIntent('quiz')}>
-                <FileText className="h-3.5 w-3.5" /> Quiz
+                <FileText className="h-3.5 w-3.5" /> {t('whiteboard.intent.quiz')}
               </IntentChip>
             </div>
             <Button
@@ -273,10 +275,10 @@ export default function WhiteboardPage() {
             >
               {aiPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Reading…
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t('whiteboard.reading')}
                 </>
               ) : (
-                'Send to Gemini'
+                t('whiteboard.send')
               )}
             </Button>
             {aiResult ? (

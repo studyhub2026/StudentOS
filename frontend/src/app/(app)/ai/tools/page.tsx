@@ -35,6 +35,7 @@ import {
   useSummarise,
 } from '@/hooks/use-ai';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
 
 interface DispatchResult {
   summary: string;
@@ -68,6 +69,7 @@ const TOOLS: { key: ToolKey; label: string; icon: typeof FileQuestion; blurb: st
 export default function AiToolsPage() {
   const { data: status } = useAiStatus();
   const [tool, setTool] = useState<ToolKey>('quiz');
+  const t = useT();
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -75,12 +77,12 @@ export default function AiToolsPage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
             <MessageSquare className="h-5 w-5 text-brand-bright" aria-hidden />
-            AI Study Tools
+            {t('aiTools.title')}
           </h1>
           <p className="mt-1 text-sm text-fg-muted">
-            Structured helpers for revision.{' '}
+            {t('aiTools.subtitle')}{' '}
             <Link href="/ai" className="text-brand-bright hover:underline">
-              Open the chat →
+              {t('aiTools.openChat')} →
             </Link>
           </p>
         </div>
