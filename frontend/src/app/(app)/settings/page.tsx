@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, Brain, ExternalLink, Flame, Globe, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { BadgeCheck, Brain, ExternalLink, Flame, Globe, Languages, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AvatarUploader } from '@/components/uploads/file-uploader';
 import { Badge } from '@/components/ui/badge';
@@ -14,12 +14,14 @@ import { useAuthStore } from '@/stores/auth-store';
 import { apiClient, apiErrorMessage } from '@/lib/api-client';
 import type { ApiEnvelope } from '@/types/api';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/lib/i18n/provider';
 
 interface AccountSettings {
   profilePublic: boolean;
   emailNotifications: boolean;
   pushNotifications: boolean;
   bio: string | null;
+  locale?: 'en' | 'ar';
 }
 
 const ROLE_TONE = { ADMIN: 'danger', TEACHER: 'warning', STUDENT: 'neutral' } as const;
@@ -107,6 +109,8 @@ export default function SettingsPage() {
         </dl>
       </Card>
 
+      <LanguageCard />
+
       <PublicProfileCard username={user.username} />
 
       <AiMemoryCard />
@@ -136,10 +140,70 @@ export default function SettingsPage() {
   );
 }
 
+function LanguageCard() {
+  const { locale, setLocale, t } = useLocale();
+  const [saving, setSaving] = useState(false);
+
+  async function change(next: 'en' | 'ar') {
+    if (next === locale) return;
+    setSaving(true);
+    // Optimistic UI swap — hydrate the provider immediately so RTL flip is
+    // instant, then persist the choice for the server-side hydration next
+    // login. Roll back if the server rejects (unlikely).
+    setLocale(next);
+    try {
+      await apiClient.patch('/auth/settings', { locale: next });
+      toast.success(t('settings.language.saved'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error));
+      setLocale(locale);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <Languages className="h-4 w-4 text-brand-bright" aria-hidden />{' '}
+          {t('settings.language.title')}
+        </CardTitle>
+      </CardHeader>
+      <div className="space-y-3 p-4">
+        <p className="text-xs text-fg-muted">{t('settings.language.description')}</p>
+        <div className="flex gap-2">
+          {(['en', 'ar'] as const).map((code) => {
+            const active = locale === code;
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={() => void change(code)}
+                disabled={saving}
+                aria-pressed={active}
+                className={cn(
+                  'flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-colors disabled:opacity-60',
+                  active
+                    ? 'border-brand bg-brand/12 text-brand-bright'
+                    : 'border-border bg-surface-raised text-fg hover:border-border-strong',
+                )}
+              >
+                {code === 'en' ? 'English' : 'العربية'}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function PublicProfileCard({ username }: { username: string }) {
   const [settings, setSettings] = useState<AccountSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [bio, setBio] = useState('');
+  const { locale, setLocale } = useLocale();
 
   useEffect(() => {
     let cancelled = false;
@@ -149,6 +213,11 @@ function PublicProfileCard({ username }: { username: string }) {
         if (cancelled) return;
         setSettings(data.data);
         setBio(data.data.bio ?? '');
+        // Server has the canonical locale — hydrate the provider once it's
+        // known, so the UI reflects a locale set on another device.
+        if (data.data.locale && data.data.locale !== locale) {
+          setLocale(data.data.locale);
+        }
       } catch (error) {
         toast.error(apiErrorMessage(error));
       }
@@ -156,6 +225,8 @@ function PublicProfileCard({ username }: { username: string }) {
     return () => {
       cancelled = true;
     };
+    // Only run on mount — later local swaps go through LanguageCard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function save(patch: Partial<AccountSettings>) {

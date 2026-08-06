@@ -15,6 +15,7 @@ const bodySchema = z.object({
   emailNotifications: z.boolean().optional(),
   pushNotifications: z.boolean().optional(),
   dashboardLayout: widgetLayoutSchema.optional().nullable(),
+  locale: z.enum(['en', 'ar']).optional(),
 });
 
 /**
@@ -33,6 +34,7 @@ export const GET = route(async (req: NextRequest) => {
         emailNotifications: true,
         pushNotifications: true,
         dashboardLayout: true,
+        locale: true,
       },
     }),
     prisma.user.findUnique({ where: { id: user.id }, select: { bio: true } }),
@@ -42,6 +44,7 @@ export const GET = route(async (req: NextRequest) => {
     emailNotifications: settings?.emailNotifications ?? true,
     pushNotifications: settings?.pushNotifications ?? true,
     dashboardLayout: settings?.dashboardLayout ?? null,
+    locale: settings?.locale ?? 'en',
     bio: profile?.bio ?? null,
   });
 });
@@ -57,6 +60,7 @@ export const PATCH = route(async (req: NextRequest) => {
   if (typeof body.emailNotifications === 'boolean') settingsFields.emailNotifications = body.emailNotifications;
   if (typeof body.pushNotifications === 'boolean') settingsFields.pushNotifications = body.pushNotifications;
   if (body.dashboardLayout !== undefined) settingsFields.dashboardLayout = body.dashboardLayout;
+  if (typeof body.locale === 'string') settingsFields.locale = body.locale;
 
   const [settings, profile] = await prisma.$transaction([
     Object.keys(settingsFields).length > 0
@@ -69,6 +73,7 @@ export const PATCH = route(async (req: NextRequest) => {
             emailNotifications: true,
             pushNotifications: true,
             dashboardLayout: true,
+            locale: true,
           },
         })
       : prisma.userSettings.findUnique({
@@ -78,6 +83,7 @@ export const PATCH = route(async (req: NextRequest) => {
             emailNotifications: true,
             pushNotifications: true,
             dashboardLayout: true,
+            locale: true,
           },
         }),
     body.bio !== undefined
@@ -94,6 +100,7 @@ export const PATCH = route(async (req: NextRequest) => {
     emailNotifications: settings?.emailNotifications ?? true,
     pushNotifications: settings?.pushNotifications ?? true,
     dashboardLayout: settings?.dashboardLayout ?? null,
+    locale: settings?.locale ?? 'en',
     bio: profile?.bio ?? null,
   });
 });

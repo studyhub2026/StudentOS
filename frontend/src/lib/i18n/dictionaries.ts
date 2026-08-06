@@ -1,0 +1,271 @@
+/**
+ * i18n dictionaries. Add every user-visible string as a flat key so the
+ * lookup stays O(1) and the two locales are trivially diffable side by
+ * side. Missing keys fall back to English; missing English keys fall
+ * back to the key itself.
+ */
+
+export type Locale = 'en' | 'ar';
+
+export const LOCALES: Locale[] = ['en', 'ar'];
+
+export const LOCALE_LABEL: Record<Locale, string> = {
+  en: 'English',
+  ar: 'العربية',
+};
+
+export const en = {
+  // Global
+  'app.name': 'StudentOS AI',
+  'common.save': 'Save',
+  'common.cancel': 'Cancel',
+  'common.close': 'Close',
+  'common.open': 'Open',
+  'common.delete': 'Delete',
+  'common.edit': 'Edit',
+  'common.loading': 'Loading…',
+  'common.search': 'Search',
+  'common.confirm': 'Confirm',
+  'common.back': 'Back',
+
+  // Navigation
+  'nav.dashboard': 'Dashboard',
+  'nav.ai': 'AI Assistant',
+  'nav.tutors': 'AI Tutors',
+  'nav.assignments': 'Assignments',
+  'nav.schedule': 'Schedule',
+  'nav.notes': 'Notes',
+  'nav.flashcards': 'Flashcards',
+  'nav.pdfReader': 'PDF Reader',
+  'nav.whiteboard': 'Whiteboard',
+  'nav.knowledge': 'Knowledge',
+  'nav.focus': 'Focus',
+  'nav.analytics': 'Analytics',
+  'nav.timeline': 'Timeline',
+  'nav.exam': 'Exam Mode',
+  'nav.achievements': 'Achievements',
+  'nav.groups': 'Groups',
+  'nav.admin': 'Admin',
+  'nav.settings': 'Settings',
+  'nav.signOut': 'Sign out',
+  'nav.openNavigation': 'Open navigation',
+  'nav.closeNavigation': 'Close navigation',
+
+  // Command palette
+  'palette.placeholder': 'Search everything or type a command…',
+  'palette.searchPrompt': 'Start typing to search...',
+  'palette.noResults': 'No results for',
+  'palette.searchResults': 'Search Results',
+  'palette.recent': 'Recent',
+  'palette.pinned': 'Pinned',
+  'palette.clear': 'Clear',
+  'palette.pin': 'Pin',
+  'palette.unpin': 'Unpin',
+  'palette.section.navigation': 'Navigation',
+  'palette.section.actions': 'Actions',
+  'palette.section.preferences': 'Preferences',
+  'palette.section.account': 'Account',
+  'palette.hint.navigate': 'Navigate',
+  'palette.hint.select': 'Select',
+  'palette.hint.close': 'Close',
+  'palette.cmd.dashboard': 'Go to Dashboard',
+  'palette.cmd.ai': 'Go to AI Assistant',
+  'palette.cmd.tutors': 'Go to AI Tutors',
+  'palette.cmd.assignments': 'Go to Assignments',
+  'palette.cmd.schedule': 'Go to Schedule',
+  'palette.cmd.notes': 'Go to Notes',
+  'palette.cmd.flashcards': 'Go to Flashcards',
+  'palette.cmd.focus': 'Go to Focus',
+  'palette.cmd.analytics': 'Go to Analytics',
+  'palette.cmd.groups': 'Go to Groups',
+  'palette.cmd.settings': 'Go to Settings',
+  'palette.cmd.pdf': 'Open PDF Reader',
+  'palette.cmd.knowledge': 'Open Knowledge Base',
+  'palette.cmd.aiTools': 'Open AI Tools',
+  'palette.cmd.achievements': 'Go to Achievements',
+  'palette.cmd.timeline': 'Open Study Timeline',
+  'palette.cmd.replay': 'Open Yearly Replay',
+  'palette.cmd.exam': 'Open Exam Mode',
+  'palette.cmd.voice': 'Open AI Voice',
+  'palette.cmd.whiteboard': 'Open Whiteboard',
+  'palette.cmd.graph': 'Open Knowledge Graph',
+  'palette.cmd.customDashboard': 'Customize Dashboard',
+  'palette.cmd.newAssignment': 'Create Assignment',
+  'palette.cmd.newNote': 'Create Note',
+  'palette.cmd.newFlashcard': 'Create Flashcard Deck',
+  'palette.cmd.newGroup': 'Create Study Group',
+  'palette.cmd.askAi': 'Ask AI',
+  'palette.cmd.startFocus': 'Start Focus Session',
+  'palette.cmd.startTimer': 'Start Timer',
+  'palette.cmd.toggleTheme': 'Toggle Dark Mode',
+  'palette.cmd.signOut': 'Sign Out',
+
+  // AI Toolbar
+  'toolbar.explain': 'Explain',
+  'toolbar.summarize': 'Summarize',
+  'toolbar.rewrite': 'Rewrite',
+  'toolbar.simplify': 'Simplify',
+  'toolbar.shorten': 'Shorten',
+  'toolbar.expand': 'Expand',
+  'toolbar.improve': 'Improve',
+  'toolbar.fixGrammar': 'Fix Grammar',
+  'toolbar.translate': 'Translate',
+  'toolbar.quiz': 'Quiz',
+  'toolbar.flashcards': 'Flashcards',
+  'toolbar.notes': 'Notes',
+  'toolbar.saveAsNote': 'Save as Note',
+  'toolbar.saveAsAssignment': 'Save as Assignment',
+  'toolbar.askAi': 'Ask AI',
+  'toolbar.askTutor': 'Ask AI Tutor',
+  'toolbar.share': 'Share',
+  'toolbar.export': 'Export',
+  'toolbar.more': 'More',
+  'toolbar.processing': 'Processing with AI…',
+  'toolbar.copy': 'Copy',
+  'toolbar.copied': 'Copied',
+  'toolbar.go': 'Go',
+
+  // Dashboard / sidebar labels
+  'dashboard.streak': 'Streak',
+  'dashboard.xp': 'XP',
+
+  // Settings — language card
+  'settings.language.title': 'Language',
+  'settings.language.description': 'Choose your interface language. Arabic switches the layout to right-to-left.',
+  'settings.language.saving': 'Saving…',
+  'settings.language.saved': 'Language saved',
+} as const;
+
+export type TranslationKey = keyof typeof en;
+
+export const ar: Partial<Record<TranslationKey, string>> = {
+  // Global
+  'app.name': 'ستودنت أو إس',
+  'common.save': 'حفظ',
+  'common.cancel': 'إلغاء',
+  'common.close': 'إغلاق',
+  'common.open': 'فتح',
+  'common.delete': 'حذف',
+  'common.edit': 'تعديل',
+  'common.loading': 'جارٍ التحميل…',
+  'common.search': 'بحث',
+  'common.confirm': 'تأكيد',
+  'common.back': 'رجوع',
+
+  // Navigation
+  'nav.dashboard': 'لوحة التحكم',
+  'nav.ai': 'المساعد الذكي',
+  'nav.tutors': 'المدرّسون',
+  'nav.assignments': 'الواجبات',
+  'nav.schedule': 'الجدول',
+  'nav.notes': 'الملاحظات',
+  'nav.flashcards': 'البطاقات التعليمية',
+  'nav.pdfReader': 'قارئ PDF',
+  'nav.whiteboard': 'السبورة',
+  'nav.knowledge': 'المعرفة',
+  'nav.focus': 'التركيز',
+  'nav.analytics': 'التحليلات',
+  'nav.timeline': 'الجدول الزمني',
+  'nav.exam': 'وضع الامتحان',
+  'nav.achievements': 'الإنجازات',
+  'nav.groups': 'المجموعات',
+  'nav.admin': 'الإدارة',
+  'nav.settings': 'الإعدادات',
+  'nav.signOut': 'تسجيل الخروج',
+  'nav.openNavigation': 'فتح القائمة',
+  'nav.closeNavigation': 'إغلاق القائمة',
+
+  // Command palette
+  'palette.placeholder': 'ابحث عن أي شيء أو اكتب أمرًا…',
+  'palette.searchPrompt': 'ابدأ الكتابة للبحث...',
+  'palette.noResults': 'لا نتائج لـ',
+  'palette.searchResults': 'نتائج البحث',
+  'palette.recent': 'الأخيرة',
+  'palette.pinned': 'المثبّتة',
+  'palette.clear': 'مسح',
+  'palette.pin': 'تثبيت',
+  'palette.unpin': 'إلغاء التثبيت',
+  'palette.section.navigation': 'التنقل',
+  'palette.section.actions': 'إجراءات',
+  'palette.section.preferences': 'التفضيلات',
+  'palette.section.account': 'الحساب',
+  'palette.hint.navigate': 'تنقّل',
+  'palette.hint.select': 'اختر',
+  'palette.hint.close': 'إغلاق',
+  'palette.cmd.dashboard': 'الذهاب إلى لوحة التحكم',
+  'palette.cmd.ai': 'الذهاب إلى المساعد الذكي',
+  'palette.cmd.tutors': 'الذهاب إلى المدرّسين',
+  'palette.cmd.assignments': 'الذهاب إلى الواجبات',
+  'palette.cmd.schedule': 'الذهاب إلى الجدول',
+  'palette.cmd.notes': 'الذهاب إلى الملاحظات',
+  'palette.cmd.flashcards': 'الذهاب إلى البطاقات',
+  'palette.cmd.focus': 'الذهاب إلى التركيز',
+  'palette.cmd.analytics': 'الذهاب إلى التحليلات',
+  'palette.cmd.groups': 'الذهاب إلى المجموعات',
+  'palette.cmd.settings': 'الذهاب إلى الإعدادات',
+  'palette.cmd.pdf': 'فتح قارئ PDF',
+  'palette.cmd.knowledge': 'فتح قاعدة المعرفة',
+  'palette.cmd.aiTools': 'فتح أدوات الذكاء الاصطناعي',
+  'palette.cmd.achievements': 'الذهاب إلى الإنجازات',
+  'palette.cmd.timeline': 'فتح الجدول الزمني',
+  'palette.cmd.replay': 'فتح مراجعة السنة',
+  'palette.cmd.exam': 'فتح وضع الامتحان',
+  'palette.cmd.voice': 'فتح المساعد الصوتي',
+  'palette.cmd.whiteboard': 'فتح السبورة',
+  'palette.cmd.graph': 'فتح خريطة المعرفة',
+  'palette.cmd.customDashboard': 'تخصيص لوحة التحكم',
+  'palette.cmd.newAssignment': 'إنشاء واجب',
+  'palette.cmd.newNote': 'إنشاء ملاحظة',
+  'palette.cmd.newFlashcard': 'إنشاء مجموعة بطاقات',
+  'palette.cmd.newGroup': 'إنشاء مجموعة دراسة',
+  'palette.cmd.askAi': 'اسأل الذكاء الاصطناعي',
+  'palette.cmd.startFocus': 'بدء جلسة تركيز',
+  'palette.cmd.startTimer': 'بدء المؤقّت',
+  'palette.cmd.toggleTheme': 'تبديل الوضع الداكن',
+  'palette.cmd.signOut': 'تسجيل الخروج',
+
+  // AI Toolbar
+  'toolbar.explain': 'اشرح',
+  'toolbar.summarize': 'لخّص',
+  'toolbar.rewrite': 'أعد الصياغة',
+  'toolbar.simplify': 'بسّط',
+  'toolbar.shorten': 'اختصر',
+  'toolbar.expand': 'وسّع',
+  'toolbar.improve': 'حسّن',
+  'toolbar.fixGrammar': 'صحّح النحو',
+  'toolbar.translate': 'ترجم',
+  'toolbar.quiz': 'اختبار',
+  'toolbar.flashcards': 'بطاقات',
+  'toolbar.notes': 'ملاحظات',
+  'toolbar.saveAsNote': 'حفظ كملاحظة',
+  'toolbar.saveAsAssignment': 'حفظ كواجب',
+  'toolbar.askAi': 'اسأل الذكاء الاصطناعي',
+  'toolbar.askTutor': 'اسأل المدرّس',
+  'toolbar.share': 'مشاركة',
+  'toolbar.export': 'تصدير',
+  'toolbar.more': 'المزيد',
+  'toolbar.processing': 'جارٍ المعالجة بالذكاء الاصطناعي…',
+  'toolbar.copy': 'نسخ',
+  'toolbar.copied': 'تم النسخ',
+  'toolbar.go': 'انطلق',
+
+  // Dashboard / sidebar
+  'dashboard.streak': 'التتابع',
+  'dashboard.xp': 'نقاط',
+
+  // Settings — language card
+  'settings.language.title': 'اللغة',
+  'settings.language.description': 'اختر لغة الواجهة. اختيار العربية يبدّل الاتجاه من اليمين إلى اليسار.',
+  'settings.language.saving': 'جارٍ الحفظ…',
+  'settings.language.saved': 'تم حفظ اللغة',
+};
+
+const DICTS: Record<Locale, Partial<Record<TranslationKey, string>>> = { en, ar };
+
+export function translate(locale: Locale, key: TranslationKey): string {
+  return DICTS[locale][key] ?? en[key] ?? key;
+}
+
+export function directionOf(locale: Locale): 'ltr' | 'rtl' {
+  return locale === 'ar' ? 'rtl' : 'ltr';
+}
