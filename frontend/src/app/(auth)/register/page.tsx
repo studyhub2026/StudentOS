@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { apiErrorMessage } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
+import { useT } from '@/lib/i18n/provider';
 
 /** Mirrors src/server/validators/auth.validator.ts so errors surface early. */
 const schema = z.object({
@@ -34,6 +35,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function RegisterPage() {
+  const t = useT();
   const router = useRouter();
   const registerUser = useAuthStore((state) => state.register);
 
@@ -55,12 +57,12 @@ export default function RegisterPage() {
 
   return (
     <Card>
-      <h1 className="text-xl font-semibold">Create your account</h1>
-      <p className="mt-1 mb-6 text-sm text-fg-muted">Start organising your studies today.</p>
+      <h1 className="text-xl font-semibold">{t('auth.register.title')}</h1>
+      <p className="mt-1 mb-6 text-sm text-fg-muted">{t('auth.register.subtitle')}</p>
 
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input
-          label="Full name"
+          label={t('auth.register.name')}
           autoComplete="name"
           placeholder="Alex Morgan"
           error={errors.name?.message}
@@ -68,7 +70,7 @@ export default function RegisterPage() {
         />
 
         <Input
-          label="Username"
+          label={t('auth.register.username')}
           autoComplete="username"
           placeholder="alexm"
           error={errors.username?.message}
@@ -76,35 +78,35 @@ export default function RegisterPage() {
         />
 
         <Input
-          label="Email"
+          label={t('auth.login.email')}
           type="email"
           autoComplete="email"
-          placeholder="you@school.edu"
+          placeholder={t('auth.login.emailPlaceholder')}
           error={errors.email?.message}
           {...register('email')}
         />
 
         <Input
-          label="Password"
+          label={t('auth.login.password')}
           type="password"
           autoComplete="new-password"
-          placeholder="••••••••••"
+          placeholder={t('auth.login.passwordPlaceholder')}
           hint="At least 10 characters, with upper, lower and a number."
           error={errors.password?.message}
           {...register('password')}
         />
 
         <Button type="submit" className="w-full" loading={isSubmitting}>
-          Create account
+          {isSubmitting ? t('auth.register.submitting') : t('auth.register.submit')}
         </Button>
       </form>
 
       <OAuthButtons />
 
       <p className="mt-6 text-center text-sm text-fg-muted">
-        Already have an account?{' '}
+        {t('auth.register.haveAccount')}{' '}
         <Link href="/login" className="text-brand-bright hover:underline">
-          Sign in
+          {t('auth.register.signIn')}
         </Link>
       </p>
     </Card>

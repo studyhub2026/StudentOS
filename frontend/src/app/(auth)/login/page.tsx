@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { apiErrorCode, apiErrorMessage } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
+import { useT } from '@/lib/i18n/provider';
 
 const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
@@ -27,6 +28,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const login = useAuthStore((state) => state.login);
+  const t = useT();
 
   // Revealed only after the backend reports that this account needs a code.
   const [needsTotp, setNeedsTotp] = useState(false);
@@ -54,8 +56,8 @@ function LoginForm() {
 
   return (
     <Card>
-      <h1 className="text-xl font-semibold">Welcome back</h1>
-      <p className="mt-1 mb-6 text-sm text-fg-muted">Sign in to continue studying.</p>
+      <h1 className="text-xl font-semibold">{t('auth.login.title')}</h1>
+      <p className="mt-1 mb-6 text-sm text-fg-muted">{t('auth.login.subtitle')}</p>
 
       {oauthError ? (
         <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
@@ -65,19 +67,19 @@ function LoginForm() {
 
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input
-          label="Email"
+          label={t('auth.login.email')}
           type="email"
           autoComplete="email"
-          placeholder="you@school.edu"
+          placeholder={t('auth.login.emailPlaceholder')}
           error={errors.email?.message}
           {...register('email')}
         />
 
         <Input
-          label="Password"
+          label={t('auth.login.password')}
           type="password"
           autoComplete="current-password"
-          placeholder="••••••••••"
+          placeholder={t('auth.login.passwordPlaceholder')}
           error={errors.password?.message}
           {...register('password')}
         />
@@ -101,25 +103,25 @@ function LoginForm() {
               className="h-4 w-4 rounded border-border bg-surface-raised accent-[var(--color-brand)]"
               {...register('rememberMe')}
             />
-            Remember me
+            {t('auth.login.remember')}
           </label>
 
           <Link href="/forgot-password" className="text-sm text-brand-bright hover:underline">
-            Forgot password?
+            {t('auth.login.forgot')}
           </Link>
         </div>
 
         <Button type="submit" className="w-full" loading={isSubmitting}>
-          Sign in
+          {isSubmitting ? t('auth.login.submitting') : t('auth.login.submit')}
         </Button>
       </form>
 
       <OAuthButtons />
 
       <p className="mt-6 text-center text-sm text-fg-muted">
-        New here?{' '}
+        {t('auth.login.noAccount')}{' '}
         <Link href="/register" className="text-brand-bright hover:underline">
-          Create an account
+          {t('auth.login.createAccount')}
         </Link>
       </p>
     </Card>
