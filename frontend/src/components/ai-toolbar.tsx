@@ -160,7 +160,7 @@ export function AiToolbar() {
         // back to clipboard everywhere else so the button is never a no-op.
         if (typeof navigator !== 'undefined' && 'share' in navigator) {
           try {
-            await navigator.share({ text, title: 'From StudentOS AI' });
+            await navigator.share({ text, title: 'From OmnelOS' });
             toast.success('Shared');
             return;
           } catch {

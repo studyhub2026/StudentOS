@@ -37,7 +37,7 @@ export const POST = route(async (req: NextRequest) => {
   if (body.selectedText) contextParts.push(`Selected text: "${body.selectedText}"`);
 
   const systemInstruction = [
-    `You are an AI PDF assistant for StudentOS. The student is reading "${body.documentName}".`,
+    `You are an AI PDF assistant for OmnelOS. The student is reading "${body.documentName}".`,
     'Help them understand the document. You can explain concepts, summarize sections, generate study materials, compare pages, find information, and answer questions.',
     'Use Markdown formatting. Be concise but thorough.',
     'If the student selects text, focus your answer on that selection.',

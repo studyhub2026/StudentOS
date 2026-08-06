@@ -6,17 +6,18 @@ import './globals.css';
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3000';
 
 const DESCRIPTION =
-  'Assignments, scheduling, notes, flashcards and focus sessions in one AI-powered workspace built for students.';
+  'The AI Operating System for Learning — assignments, scheduling, notes, flashcards and focus sessions in one AI-powered workspace built for students.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: 'StudentOS AI — Your academic operating system',
-    template: '%s · StudentOS AI',
+    default: 'OmnelOS — The AI Operating System for Learning',
+    template: '%s · OmnelOS',
   },
   description: DESCRIPTION,
-  applicationName: 'StudentOS AI',
+  applicationName: 'OmnelOS',
   keywords: [
+    'omnelos',
     'student productivity',
     'AI study assistant',
     'assignments',
@@ -26,24 +27,31 @@ export const metadata: Metadata = {
     'notes',
     'focus timer',
   ],
-  authors: [{ name: 'StudentOS AI' }],
+  authors: [{ name: 'OmnelOS' }],
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [
+      { url: '/logo.svg', type: 'image/svg+xml' },
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    apple: '/logo.svg',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'StudentOS',
+    title: 'OmnelOS',
   },
   openGraph: {
     type: 'website',
-    siteName: 'StudentOS AI',
+    siteName: 'OmnelOS',
     url: '/',
-    title: 'StudentOS AI — Your academic operating system',
+    title: 'OmnelOS — The AI Operating System for Learning',
     description: DESCRIPTION,
     locale: 'en_US',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'StudentOS AI',
+    title: 'OmnelOS',
     description: DESCRIPTION,
   },
   robots: { index: true, follow: true },

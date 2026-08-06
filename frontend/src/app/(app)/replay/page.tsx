@@ -46,10 +46,10 @@ export default function ReplayPage() {
 
   async function share() {
     const total = data ? Math.round(data.totals.studyMinutes / 60) : 0;
-    const line = `My StudentOS ${year} Wrapped: ${total} hours studied, ${data?.totals.assignmentsCompleted ?? 0} assignments done. #StudentOSWrapped`;
+    const line = `My OmnelOS ${year} Wrapped: ${total} hours studied, ${data?.totals.assignmentsCompleted ?? 0} assignments done. #OmnelOSWrapped`;
     if (typeof navigator !== 'undefined' && 'share' in navigator) {
       try {
-        await navigator.share({ title: 'StudentOS Wrapped', text: line });
+        await navigator.share({ title: 'OmnelOS Wrapped', text: line });
         return;
       } catch {
         /* fall through */

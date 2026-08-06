@@ -82,7 +82,7 @@ async function fetchGitHubProfile(accessToken: string): Promise<OAuthProfile> {
   const headers = {
     Authorization: `Bearer ${accessToken}`,
     Accept: 'application/vnd.github+json',
-    'User-Agent': 'StudentOS-AI',
+    'User-Agent': 'OmnelOS',
   };
 
   const user = await requestJson<{

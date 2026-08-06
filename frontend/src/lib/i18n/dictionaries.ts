@@ -16,7 +16,8 @@ export const LOCALE_LABEL: Record<Locale, string> = {
 
 export const en = {
   // Global
-  'app.name': 'StudentOS AI',
+  'app.name': 'OmnelOS',
+  'app.tagline': 'The AI Operating System for Learning',
   'common.save': 'Save',
   'common.cancel': 'Cancel',
   'common.close': 'Close',
@@ -209,7 +210,7 @@ export const en = {
 
   // Timeline
   'timeline.title': 'Study Timeline',
-  'timeline.subtitle': 'Everything you did on StudentOS, in one stream.',
+  'timeline.subtitle': 'Everything you did on OmnelOS, in one stream.',
   'timeline.range.7d': '7d',
   'timeline.range.30d': '30d',
   'timeline.range.60d': '60d',
@@ -220,7 +221,7 @@ export const en = {
   'timeline.error': 'Could not load timeline.',
 
   // Replay (Wrapped)
-  'replay.eyebrow': 'StudentOS Wrapped',
+  'replay.eyebrow': 'OmnelOS Wrapped',
   'replay.share': 'Share',
   'replay.previous': 'Previous',
   'replay.next': 'Next',
@@ -414,7 +415,7 @@ export const en = {
 
   // Auth (login / register / forgot)
   'auth.login.title': 'Welcome back',
-  'auth.login.subtitle': 'Sign in to your StudentOS account.',
+  'auth.login.subtitle': 'Sign in to your OmnelOS account.',
   'auth.login.email': 'Email',
   'auth.login.password': 'Password',
   'auth.login.remember': 'Remember me',
@@ -514,7 +515,8 @@ export type TranslationKey = keyof typeof en;
 
 export const ar: Partial<Record<TranslationKey, string>> = {
   // Global
-  'app.name': 'ستودنت أو إس',
+  'app.name': 'OmnelOS',
+  'app.tagline': 'نظام التشغيل الذكي للتعلّم',
   'common.save': 'حفظ',
   'common.cancel': 'إلغاء',
   'common.close': 'إغلاق',
@@ -707,7 +709,7 @@ export const ar: Partial<Record<TranslationKey, string>> = {
 
   // Timeline
   'timeline.title': 'الجدول الزمني للدراسة',
-  'timeline.subtitle': 'كل ما فعلته على ستودنت أو إس، في تيار واحد.',
+  'timeline.subtitle': 'كل ما فعلته على OmnelOS، في تيار واحد.',
   'timeline.range.7d': '٧ أيام',
   'timeline.range.30d': '٣٠ يومًا',
   'timeline.range.60d': '٦٠ يومًا',
@@ -718,7 +720,7 @@ export const ar: Partial<Record<TranslationKey, string>> = {
   'timeline.error': 'تعذّر تحميل الجدول الزمني.',
 
   // Replay (Wrapped)
-  'replay.eyebrow': 'ملخّص ستودنت أو إس',
+  'replay.eyebrow': 'ملخّص OmnelOS',
   'replay.share': 'مشاركة',
   'replay.previous': 'السابق',
   'replay.next': 'التالي',
@@ -912,7 +914,7 @@ export const ar: Partial<Record<TranslationKey, string>> = {
 
   // Auth
   'auth.login.title': 'مرحبًا بعودتك',
-  'auth.login.subtitle': 'سجّل الدخول إلى حسابك في ستودنت أو إس.',
+  'auth.login.subtitle': 'سجّل الدخول إلى حسابك في OmnelOS.',
   'auth.login.email': 'البريد الإلكتروني',
   'auth.login.password': 'كلمة المرور',
   'auth.login.remember': 'تذكّرني',

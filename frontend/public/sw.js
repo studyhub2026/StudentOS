@@ -1,5 +1,5 @@
 /**
- * StudentOS AI service worker.
+ * OmnelOS service worker.
  *
  * Strategy by request type:
  *   - Navigations: network-first with an offline fallback, so a student always

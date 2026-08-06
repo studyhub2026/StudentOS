@@ -20,7 +20,7 @@ describe('buildTutorSystemPrompt', () => {
 
   it('carries the shared accuracy and teaching-boundary rules', () => {
     const prompt = buildTutorSystemPrompt({ subject: 'Maths', difficulty: 'BEGINNER' });
-    expect(prompt).toContain('StudentOS AI');
+    expect(prompt).toContain('OmnelOS');
     expect(prompt).toMatch(/never fabricate/i);
     expect(prompt).toMatch(/Teach the student rather than doing their work/i);
   });

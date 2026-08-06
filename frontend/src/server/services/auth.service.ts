@@ -377,7 +377,7 @@ export async function loginWithOAuth(
 
     // Only auto-link when the provider vouches for the address. Linking on an
     // unverified email would let an attacker who controls a provider account
-    // claim someone else's StudentOS account.
+    // claim someone else's OmnelOS account.
     if (!profile.emailVerified) {
       throw new ConflictError(
         'An account with that email already exists. Sign in with your password, then link this provider from settings.',
