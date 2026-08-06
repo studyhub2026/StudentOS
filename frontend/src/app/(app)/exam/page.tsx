@@ -22,6 +22,7 @@ import { useExamWorkspace, type UpcomingExam } from '@/hooks/use-exam-workspace'
 import { useExam, type ExamResult } from '@/hooks/use-ai';
 import { cn, formatDueDate } from '@/lib/utils';
 import { apiErrorMessage } from '@/lib/api-client';
+import { useT } from '@/lib/i18n/provider';
 
 interface CountdownParts {
   days: number;
@@ -58,6 +59,7 @@ function useLiveMinutes(initialMinutes: number, startAt: string): number {
 
 export default function ExamModePage() {
   const { data, isLoading } = useExamWorkspace();
+  const t = useT();
   const upcoming = data?.upcoming ?? [];
   const past = data?.past ?? [];
   const weak = data?.weakTopicsBySubject ?? [];
@@ -73,10 +75,10 @@ export default function ExamModePage() {
       <header>
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
           <GraduationCap className="h-5 w-5 text-brand-bright" aria-hidden />
-          Exam Mode
+          {t('exam.title')}
         </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Countdown to what&apos;s next, weak topics to shore up, and a mock paper on demand.
+          {t('exam.subtitle')}
         </p>
       </header>
 
@@ -94,9 +96,9 @@ export default function ExamModePage() {
               ) : (
                 <Card className="p-8 text-center text-sm text-fg-muted">
                   <ClipboardList className="mx-auto mb-2 h-8 w-8 text-fg-subtle" aria-hidden />
-                  No upcoming exams. Add one from{' '}
+                  {t('exam.noUpcoming')}{' '}
                   <Link href="/schedule" className="text-brand-bright hover:underline">
-                    Schedule
+                    {t('nav.schedule')}
                   </Link>
                   .
                 </Card>
@@ -105,10 +107,10 @@ export default function ExamModePage() {
 
             <Card className="space-y-2 p-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-fg-subtle">
-                Upcoming exams
+                {t('exam.upcoming')}
               </p>
               {upcoming.length === 0 ? (
-                <p className="text-sm text-fg-subtle">Nothing scheduled.</p>
+                <p className="text-sm text-fg-subtle">{t('exam.nothingScheduled')}</p>
               ) : (
                 upcoming.map((exam) => (
                   <button
@@ -140,11 +142,11 @@ export default function ExamModePage() {
 
           <section>
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
-              Weak topics to revise
+              {t('exam.weakTopics')}
             </h2>
             {weak.length === 0 ? (
               <Card className="p-6 text-sm text-fg-subtle">
-                No weak-topic history yet — take a quiz from any AI Tutor to build one.
+                {t('exam.noWeak')}
               </Card>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -165,16 +167,16 @@ export default function ExamModePage() {
                         ) : (
                           <TrendingDown className="h-3 w-3" aria-hidden />
                         )}
-                        {Math.round(s.masteryScore)}% mastery
+                        {Math.round(s.masteryScore)}% {t('exam.mastery')}
                       </span>
                     </div>
                     <ul className="mt-3 flex flex-wrap gap-1.5">
-                      {s.weakTopics.slice(0, 6).map((t) => (
+                      {s.weakTopics.slice(0, 6).map((topic) => (
                         <li
-                          key={t}
+                          key={topic}
                           className="rounded-md bg-surface-raised px-2 py-0.5 text-xs text-fg-muted"
                         >
-                          {t}
+                          {topic}
                         </li>
                       ))}
                     </ul>
@@ -189,7 +191,7 @@ export default function ExamModePage() {
           {past.length > 0 ? (
             <section>
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
-                Recent exams
+                {t('exam.recentExams')}
               </h2>
               <ul className="space-y-2">
                 {past.map((exam) => (
@@ -219,6 +221,7 @@ function ExamHero({ exam }: { exam: UpcomingExam }) {
   const minutes = useLiveMinutes(exam.minutesToExam, exam.startAt);
   const parts = partsFrom(minutes);
   const urgent = minutes <= 24 * 60;
+  const t = useT();
 
   return (
     <Card
@@ -243,15 +246,15 @@ function ExamHero({ exam }: { exam: UpcomingExam }) {
         animate={{ opacity: 1, y: 0 }}
         className="mt-4 flex items-end gap-4"
       >
-        <CountBox value={parts.days} label="days" />
-        <CountBox value={parts.hours} label="hours" />
-        <CountBox value={parts.minutes} label="min" />
+        <CountBox value={parts.days} label={t('exam.days')} />
+        <CountBox value={parts.hours} label={t('exam.hours')} />
+        <CountBox value={parts.minutes} label={t('exam.mins')} />
       </motion.div>
 
       {urgent ? (
         <p className="mt-4 flex items-center gap-1.5 rounded-lg border border-warning/30 bg-warning/10 p-2 text-xs font-medium text-warning">
           <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-          Less than a day. Focus on quick wins.
+          {t('exam.hero.less24h')}
         </p>
       ) : null}
     </Card>
@@ -280,6 +283,7 @@ function MockExamGenerator() {
   const [level, setLevel] = useState('intermediate');
   const [paper, setPaper] = useState<ExamResult | null>(null);
   const mutate = useExam();
+  const t = useT();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -302,12 +306,12 @@ function MockExamGenerator() {
     <Card>
       <CardHeader>
         <CardTitle>
-          <Sparkles className="h-4 w-4 text-brand-bright" aria-hidden /> Mock exam
+          <Sparkles className="h-4 w-4 text-brand-bright" aria-hidden /> {t('exam.mockExam')}
         </CardTitle>
       </CardHeader>
       <form onSubmit={submit} className="grid gap-3 p-6 pt-0 sm:grid-cols-2">
         <label className="text-sm">
-          <span className="mb-1 block text-xs text-fg-muted">Subject</span>
+          <span className="mb-1 block text-xs text-fg-muted">{t('exam.field.subject')}</span>
           <input
             className="h-10 w-full rounded-xl border border-border bg-surface-raised px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40"
             value={subject}
@@ -315,7 +319,7 @@ function MockExamGenerator() {
           />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block text-xs text-fg-muted">Level</span>
+          <span className="mb-1 block text-xs text-fg-muted">{t('exam.field.level')}</span>
           <select
             className="h-10 w-full rounded-xl border border-border bg-surface-raised px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40"
             value={level}
@@ -327,7 +331,7 @@ function MockExamGenerator() {
           </select>
         </label>
         <label className="text-sm">
-          <span className="mb-1 block text-xs text-fg-muted">Questions</span>
+          <span className="mb-1 block text-xs text-fg-muted">{t('exam.field.questions')}</span>
           <input
             type="number"
             min={1}
@@ -338,7 +342,7 @@ function MockExamGenerator() {
           />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block text-xs text-fg-muted">Duration (min)</span>
+          <span className="mb-1 block text-xs text-fg-muted">{t('exam.field.duration')}</span>
           <input
             type="number"
             min={5}
@@ -349,23 +353,23 @@ function MockExamGenerator() {
           />
         </label>
         <label className="text-sm sm:col-span-2">
-          <span className="mb-1 block text-xs text-fg-muted">Source material</span>
+          <span className="mb-1 block text-xs text-fg-muted">{t('exam.field.source')}</span>
           <textarea
             rows={4}
             className="w-full rounded-xl border border-border bg-surface-raised p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40"
             value={source}
             onChange={(e) => setSource(e.target.value)}
-            placeholder="Paste chapter notes, a syllabus outline, or key definitions."
+            placeholder={t('exam.source.placeholder')}
           />
         </label>
         <div className="sm:col-span-2">
           <Button type="submit" disabled={mutate.isPending || !source.trim()}>
             {mutate.isPending ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Generating…
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {t('exam.generating')}
               </>
             ) : (
-              'Generate mock exam'
+              t('exam.generate')
             )}
           </Button>
         </div>
@@ -384,11 +388,11 @@ function MockExamGenerator() {
               <li key={i} className="rounded-lg border border-border bg-surface-raised/60 p-3">
                 <p className="font-medium">
                   Q{q.number ?? i + 1}. {q.question}{' '}
-                  <span className="text-xs text-fg-subtle">({q.marks} marks)</span>
+                  <span className="text-xs text-fg-subtle">({q.marks} {t('exam.marks')})</span>
                 </p>
                 {q.markScheme ? (
                   <details className="mt-2 text-xs text-fg-muted">
-                    <summary className="cursor-pointer">Show mark scheme</summary>
+                    <summary className="cursor-pointer">{t('exam.markScheme.toggle')}</summary>
                     <p className="mt-1 whitespace-pre-wrap">{q.markScheme}</p>
                   </details>
                 ) : null}

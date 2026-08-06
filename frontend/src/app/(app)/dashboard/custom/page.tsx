@@ -45,6 +45,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
+import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
 type WidgetKey =
   | 'brief'
@@ -78,14 +80,14 @@ const DEFAULT_LAYOUT: WidgetLayoutEntry[] = [
   { key: 'gamification' },
 ];
 
-const WIDGET_META: Record<WidgetKey, { title: string; icon: React.ComponentType<{ className?: string }>; span: 'small' | 'medium' | 'large' }> = {
-  brief:         { title: "Today's brief",     icon: Sparkles,   span: 'large' },
-  stats:         { title: 'This week',         icon: TrendingUp, span: 'medium' },
-  priorities:    { title: 'Up next',           icon: Target,     span: 'medium' },
-  streak:        { title: 'Streak',            icon: Flame,      span: 'small' },
-  quickActions:  { title: 'Quick actions',     icon: LayoutGrid, span: 'medium' },
-  weekly:        { title: 'Weekly workload',   icon: CheckSquare, span: 'small' },
-  gamification:  { title: 'XP & Level',        icon: Trophy,     span: 'small' },
+const WIDGET_META: Record<WidgetKey, { titleKey: TranslationKey; icon: React.ComponentType<{ className?: string }>; span: 'small' | 'medium' | 'large' }> = {
+  brief:         { titleKey: 'dashboardCustom.widget.brief',        icon: Sparkles,   span: 'large' },
+  stats:         { titleKey: 'dashboardCustom.widget.stats',        icon: TrendingUp, span: 'medium' },
+  priorities:    { titleKey: 'dashboardCustom.widget.priorities',   icon: Target,     span: 'medium' },
+  streak:        { titleKey: 'dashboardCustom.widget.streak',       icon: Flame,      span: 'small' },
+  quickActions:  { titleKey: 'dashboardCustom.widget.quickActions', icon: LayoutGrid, span: 'medium' },
+  weekly:        { titleKey: 'dashboardCustom.widget.weekly',       icon: CheckSquare, span: 'small' },
+  gamification:  { titleKey: 'dashboardCustom.widget.gamification', icon: Trophy,     span: 'small' },
 };
 
 const SPAN_CLASS: Record<'small' | 'medium' | 'large', string> = {
@@ -100,6 +102,7 @@ export default function CustomDashboardPage() {
   const [layout, setLayout] = useState<WidgetLayoutEntry[]>(DEFAULT_LAYOUT);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const t = useT();
 
   // Pull settings once on mount to hydrate the layout.
   useEffect(() => {
@@ -172,12 +175,12 @@ export default function CustomDashboardPage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
             <LayoutGrid className="h-5 w-5 text-brand-bright" aria-hidden />
-            Custom Dashboard
+            {t('dashboardCustom.title')}
           </h1>
           <p className="text-sm text-fg-muted">
-            Reorder or hide widgets. Layout is saved to your account.{' '}
+            {t('dashboardCustom.subtitle')}{' '}
             <Link href="/dashboard" className="text-brand-bright hover:underline">
-              Back to default
+              {t('dashboardCustom.backToDefault')}
             </Link>
           </p>
         </div>
@@ -185,15 +188,15 @@ export default function CustomDashboardPage() {
           {editing ? (
             <>
               <Button variant="ghost" onClick={resetLayout} disabled={saving}>
-                Reset
+                {t('dashboardCustom.reset')}
               </Button>
               <Button onClick={() => void saveLayout()} disabled={saving}>
-                <Save className="h-4 w-4" /> {saving ? 'Saving…' : 'Save layout'}
+                <Save className="h-4 w-4" /> {saving ? t('settings.language.saving') : t('dashboardCustom.saveLayout')}
               </Button>
             </>
           ) : (
             <Button variant="ghost" onClick={() => setEditing(true)}>
-              <Pencil className="h-4 w-4" /> Edit layout
+              <Pencil className="h-4 w-4" /> {t('dashboardCustom.editLayout')}
             </Button>
           )}
         </div>
@@ -201,7 +204,7 @@ export default function CustomDashboardPage() {
 
       {editing ? (
         <Card className="p-3 text-xs text-fg-muted">
-          Drag by the handle to reorder. Toggle the eye to hide a widget.
+          {t('dashboardCustom.editHint')}
         </Card>
       ) : null}
 
@@ -242,6 +245,8 @@ function SortableWidget({
   children: React.ReactNode;
 }) {
   const meta = WIDGET_META[entry.key];
+  const t = useT();
+  const title = t(meta.titleKey);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.key,
   });
@@ -258,7 +263,7 @@ function SortableWidget({
         <div className="mb-3 flex items-center justify-between">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
             <Icon className="h-3.5 w-3.5" aria-hidden />
-            {meta.title}
+            {title}
           </p>
           {editing ? (
             <div className="flex items-center gap-1">
@@ -275,7 +280,7 @@ function SortableWidget({
                 {...attributes}
                 {...listeners}
                 className="cursor-grab rounded p-1 text-fg-subtle hover:bg-surface-raised hover:text-fg active:cursor-grabbing"
-                aria-label={`Drag ${meta.title}`}
+                aria-label={`Drag ${title}`}
               >
                 <GripVertical className="h-3.5 w-3.5" />
               </button>

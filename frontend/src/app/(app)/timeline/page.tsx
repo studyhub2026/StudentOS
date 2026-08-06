@@ -23,6 +23,8 @@ import { useTimeline, type TimelineEvent, type TimelineEventKind } from '@/hooks
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/provider';
+import type { TranslationKey } from '@/lib/i18n/dictionaries';
 
 const KIND_ICON: Record<TimelineEventKind, LucideIcon> = {
   assignment_created: Plus,
@@ -48,11 +50,11 @@ const KIND_TONE: Record<TimelineEventKind, string> = {
   tutor_conversation: 'text-brand-bright bg-brand/12',
 };
 
-const RANGES = [
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-  { label: '60d', days: 60 },
-  { label: '1y', days: 365 },
+const RANGES: { labelKey: TranslationKey; days: number }[] = [
+  { labelKey: 'timeline.range.7d', days: 7 },
+  { labelKey: 'timeline.range.30d', days: 30 },
+  { labelKey: 'timeline.range.60d', days: 60 },
+  { labelKey: 'timeline.range.1y', days: 365 },
 ];
 
 /** Group events by their local calendar day for the sticky-date rail. */
@@ -78,6 +80,7 @@ function groupByDay(events: TimelineEvent[]): Array<{ day: string; iso: string; 
 export default function TimelinePage() {
   const [days, setDays] = useState(60);
   const { data, isLoading, error } = useTimeline(days);
+  const t = useT();
 
   const grouped = useMemo(() => (data ? groupByDay(data) : []), [data]);
   const totalMinutes = useMemo(
@@ -91,16 +94,16 @@ export default function TimelinePage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
             <ListTree className="h-5 w-5 text-brand-bright" aria-hidden />
-            Study Timeline
+            {t('timeline.title')}
           </h1>
           <p className="mt-1 text-sm text-fg-muted">
-            Everything you did on StudentOS, in one stream.
+            {t('timeline.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-1 rounded-xl border border-border bg-surface-raised p-1">
-          {RANGES.map(({ label, days: d }) => (
+          {RANGES.map(({ labelKey, days: d }) => (
             <button
-              key={label}
+              key={labelKey}
               type="button"
               aria-pressed={days === d}
               onClick={() => setDays(d)}
@@ -109,7 +112,7 @@ export default function TimelinePage() {
                 days === d ? 'bg-brand text-white' : 'text-fg-muted hover:text-fg',
               )}
             >
-              {label}
+              {t(labelKey)}
             </button>
           ))}
         </div>
@@ -119,20 +122,20 @@ export default function TimelinePage() {
         <Card className="flex flex-wrap items-center gap-4 p-3 text-sm">
           <span className="flex items-center gap-1.5 text-fg-muted">
             <Sparkles className="h-4 w-4 text-brand-bright" aria-hidden />
-            <strong className="text-fg">{data.length}</strong> events
+            <strong className="text-fg">{data.length}</strong> {t('timeline.events')}
           </span>
           <span className="flex items-center gap-1.5 text-fg-muted">
             <Clock3 className="h-4 w-4" aria-hidden />
             <strong className="text-fg">
               {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m
             </strong>{' '}
-            logged
+            {t('timeline.logged')}
           </span>
         </Card>
       ) : null}
 
       {error ? (
-        <Card className="p-6 text-sm text-danger">Could not load timeline.</Card>
+        <Card className="p-6 text-sm text-danger">{t('timeline.error')}</Card>
       ) : null}
 
       {isLoading ? (
@@ -143,7 +146,7 @@ export default function TimelinePage() {
         </div>
       ) : data && data.length === 0 ? (
         <Card className="p-10 text-center text-sm text-fg-muted">
-          Nothing to show yet — study a bit and check back.
+          {t('timeline.empty')}
         </Card>
       ) : (
         <ol className="relative border-l border-border pl-4 sm:pl-6">
