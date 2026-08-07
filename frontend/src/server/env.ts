@@ -51,6 +51,23 @@ const schema = z.object({
   // server-side for authorising broadcasts.
   SUPABASE_URL: z.string().optional().or(z.literal('')),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional().or(z.literal('')),
+
+  // Redis for BullMQ (LMS sync jobs). Optional — if unset, the queue is
+  // disabled and syncs fall back to inline execution (dev fallback only).
+  REDIS_URL: z.string().optional().or(z.literal('')),
+
+  // LMS worker toggles. If false, the standalone `npm run worker` process
+  // owns the queue; the web app only enqueues jobs. Defaults to true so a
+  // single-process dev setup still runs jobs without an extra terminal.
+  LMS_WORKER_IN_WEB: z
+    .string()
+    .default('true')
+    .transform((v) => v === 'true'),
+  LMS_WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+
+  // Canvas LMS OAuth2. One developer key can serve many Canvas instances.
+  CANVAS_CLIENT_ID: z.string().optional().or(z.literal('')),
+  CANVAS_CLIENT_SECRET: z.string().optional().or(z.literal('')),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -134,6 +151,8 @@ export const env = {
   hasGemini: Boolean(raw.GEMINI_API_KEY),
   hasCloudinary: Boolean(cloudinary.cloudName && cloudinary.apiKey && cloudinary.apiSecret),
   hasSupabaseRealtime: Boolean(raw.SUPABASE_URL && raw.SUPABASE_SERVICE_ROLE_KEY),
+  hasRedis: Boolean(raw.REDIS_URL),
+  hasCanvasOAuth: Boolean(raw.CANVAS_CLIENT_ID && raw.CANVAS_CLIENT_SECRET),
 } as const;
 
 export type Env = typeof env;

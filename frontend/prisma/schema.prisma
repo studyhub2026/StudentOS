@@ -84,6 +84,47 @@ enum NotificationType {
   FRIEND_REQUEST
   ACHIEVEMENT_UNLOCKED
   SYSTEM
+  LMS_SYNC_COMPLETE
+  LMS_NEW_ASSIGNMENT
+  LMS_NEW_GRADE
+  LMS_ANNOUNCEMENT
+}
+
+enum LmsProvider {
+  MOODLE
+  BLACKBOARD
+  CANVAS
+  BRIGHTSPACE
+  SAKAI
+  GOOGLE_CLASSROOM
+  MS_TEAMS
+}
+
+enum LmsConnectionStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+  SYNCING
+}
+
+enum SyncStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum LmsConflictStatus {
+  PENDING
+  RESOLVED
+  IGNORED
+}
+
+enum LmsSyncPreviewStatus {
+  PENDING
+  APPROVED
+  CANCELLED
+  EXPIRED
 }
 
 enum FriendshipStatus {
@@ -222,6 +263,8 @@ model User {
   monthlyChallenges    MonthlyChallenge[]
   knowledgeCollections KnowledgeCollection[]
   knowledgeDocuments   KnowledgeDocument[]
+
+  lmsConnections  LmsConnection[]
 
   @@index([role])
   @@index([deletedAt])
@@ -372,6 +415,7 @@ model Subject {
   scheduleBlocks ScheduleBlock[]
   studySessions  StudySession[]
   goals          Goal[]
+  lmsCourses     LmsCourse[]
 
   @@unique([userId, name])
   @@index([userId, archived])
@@ -419,9 +463,10 @@ model Assignment {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  attachments    FileAsset[]
-  studySessions  StudySession[]
-  scheduleBlocks ScheduleBlock[]
+  attachments     FileAsset[]
+  studySessions   StudySession[]
+  scheduleBlocks  ScheduleBlock[]
+  lmsAssignments  LmsAssignment[]
 
   @@index([userId, status])
   @@index([userId, dueAt])
@@ -675,6 +720,8 @@ model ScheduleBlock {
   parentBlockId   String?
   parentBlock     ScheduleBlock?       @relation("BlockRecurrence", fields: [parentBlockId], references: [id], onDelete: Cascade)
   occurrences     ScheduleBlock[]      @relation("BlockRecurrence")
+
+  lmsExams LmsExam[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1416,4 +1463,395 @@ model MonthlyChallenge {
   @@unique([userId, monthStart, challengeKey])
   @@index([userId, monthStart])
   @@map("monthly_challenges")
+}
+
+// ---------------------------------------------------------------------------
+// University LMS Integration & Auto Sync
+// ---------------------------------------------------------------------------
+
+model LmsConnection {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider    LmsProvider
+  displayName String
+  portalUrl   String
+
+  // Encrypted OAuth / API tokens. Never stored in plain text.
+  encryptedAccessToken  String?
+  encryptedRefreshToken String?
+  tokenExpiresAt        DateTime?
+  // For API-key-based LMS integrations (encrypted).
+  encryptedApiKey       String?
+
+  // Cached remote profile ({ id, name, email, studentId, program, faculty… }).
+  profileData Json?
+  // The user's remote ID at this provider — useful for /users/self style calls.
+  remoteUserId String?
+
+  status       LmsConnectionStatus @default(DISCONNECTED)
+  statusDetail String?
+
+  autoSync     Boolean @default(true)
+  // Minutes between automatic syncs. Allowed: 5, 10, 30, 60, 360, 720, 1440.
+  syncInterval Int     @default(60)
+
+  importGrades   Boolean @default(true)
+  importCalendar Boolean @default(true)
+  importFiles    Boolean @default(true)
+
+  // Semver of the adapter that established this connection. Persisted so that
+  // if an adapter bumps its version (breaking response shapes, scope changes,
+  // etc.) the sync engine can trigger a re-auth or migration flow.
+  adapterVersion String @default("1.0.0")
+
+  lastSyncAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  syncLogs      SyncLog[]
+  courses       LmsCourse[]
+  assignments   LmsAssignment[]
+  exams         LmsExam[]
+  announcements LmsAnnouncement[]
+  grades        LmsGrade[]
+  files         LmsFile[]
+  conflicts     LmsConflict[]
+  previews      LmsSyncPreview[]
+
+  @@unique([userId, provider, portalUrl])
+  @@index([userId])
+  @@index([userId, autoSync])
+  @@map("lms_connections")
+}
+
+model SyncLog {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   LmsConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  userId       String
+
+  status    SyncStatus @default(PENDING)
+  startedAt DateTime   @default(now())
+  endedAt   DateTime?
+
+  coursesFound       Int @default(0)
+  assignmentsFound   Int @default(0)
+  examsFound         Int @default(0)
+  announcementsFound Int @default(0)
+  gradesFound        Int @default(0)
+  filesFound         Int @default(0)
+
+  coursesCreated       Int @default(0)
+  coursesUpdated       Int @default(0)
+  assignmentsCreated   Int @default(0)
+  assignmentsUpdated   Int @default(0)
+  examsCreated         Int @default(0)
+  examsUpdated         Int @default(0)
+  announcementsCreated Int @default(0)
+  announcementsUpdated Int @default(0)
+  gradesCreated        Int @default(0)
+  gradesUpdated        Int @default(0)
+  filesCreated         Int @default(0)
+  filesUpdated         Int @default(0)
+
+  // Extended metrics — populated by the sync engine.
+  skippedRecords     Int @default(0)
+  duplicateRecords   Int @default(0)
+  deletedRecords     Int @default(0)
+  failedRecords      Int @default(0)
+  apiRequestsMade    Int @default(0)
+  avgResponseTimeMs  Int @default(0)
+  // Time spent waiting in the BullMQ queue before the worker picked up the job.
+  queueWaitMs        Int @default(0)
+  // Wall time from worker pick-up to job completion (or failure).
+  queueExecutionMs   Int @default(0)
+  // Whether this run was a dry-run (preview) that never wrote to the DB.
+  dryRun             Boolean @default(false)
+  // The plan produced by a dry-run — { courses: {new, updated, deleted, samples}, … }.
+  plan               Json?
+
+  // JSON array of { level, message, timestamp } entries.
+  logs   Json   @default("[]")
+  errors String?
+
+  @@index([connectionId, startedAt])
+  @@index([userId, startedAt])
+  @@map("sync_logs")
+}
+
+model LmsCourse {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   LmsConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  userId       String
+
+  externalId String
+  name       String
+  code       String?
+  instructor String?
+  term       String?
+  active     Boolean @default(true)
+
+  // Provider's own last-modified timestamp — drives incremental sync.
+  remoteUpdatedAt DateTime?
+  // Content checksum for change detection when the provider omits updated_at.
+  checksum        String?
+
+  // Link to the local Subject created from this course.
+  localSubjectId String?
+  localSubject   Subject? @relation(fields: [localSubjectId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments   LmsAssignment[]
+  exams         LmsExam[]
+  announcements LmsAnnouncement[]
+  grades        LmsGrade[]
+  files         LmsFile[]
+
+  @@unique([connectionId, externalId])
+  @@index([userId])
+  @@map("lms_courses")
+}
+
+model LmsAssignment {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   LmsConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  courseId      String
+  course       LmsCourse     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId       String
+
+  externalId  String
+  title       String
+  description String?
+  dueAt       DateTime?
+  points      Float?
+  maxPoints   Float?
+  type        String?
+  url         String?
+  submitted   Boolean @default(false)
+
+  remoteUpdatedAt DateTime?
+  checksum        String?
+
+  // Link to the local Assignment record.
+  localAssignmentId String?
+  localAssignment   Assignment? @relation(fields: [localAssignmentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  grades LmsGrade[]
+
+  @@unique([connectionId, externalId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("lms_assignments")
+}
+
+model LmsExam {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   LmsConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  courseId      String
+  course       LmsCourse     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId       String
+
+  externalId      String
+  title           String
+  description     String?
+  scheduledAt     DateTime?
+  durationMinutes Int?
+  location        String?
+  url             String?
+
+  remoteUpdatedAt DateTime?
+  checksum        String?
+
+  // Link to a local ScheduleBlock for the exam.
+  localBlockId String?
+  localBlock   ScheduleBlock? @relation(fields: [localBlockId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([connectionId, externalId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("lms_exams")
+}
+
+model LmsAnnouncement {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   LmsConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  courseId      String
+  course       LmsCourse     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId       String
+
+  externalId String
+  title      String
+  body       String?
+  author     String?
+  postedAt   DateTime?
+  url        String?
+
+  remoteUpdatedAt DateTime?
+  checksum        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([connectionId, externalId])
+  @@index([userId, createdAt])
+  @@index([courseId])
+  @@map("lms_announcements")
+}
+
+model LmsGrade {
+  id           String         @id @default(cuid())
+  connectionId String
+  connection   LmsConnection  @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  courseId      String
+  course       LmsCourse      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignmentId String?
+  assignment   LmsAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  userId       String
+
+  externalId String
+  label      String
+  score      Float?
+  maxScore   Float?
+  percentage Float?
+  letterGrade String?
+  postedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([connectionId, externalId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("lms_grades")
+}
+
+model LmsFile {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   LmsConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  courseId      String
+  course       LmsCourse     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId       String
+
+  externalId   String
+  filename     String
+  mimeType     String?
+  sizeBytes    Int?
+  externalUrl  String?
+  downloadedAt DateTime?
+
+  remoteUpdatedAt DateTime?
+  checksum        String?
+
+  // Once the file is downloaded and passed through the Knowledge Base pipeline,
+  // we track its KnowledgeDocument id so it can be re-linked in the UI.
+  knowledgeDocumentId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([connectionId, externalId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("lms_files")
+}
+
+/// A detected divergence between a locally-edited synced record and its remote
+/// counterpart. Created by the sync engine when the local mirror has been
+/// modified since the last successful sync AND the remote has changed too.
+/// Never overwrites — the resolution goes through the Conflict Resolution
+/// Center and is audited in LmsConflictResolution.
+model LmsConflict {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   LmsConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  userId       String
+
+  // Which entity (assignment | announcement | course | exam | grade | file)
+  // and its LmsXxx table id, so the UI can look up local + remote states.
+  entityType   String
+  entityId     String
+
+  // Immutable snapshots captured at conflict-detection time.
+  localData    Json
+  remoteData   Json
+  // The common ancestor state (last-known-remote before the divergence) —
+  // used by MERGE for a real three-way merge, not just a two-way pick.
+  ancestorData Json?
+
+  status LmsConflictStatus @default(PENDING)
+
+  detectedAt DateTime  @default(now())
+  resolvedAt DateTime?
+
+  resolutions LmsConflictResolution[]
+
+  @@index([userId, status])
+  @@index([connectionId, status])
+  @@index([entityType, entityId])
+  @@map("lms_conflicts")
+}
+
+/// Audit trail for conflict resolutions. Every action (KEEP_LOCAL / KEEP_REMOTE
+/// / MERGE / IGNORE / UNDONE) becomes a row, so the whole decision history is
+/// visible and the last action can be undone.
+model LmsConflictResolution {
+  id         String      @id @default(cuid())
+  conflictId String
+  conflict   LmsConflict @relation(fields: [conflictId], references: [id], onDelete: Cascade)
+  userId     String
+
+  // KEEP_LOCAL | KEEP_REMOTE | MERGE | IGNORE | UNDONE
+  action String
+  // For MERGE: the merged JSON that was applied. For UNDONE: the prior state
+  // restored. For KEEP_*: unset (the entity itself already has the answer).
+  data   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([conflictId, createdAt])
+  @@index([userId, createdAt])
+  @@map("lms_conflict_resolutions")
+}
+
+/// A dry-run sync plan awaiting user approval. The sync engine populates it
+/// via runSyncJob({ dryRun: true }); the UI shows the plan; the user approves
+/// (→ enqueue a real sync) or cancels. Expires after 15 minutes to prevent
+/// stale plans from applying to a very different remote state.
+model LmsSyncPreview {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   LmsConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  userId       String
+
+  // Full plan: { courses: { new: [...], updated: [...], deleted: [...], duplicate: [...] }, assignments: {...}, ... }
+  plan Json
+  // Human/UI-visible cost estimate: { durationSec, aiCostUsd, storageMb, records }
+  estimates Json
+
+  status LmsSyncPreviewStatus @default(PENDING)
+
+  createdAt  DateTime  @default(now())
+  approvedAt DateTime?
+  cancelledAt DateTime?
+  expiresAt  DateTime
+
+  @@index([userId, status])
+  @@index([connectionId, status])
+  @@index([expiresAt])
+  @@map("lms_sync_previews")
 }

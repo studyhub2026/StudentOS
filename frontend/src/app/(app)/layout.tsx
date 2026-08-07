@@ -10,6 +10,7 @@ import {
   Bot,
   CalendarDays,
   CheckSquare,
+  Cloud,
   Database,
   FileText,
   Flame,
@@ -57,6 +58,7 @@ const NAV: { href: string; labelKey: TranslationKey; icon: typeof BarChart3 }[] 
   { href: '/exam', labelKey: 'nav.exam', icon: ClipboardList },
   { href: '/achievements', labelKey: 'nav.achievements', icon: Trophy },
   { href: '/groups', labelKey: 'nav.groups', icon: Users },
+  { href: '/university', labelKey: 'nav.university', icon: Cloud },
 ];
 
 /** Appended only for administrators. */

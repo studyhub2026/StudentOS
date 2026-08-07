@@ -1,11 +1,8 @@
-# Local stack for the unified Next.js app: Postgres plus the web app.
+# Local stack for the unified Next.js app: Postgres, Redis, the web app,
+# and a standalone BullMQ worker for University LMS sync jobs.
 #
-#   docker compose up -d postgres     # database only (run `npm run dev` on the host)
-#   docker compose up --build         # the whole stack
-#
-# The app is a single Next.js service — its API routes and Prisma client run in
-# the same process, so there is no separate backend and no Redis. Apply the
-# schema with `npm run prisma:push` (pointed at DATABASE_URL) before first use.
+#   docker compose up -d postgres redis   # data services only (run `npm run dev` on the host)
+#   docker compose up --build             # the whole stack
 #
 # Secrets come from a .env file beside this one; nothing is hardcoded.
 
@@ -30,6 +27,21 @@ services:
       retries: 10
       start_period: 10s
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   web:
     build:
       context: .
@@ -38,11 +50,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 3000
       APP_URL: ${APP_URL:-http://localhost:3000}
       DATABASE_URL: postgresql://${POSTGRES_USER:-studentos}:${POSTGRES_PASSWORD:-studentos}@postgres:5432/${POSTGRES_DB:-studentos}
+      REDIS_URL: redis://redis:6379
+      # In compose the standalone `worker` service owns the queue.
+      LMS_WORKER_IN_WEB: 'false'
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
       # Optional integrations — leave unset to run without them.
@@ -60,8 +77,40 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      CANVAS_CLIENT_ID: ${CANVAS_CLIENT_ID:-}
+      CANVAS_CLIENT_SECRET: ${CANVAS_CLIENT_SECRET:-}
     ports:
       - '${WEB_PORT:-3000}:3000'
 
+  # Standalone BullMQ worker for LMS sync jobs. Shares the same image and env
+  # as `web` but runs `npm run worker` instead of the Next.js server, so heavy
+  # sync work never blocks HTTP requests.
+  worker:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    command: ['node', '/app/frontend/worker.js']
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-studentos}:${POSTGRES_PASSWORD:-studentos}@postgres:5432/${POSTGRES_DB:-studentos}
+      REDIS_URL: redis://redis:6379
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      CANVAS_CLIENT_ID: ${CANVAS_CLIENT_ID:-}
+      CANVAS_CLIENT_SECRET: ${CANVAS_CLIENT_SECRET:-}
+      LMS_WORKER_CONCURRENCY: ${LMS_WORKER_CONCURRENCY:-4}
+
 volumes:
   postgres-data:
+  redis-data:

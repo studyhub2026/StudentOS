@@ -781,3 +781,338 @@ export interface CreateSubjectBody {
   credits?: number | null;
   targetGrade?: number | null;
 }
+
+// --- University LMS Integration ----------------------------------------------
+
+export type LmsProvider =
+  | 'MOODLE'
+  | 'BLACKBOARD'
+  | 'CANVAS'
+  | 'BRIGHTSPACE'
+  | 'SAKAI'
+  | 'GOOGLE_CLASSROOM'
+  | 'MS_TEAMS';
+
+export type LmsConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'ERROR' | 'SYNCING';
+
+export type SyncStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+
+export interface LmsConnection {
+  id: string;
+  provider: LmsProvider;
+  displayName: string;
+  portalUrl: string;
+  status: LmsConnectionStatus;
+  statusDetail: string | null;
+  autoSync: boolean;
+  syncInterval: number;
+  importGrades: boolean;
+  importCalendar: boolean;
+  importFiles: boolean;
+  lastSyncAt: string | null;
+  tokenExpiresAt: string | null;
+  adapterVersion: string;
+  createdAt: string;
+  updatedAt: string;
+  _count: {
+    courses: number;
+    assignments: number;
+    exams: number;
+    announcements: number;
+    grades: number;
+    files: number;
+    conflicts: number;
+  };
+}
+
+
+export interface UniversityDashboard {
+  connections: number;
+  courses: number;
+  assignments: number;
+  exams: number;
+  announcements: number;
+  grades: number;
+  files: number;
+  lastSyncAt: string | null;
+  syncErrors: number;
+  pendingConflicts: number;
+  pendingPreviews: number;
+  queue?: {
+    active: number;
+    waiting: number;
+    completed: number;
+    failed: number;
+    delayed: number;
+  };
+}
+
+export interface QueueStatus {
+  enabled: boolean;
+  redis: { ok: boolean; latencyMs?: number; error?: string; note?: string };
+  counts: {
+    active: number;
+    waiting: number;
+    completed: number;
+    failed: number;
+    delayed: number;
+  } | null;
+  workerMode: 'in-web' | 'standalone';
+}
+
+export interface OAuthStartResponse {
+  connectionId: string;
+  authorizeUrl: string;
+}
+
+export interface SyncLog {
+  id: string;
+  connectionId: string;
+  status: SyncStatus;
+  startedAt: string;
+  endedAt: string | null;
+  coursesFound: number;
+  assignmentsFound: number;
+  examsFound: number;
+  announcementsFound: number;
+  gradesFound: number;
+  filesFound: number;
+  coursesCreated: number;
+  coursesUpdated: number;
+  assignmentsCreated: number;
+  assignmentsUpdated: number;
+  examsCreated: number;
+  examsUpdated: number;
+  announcementsCreated: number;
+  announcementsUpdated: number;
+  gradesCreated: number;
+  gradesUpdated: number;
+  filesCreated: number;
+  filesUpdated: number;
+  // Extended metrics (populated by the sync engine).
+  skippedRecords: number;
+  duplicateRecords: number;
+  deletedRecords: number;
+  failedRecords: number;
+  apiRequestsMade: number;
+  avgResponseTimeMs: number;
+  queueWaitMs: number;
+  queueExecutionMs: number;
+  dryRun: boolean;
+  errors: string | null;
+  connection: { displayName: string; provider: LmsProvider };
+}
+
+export interface LmsCourse {
+  id: string;
+  externalId: string;
+  name: string;
+  code: string | null;
+  instructor: string | null;
+  term: string | null;
+  active: boolean;
+  connection: { displayName: string; provider: LmsProvider };
+  _count: { assignments: number; exams: number; announcements: number; files: number };
+}
+
+export interface LmsAnnouncementItem {
+  id: string;
+  title: string;
+  body: string | null;
+  author: string | null;
+  postedAt: string | null;
+  url: string | null;
+  course: { name: string };
+}
+
+export interface LmsGradeItem {
+  id: string;
+  label: string;
+  score: number | null;
+  maxScore: number | null;
+  percentage: number | null;
+  letterGrade: string | null;
+  postedAt: string | null;
+  course: { name: string };
+}
+
+export interface LmsFileItem {
+  id: string;
+  filename: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  externalUrl: string | null;
+  course: { name: string };
+}
+
+export interface CreateConnectionBody {
+  provider: LmsProvider;
+  displayName: string;
+  portalUrl: string;
+  apiKey?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  autoSync?: boolean;
+  syncInterval?: number;
+  importGrades?: boolean;
+  importCalendar?: boolean;
+  importFiles?: boolean;
+}
+
+// --- LMS Registry (provider-independent architecture) ------------------------
+
+export type LmsAuthMode = 'oauth' | 'token';
+export type LmsProviderStatus = 'LIVE' | 'IN_DEVELOPMENT' | 'PLANNED' | 'UNSUPPORTED';
+export type LmsCapability =
+  | 'COURSES'
+  | 'ASSIGNMENTS'
+  | 'QUIZZES'
+  | 'GRADES'
+  | 'CALENDAR'
+  | 'ANNOUNCEMENTS'
+  | 'FILES'
+  | 'DISCUSSION_FORUMS'
+  | 'ATTENDANCE'
+  | 'MESSAGES'
+  | 'VIDEO_LECTURES'
+  | 'RUBRICS'
+  | 'LEARNING_OUTCOMES';
+
+export interface LmsProviderPublicMeta {
+  id: LmsProvider;
+  slug: string;
+  displayName: string;
+  icon: string;
+  color: string;
+  authMode: LmsAuthMode;
+  adapterVersion: string;
+  status: LmsProviderStatus;
+  capabilities: LmsCapability[];
+  documentationUrl: string;
+  notes?: string;
+  ready: boolean;
+  readyReason?: string;
+}
+
+// --- Diagnostics -------------------------------------------------------------
+
+export interface Diagnostics {
+  connections: {
+    id: string;
+    provider: LmsProvider;
+    displayName: string;
+    portalUrl: string;
+    status: LmsConnectionStatus;
+    statusDetail: string | null;
+    adapterVersion: string;
+    lastSyncAt: string | null;
+    tokenExpiresAt: string | null;
+    autoSync: boolean;
+    syncInterval: number;
+    lastSuccessfulSync: {
+      startedAt: string;
+      endedAt: string | null;
+      apiRequestsMade: number;
+      avgResponseTimeMs: number;
+      queueWaitMs: number;
+      queueExecutionMs: number;
+    } | null;
+    lastFailedSync: { startedAt: string; errors: string | null } | null;
+    totalFailedSyncs: number;
+    avgApiResponseMs: number;
+    avgQueueWaitMs: number;
+    avgQueueExecutionMs: number;
+  }[];
+  recentErrors: {
+    id: string;
+    startedAt: string;
+    errors: string | null;
+    connection: { displayName: string; provider: LmsProvider };
+  }[];
+  infrastructure: {
+    postgres: { ok: boolean; error?: string };
+    redis: { ok: boolean; latencyMs?: number; error?: string; note?: string };
+    queue: {
+      active: number;
+      waiting: number;
+      completed: number;
+      failed: number;
+      delayed: number;
+    } | null;
+    workerMode: 'in-web' | 'standalone';
+  };
+  providers: LmsProviderPublicMeta[];
+}
+
+// --- Preview / Dry-run -------------------------------------------------------
+
+export type LmsSyncPreviewStatus = 'PENDING' | 'APPROVED' | 'CANCELLED' | 'EXPIRED';
+
+export interface SyncPlanSample {
+  externalId: string;
+  label: string;
+  courseName?: string;
+}
+
+export interface EntityPlan {
+  new: SyncPlanSample[];
+  updated: SyncPlanSample[];
+  deleted: SyncPlanSample[];
+  duplicate: SyncPlanSample[];
+}
+
+export interface SyncPlan {
+  courses: EntityPlan;
+  assignments: EntityPlan;
+  exams: EntityPlan;
+  announcements: EntityPlan;
+  grades: EntityPlan;
+  files: EntityPlan;
+}
+
+export interface PlanEstimates {
+  durationSec: number;
+  aiCostUsd: number;
+  storageMb: number;
+  records: number;
+}
+
+export interface SyncPreview {
+  id: string;
+  connectionId: string;
+  status: LmsSyncPreviewStatus;
+  plan: SyncPlan;
+  estimates: PlanEstimates;
+  createdAt: string;
+  expiresAt: string;
+  approvedAt: string | null;
+  cancelledAt: string | null;
+  connection: { displayName: string; provider: LmsProvider; portalUrl?: string };
+}
+
+// --- Conflicts ---------------------------------------------------------------
+
+export type LmsConflictStatus = 'PENDING' | 'RESOLVED' | 'IGNORED';
+export type ResolutionAction = 'KEEP_LOCAL' | 'KEEP_REMOTE' | 'MERGE' | 'IGNORE';
+
+export interface ConflictResolutionRecord {
+  id: string;
+  action: ResolutionAction | 'UNDONE';
+  data: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface Conflict {
+  id: string;
+  connectionId: string;
+  entityType: string;
+  entityId: string;
+  localData: Record<string, unknown>;
+  remoteData: Record<string, unknown>;
+  ancestorData: Record<string, unknown> | null;
+  status: LmsConflictStatus;
+  detectedAt: string;
+  resolvedAt: string | null;
+  connection: { id: string; displayName: string; provider: LmsProvider };
+  resolutions: ConflictResolutionRecord[];
+}
