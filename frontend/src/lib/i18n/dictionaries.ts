@@ -509,6 +509,29 @@ export const en = {
   'settings.language.description': 'Choose your interface language. Arabic switches the layout to right-to-left.',
   'settings.language.saving': 'Saving…',
   'settings.language.saved': 'Language saved',
+
+  // Navigation — University
+  'nav.university': 'University',
+
+  // University Integration
+  'uni.title': 'University Sync',
+  'uni.subtitle': 'Connect your university LMS and keep courses, assignments, grades and files in sync.',
+  'uni.addConnection': 'Add Connection',
+  'uni.connections': 'Connections',
+  'uni.empty': 'No LMS connections yet',
+  'uni.emptyHint': 'Connect your university portal to auto-import courses, assignments, and more.',
+  'uni.syncHistory': 'Sync History',
+  'uni.stat.connections': 'Connections',
+  'uni.stat.courses': 'Courses',
+  'uni.stat.assignments': 'Assignments',
+  'uni.stat.exams': 'Exams',
+  'uni.stat.announcements': 'Announcements',
+  'uni.stat.grades': 'Grades',
+  'uni.stat.files': 'Files',
+  'uni.stat.syncErrors': 'Sync Errors',
+
+  // Command palette — University
+  'palette.cmd.university': 'Go to University Sync',
 } as const;
 
 export type TranslationKey = keyof typeof en;
@@ -1008,6 +1031,29 @@ export const ar: Partial<Record<TranslationKey, string>> = {
   'settings.language.description': 'اختر لغة الواجهة. اختيار العربية يبدّل الاتجاه من اليمين إلى اليسار.',
   'settings.language.saving': 'جارٍ الحفظ…',
   'settings.language.saved': 'تم حفظ اللغة',
+
+  // Navigation — University
+  'nav.university': 'الجامعة',
+
+  // University Integration
+  'uni.title': 'مزامنة الجامعة',
+  'uni.subtitle': 'اربط نظام إدارة التعلّم الخاص بجامعتك واحتفظ بالمقررات والواجبات والدرجات والملفات متزامنة.',
+  'uni.addConnection': 'إضافة اتصال',
+  'uni.connections': 'الاتصالات',
+  'uni.empty': 'لا توجد اتصالات بعد',
+  'uni.emptyHint': 'اربط بوابة جامعتك لاستيراد المقررات والواجبات تلقائيًا.',
+  'uni.syncHistory': 'سجل المزامنة',
+  'uni.stat.connections': 'الاتصالات',
+  'uni.stat.courses': 'المقررات',
+  'uni.stat.assignments': 'الواجبات',
+  'uni.stat.exams': 'الامتحانات',
+  'uni.stat.announcements': 'الإعلانات',
+  'uni.stat.grades': 'الدرجات',
+  'uni.stat.files': 'الملفات',
+  'uni.stat.syncErrors': 'أخطاء المزامنة',
+
+  // Command palette — University
+  'palette.cmd.university': 'الذهاب إلى مزامنة الجامعة',
 };
 
 const DICTS: Record<Locale, Partial<Record<TranslationKey, string>>> = { en, ar };
