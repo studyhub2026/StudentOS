@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import { isAxiosError } from 'axios';
 import { useAuthStore } from '@/stores/auth-store';
 import { LocaleProvider } from '@/lib/i18n/provider';
+import { LocaleSync } from '@/components/brand/locale-sync';
 
 function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -42,6 +43,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <LocaleProvider>
+        <LocaleSync />
         {children}
         <Toaster
           position="bottom-right"
