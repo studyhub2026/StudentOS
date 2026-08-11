@@ -68,6 +68,12 @@ const schema = z.object({
   // Canvas LMS OAuth2. One developer key can serve many Canvas instances.
   CANVAS_CLIENT_ID: z.string().optional().or(z.literal('')),
   CANVAS_CLIENT_SECRET: z.string().optional().or(z.literal('')),
+
+  // Moodle Web Services service shortname used for username/password token
+  // exchange (POST {portal}/login/token.php?service=…). `moodle_mobile_app`
+  // is enabled by default on virtually every Moodle install; institutions
+  // that expose a different shortname can override this per deployment.
+  MOODLE_SERVICE_SHORTNAME: z.string().default('moodle_mobile_app'),
 });
 
 const parsed = schema.safeParse(process.env);

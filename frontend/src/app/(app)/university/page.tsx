@@ -34,7 +34,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { apiErrorMessage } from '@/lib/api-client';
+import { apiClient, apiErrorCode, apiErrorMessage } from '@/lib/api-client';
 import { useT } from '@/lib/i18n/provider';
 import {
   useConflicts,
@@ -92,6 +92,20 @@ const PROVIDER_STATUS_LABEL: Record<LmsProviderPublicMeta['status'], string> = {
   PLANNED: 'Planned',
   UNSUPPORTED: 'Unsupported',
 };
+
+/**
+ * Reads the namespaced auth-mode marker out of the connection's profileData.
+ * Kept as a UI-side helper (mirrors extractAuthMode on the server) so we
+ * don't have to widen the API response with a computed field.
+ */
+function readAuthModeLabel(conn: LmsConnection): string {
+  const key = '__omnelos_authMode';
+  const mode =
+    conn.profileData && typeof conn.profileData === 'object'
+      ? (conn.profileData as Record<string, unknown>)[key]
+      : undefined;
+  return mode === 'USERNAME_PASSWORD' ? 'Username → Token' : 'Web Service Token';
+}
 
 function StatCard({
   label,
@@ -156,7 +170,8 @@ function ConnectionCard({
             <h3 className="truncate font-medium">{conn.displayName}</h3>
           </div>
           <p className="mt-0.5 text-xs text-fg-muted">
-            {conn.provider.replace('_', ' ')} · adapter {conn.adapterVersion ?? '1.0.0'}
+            {conn.provider.replace('_', ' ')} · adapter {conn.adapterVersion ?? '1.0.0'} ·{' '}
+            {readAuthModeLabel(conn)}
           </p>
           <p className="mt-0.5 truncate text-xs text-fg-subtle">{conn.portalUrl}</p>
         </div>
@@ -246,10 +261,20 @@ function AddConnectionForm({
     importFiles: true,
   });
 
+  // Moodle-specific auth-method picker. TOKEN is the default because it works
+  // on every Moodle install; PASSWORD is only supported when the site has Web
+  // Services enabled AND the account uses manual/email auth (not SSO).
+  const [moodleAuthMode, setMoodleAuthMode] = useState<'TOKEN' | 'PASSWORD'>('TOKEN');
+  const [moodleUsername, setMoodleUsername] = useState('');
+  const [moodlePassword, setMoodlePassword] = useState('');
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+
   const selected = providers.find((p) => p.id === form.provider);
   const useOAuth = selected?.authMode === 'oauth' && selected.ready;
   const useToken = selected?.authMode === 'token' && selected.ready;
   const notReady = selected && !selected.ready;
+  const isMoodle = selected?.id === 'MOODLE';
+  const useMoodlePassword = isMoodle && useToken && moodleAuthMode === 'PASSWORD';
 
   const handleOAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,6 +303,79 @@ function AddConnectionForm({
       onClose();
     } catch (err) {
       toast.error(apiErrorMessage(err));
+    }
+  };
+
+  /**
+   * Moodle username/password submission. Posts to /moodle/exchange, which
+   * server-side calls Moodle's /login/token.php and creates the connection
+   * with the returned token — the password never touches persistent storage.
+   *
+   * On failure the server returns a friendly message + machine-readable code;
+   * we surface the message via toast and, for SSO/unsupported paths, also
+   * flip the picker back to TOKEN so the student sees the token instructions.
+   */
+  const handleMoodlePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.displayName || !form.portalUrl || !moodleUsername || !moodlePassword) {
+      toast.error('Fill in the URL, display name, username and password first.');
+      return;
+    }
+    setPasswordSubmitting(true);
+    try {
+      // apiClient injects the Bearer token from the in-memory access token
+      // via its request interceptor — same auth path every other university
+      // hook already uses. The password is included only in this one POST
+      // body; the axios error path never echoes request bodies back.
+      await apiClient.post('/university/moodle/exchange', {
+        portalUrl: form.portalUrl,
+        displayName: form.displayName,
+        username: moodleUsername,
+        password: moodlePassword,
+        autoSync: form.autoSync,
+        syncInterval: form.syncInterval,
+        importGrades: form.importGrades,
+        importCalendar: form.importCalendar,
+        importFiles: form.importFiles,
+      });
+
+      // Zero the local password from React state as soon as the request
+      // resolves — one round-trip is all the string needs to exist for.
+      setMoodlePassword('');
+      toast.success('Moodle connected — first sync running.');
+      onClose();
+    } catch (err) {
+      // Clear the password on failure too so a retry starts fresh.
+      setMoodlePassword('');
+      toast.error(apiErrorMessage(err));
+      // If Moodle refuses password auth, flip the picker back to TOKEN so
+      // the student sees the "how to get a token" instructions immediately.
+      const code = apiErrorCode(err);
+      if (
+        code === 'BAD_REQUEST' ||
+        code === 'SSO_REQUIRED' ||
+        code === 'PASSWORD_AUTH_UNSUPPORTED' ||
+        code === 'WEBSERVICE_DISABLED' ||
+        code === 'MFA_REQUIRED' ||
+        code === 'SERVICE_NOT_FOUND'
+      ) {
+        // Only flip on Moodle-side rejections, not user typos. We rely on
+        // the message text to distinguish: if the message came from our
+        // FRIENDLY_MESSAGE map above, it's Moodle-side.
+        const msg = apiErrorMessage(err).toLowerCase();
+        if (
+          msg.includes('sso') ||
+          msg.includes('external') ||
+          msg.includes('not enabled') ||
+          msg.includes('web service') ||
+          msg.includes('mfa') ||
+          msg.includes('multi-factor')
+        ) {
+          setMoodleAuthMode('TOKEN');
+        }
+      }
+    } finally {
+      setPasswordSubmitting(false);
     }
   };
 
@@ -337,13 +435,51 @@ function AddConnectionForm({
             />
           </div>
 
-          {useToken && (
+          {/* Moodle-only authentication method picker. TOKEN is the default
+              because it works on every Moodle install; PASSWORD is the
+              alternative for accounts that don't have Preferences → Security
+              Keys exposed. */}
+          {isMoodle && useToken && (
             <div>
               <label className="mb-1 block text-xs font-medium text-fg-muted">
-                Access Token
+                Authentication method
+              </label>
+              <div className="flex flex-wrap gap-2 text-sm">
+                <label className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-surface-raised/40 px-3 py-2 has-[:checked]:border-brand has-[:checked]:bg-brand/6">
+                  <input
+                    type="radio"
+                    className="accent-brand"
+                    name="moodle-auth"
+                    checked={moodleAuthMode === 'TOKEN'}
+                    onChange={() => setMoodleAuthMode('TOKEN')}
+                  />
+                  <span>
+                    <span className="font-medium">Web Service Token</span>
+                    <span className="ml-1 text-xs text-fg-subtle">(recommended)</span>
+                  </span>
+                </label>
+                <label className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-surface-raised/40 px-3 py-2 has-[:checked]:border-brand has-[:checked]:bg-brand/6">
+                  <input
+                    type="radio"
+                    className="accent-brand"
+                    name="moodle-auth"
+                    checked={moodleAuthMode === 'PASSWORD'}
+                    onChange={() => setMoodleAuthMode('PASSWORD')}
+                  />
+                  <span className="font-medium">Username &amp; Password</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {useToken && !useMoodlePassword && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-fg-muted">
+                {isMoodle ? 'Web Service Token' : 'Access Token'}
               </label>
               <input
                 type="password"
+                autoComplete="off"
                 className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/40"
                 placeholder="Paste the token from your provider portal"
                 value={form.apiKey ?? ''}
@@ -353,6 +489,37 @@ function AddConnectionForm({
                 Tokens are encrypted at rest and never stored in plain text.
               </p>
             </div>
+          )}
+
+          {useMoodlePassword && (
+            <>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-fg-muted">Username</label>
+                <input
+                  type="text"
+                  autoComplete="username"
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/40"
+                  placeholder="Your Moodle username"
+                  value={moodleUsername}
+                  onChange={(e) => setMoodleUsername(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-fg-muted">Password</label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/40"
+                  placeholder="Your Moodle password"
+                  value={moodlePassword}
+                  onChange={(e) => setMoodlePassword(e.target.value)}
+                />
+                <p className="mt-1 text-[10px] text-fg-subtle">
+                  Your password is used only to authenticate with Moodle and is never stored in
+                  OmnelOS. If Moodle uses SSO or MFA, use the Web Service Token option instead.
+                </p>
+              </div>
+            </>
           )}
 
           <div className="flex flex-wrap gap-4 text-sm">
@@ -429,7 +596,7 @@ function AddConnectionForm({
             </div>
           )}
 
-          {useToken && selected?.id === 'MOODLE' && (
+          {useToken && isMoodle && !useMoodlePassword && (
             <div className="rounded-lg border border-brand/30 bg-brand/6 p-3 text-xs text-fg-muted">
               <p className="font-medium text-fg">How to get your Moodle token</p>
               <ol className="mt-2 list-decimal space-y-1 pl-4">
@@ -451,6 +618,10 @@ function AddConnectionForm({
                   <span className="font-medium">Add Connection</span>.
                 </li>
               </ol>
+              <p className="mt-2">
+                If your Moodle account doesn&apos;t expose Security keys, switch to{' '}
+                <span className="font-medium">Username &amp; Password</span> above.
+              </p>
             </div>
           )}
 
@@ -481,6 +652,22 @@ function AddConnectionForm({
                   </>
                 ) : (
                   <>Connect via OAuth</>
+                )}
+              </Button>
+            ) : useMoodlePassword ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleMoodlePassword}
+                disabled={passwordSubmitting}
+              >
+                {passwordSubmitting ? (
+                  <>
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    Connecting…
+                  </>
+                ) : (
+                  'Connect Moodle'
                 )}
               </Button>
             ) : (

@@ -171,6 +171,50 @@ async function validateProviderCredential(
   }
 }
 
+/**
+ * How this connection was authenticated. Persisted inside the existing
+ * `profileData` JSON blob under a namespaced key so the schema doesn't need
+ * to change. The UI reads this to show "Authentication: Web Service Token"
+ * vs "Authentication: Username + Password → Token" on the connection card.
+ */
+export type ConnectionAuthMode = 'TOKEN' | 'USERNAME_PASSWORD';
+
+const AUTH_MODE_KEY = '__omnelos_authMode';
+
+/**
+ * Merges an auth-mode marker into a connection's profileData. Never touches
+ * the encrypted credential fields. Called by /moodle/exchange after the
+ * connection is created via the normal token path.
+ */
+export async function recordAuthMode(
+  userId: string,
+  connectionId: string,
+  mode: ConnectionAuthMode,
+): Promise<void> {
+  const conn = await prisma.lmsConnection.findUnique({
+    where: { id: connectionId },
+    select: { userId: true, profileData: true },
+  });
+  if (!conn || conn.userId !== userId) throw new NotFoundError('Connection');
+  const merged: Record<string, unknown> = {
+    ...((conn.profileData as Record<string, unknown> | null) ?? {}),
+    [AUTH_MODE_KEY]: mode,
+  };
+  await prisma.lmsConnection.update({
+    where: { id: connectionId },
+    data: { profileData: merged as Prisma.InputJsonValue },
+  });
+}
+
+/** Read the auth mode back out of profileData; defaults to 'TOKEN'. */
+export function extractAuthMode(profileData: unknown): ConnectionAuthMode {
+  if (profileData && typeof profileData === 'object') {
+    const v = (profileData as Record<string, unknown>)[AUTH_MODE_KEY];
+    if (v === 'USERNAME_PASSWORD') return 'USERNAME_PASSWORD';
+  }
+  return 'TOKEN';
+}
+
 async function updateConnection(
   userId: string,
   id: string,
