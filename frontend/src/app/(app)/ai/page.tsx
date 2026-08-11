@@ -31,7 +31,7 @@ import {
   useConversation,
   useConversations,
   useDeleteConversation,
-  useSendChat,
+  useSendChatStream,
   type AiMessage,
   type AiTier,
 } from '@/hooks/use-ai';
@@ -84,7 +84,7 @@ export default function AiChatPage() {
   const [tier, setTier] = useState<AiTier>('flash');
 
   const { data: conversation } = useConversation(selectedId);
-  const send = useSendChat();
+  const send = useSendChatStream();
   const remove = useDeleteConversation();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -150,23 +150,25 @@ export default function AiChatPage() {
     });
   }, []);
 
-  // The user's turn, shown immediately while the model reply is in flight.
-  const pending = send.isPending ? send.variables?.content : null;
+  // With streaming, the hook writes the optimistic user turn + assistant
+  // placeholder straight into the React Query cache — the conversation
+  // detail already contains everything the UI needs to render, so we don't
+  // synthesise a separate `pending` bubble here.
+  const messages: AiMessage[] = useMemo(
+    () => (selectedId ? (conversation?.messages ?? []) : []),
+    [selectedId, conversation?.messages],
+  );
 
-  const messages: AiMessage[] = useMemo(() => {
-    const base = selectedId ? (conversation?.messages ?? []) : [];
-    if (pending) {
-      return [
-        ...base,
-        { id: 'pending', role: 'USER', content: pending, createdAt: new Date().toISOString() },
-      ];
-    }
-    return base;
-  }, [selectedId, conversation?.messages, pending]);
+  // "Thinking…" is only shown while the streaming placeholder is still
+  // empty. As soon as the first delta arrives the assistant bubble fills
+  // in and the indicator disappears.
+  const lastMessage = messages[messages.length - 1];
+  const showThinking =
+    send.isStreaming && lastMessage?.role === 'MODEL' && !lastMessage.content;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages.length, send.isPending]);
+  }, [messages.length, lastMessage?.content, send.isStreaming]);
 
   // Once a reply lands (the message list grows), the staged files have been
   // sent and persisted to the conversation — clear the composer tray.
@@ -176,23 +178,25 @@ export default function AiChatPage() {
   }, [messageCount]);
 
   async function handleSend() {
-    if (send.isPending || uploading) return;
+    if (send.isStreaming || uploading) return;
     // A file-only turn gets a sensible default prompt.
-    const content = draft.trim() || (readyFileIds.length > 0 ? 'Please review the attached file(s).' : '');
+    const content =
+      draft.trim() || (readyFileIds.length > 0 ? 'Please review the attached file(s).' : '');
     if (!content) return;
 
     setDraft('');
     const fileIds = readyFileIds;
     setPendingFiles([]);
 
-    const result = await send.mutateAsync({
+    const result = await send.send({
       content,
       ...(selectedId ? { conversationId: selectedId } : {}),
       ...(fileIds.length > 0 ? { fileIds } : {}),
       tier,
     });
-    // A brand-new thread: adopt the id the server just created.
-    if (!selectedId) setSelectedId(result.conversationId);
+    // A brand-new thread: adopt the id the server just created (arrives in
+    // the meta frame, so it's already in the result by the time we get here).
+    if (!selectedId && result?.conversationId) setSelectedId(result.conversationId);
   }
 
   const disabled = status && !status.configured;
@@ -358,7 +362,7 @@ export default function AiChatPage() {
               messages.map((m) => <MessageBubble key={m.id} message={m} />)
             )}
 
-            {send.isPending ? (
+            {showThinking ? (
               <div className="flex items-center gap-2 text-sm text-fg-subtle">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/15">
                   <Bot className="h-4 w-4 text-brand-bright" aria-hidden />
@@ -425,22 +429,35 @@ export default function AiChatPage() {
                   }
                 }}
                 rows={1}
-                disabled={disabled || send.isPending}
+                disabled={disabled || send.isStreaming}
                 placeholder={disabled ? 'AI is unavailable' : 'Message the assistant, or attach a file…'}
                 aria-label="Message the assistant"
                 className="max-h-40 min-h-[2.5rem] flex-1 resize-none rounded-xl border border-border bg-surface-raised px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40 disabled:opacity-50"
               />
-              <Button
-                onClick={() => void handleSend()}
-                disabled={disabled || send.isPending || uploading || (!draft.trim() && readyFileIds.length === 0)}
-                aria-label="Send"
-              >
-                {uploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <SendHorizonal className="h-4 w-4" aria-hidden />
-                )}
-              </Button>
+              {send.isStreaming ? (
+                <Button
+                  onClick={() => send.stop()}
+                  variant="ghost"
+                  aria-label="Stop generating"
+                  title="Stop generating"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => void handleSend()}
+                  disabled={
+                    disabled || uploading || (!draft.trim() && readyFileIds.length === 0)
+                  }
+                  aria-label="Send"
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <SendHorizonal className="h-4 w-4" aria-hidden />
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </Card>
