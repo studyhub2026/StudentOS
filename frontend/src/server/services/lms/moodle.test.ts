@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MoodleAdapter, appendMoodleToken, stripHtml } from './moodle';
+import {
+  MoodleAdapter,
+  MoodleAuthError,
+  appendMoodleToken,
+  classifyMoodleTokenError,
+  stripHtml,
+} from './moodle';
 
 const cfg = {
   portalUrl: 'https://moodle.test.edu',
@@ -347,6 +353,198 @@ describe('MoodleAdapter', () => {
         name: 'LmsProviderError',
         retryable: true,
       });
+    });
+  });
+
+  // ------------------------------------------------------------------------
+  // Username/password → token exchange
+  //
+  // Every test here also asserts that the plaintext password never leaks into
+  // the request URL, the metrics collector, the error message, or the return
+  // value. This is the guarantee the /api/v1/university/moodle/exchange
+  // endpoint depends on.
+  // ------------------------------------------------------------------------
+
+  describe('classifyMoodleTokenError', () => {
+    it('maps invalidlogin → INVALID_CREDENTIALS', () => {
+      expect(classifyMoodleTokenError('Invalid login, please try again', 'invalidlogin').code).toBe(
+        'INVALID_CREDENTIALS',
+      );
+    });
+    it('maps webservicesnotenabled → WEBSERVICE_DISABLED', () => {
+      expect(
+        classifyMoodleTokenError('Web services are not enabled', 'enablewsdescription').code,
+      ).toBe('WEBSERVICE_DISABLED');
+    });
+    it('maps wsservernotdefined → SERVICE_NOT_FOUND', () => {
+      expect(classifyMoodleTokenError('Service not found', 'wsservernotdefined').code).toBe(
+        'SERVICE_NOT_FOUND',
+      );
+    });
+    it('maps auth-plugin messages → SSO_REQUIRED', () => {
+      expect(
+        classifyMoodleTokenError('You must use SAML to sign in', 'externalauth').code,
+      ).toBe('SSO_REQUIRED');
+      expect(
+        classifyMoodleTokenError('CAS authentication required', 'wrongauthtype').code,
+      ).toBe('SSO_REQUIRED');
+      expect(
+        classifyMoodleTokenError('This user must sign in with Microsoft', 'oauth2').code,
+      ).toBe('SSO_REQUIRED');
+    });
+    it('maps MFA-related messages → MFA_REQUIRED', () => {
+      expect(classifyMoodleTokenError('Two-factor auth required', 'mfarequired').code).toBe(
+        'MFA_REQUIRED',
+      );
+    });
+    it('unknown JSON error → PASSWORD_AUTH_UNSUPPORTED (safe default)', () => {
+      expect(classifyMoodleTokenError('some new message', 'newcode').code).toBe(
+        'PASSWORD_AUTH_UNSUPPORTED',
+      );
+    });
+  });
+
+  describe('exchangePasswordForToken', () => {
+    it('returns the token on success and posts credentials in the body (never the URL)', async () => {
+      const spy = mockFetchQueue([{ token: 'ws-token-from-exchange' }]);
+      const adapter = new MoodleAdapter(cfg);
+      const result = await adapter.exchangePasswordForToken('alice', 'p@ss w0rd!', 'moodle_mobile_app');
+      expect(result.token).toBe('ws-token-from-exchange');
+
+      const [url, init] = spy.mock.calls[0]!;
+      const call = new URL(String(url));
+      expect(call.origin + call.pathname).toBe('https://moodle.test.edu/login/token.php');
+      // Password must NEVER appear in the URL.
+      expect(call.searchParams.get('password')).toBeNull();
+      expect(String(url)).not.toContain('p%40ss');
+      expect(String(url)).not.toContain('p@ss');
+      // But it must appear in the request body (form-encoded).
+      const body = String((init as RequestInit).body);
+      expect(body).toContain('username=alice');
+      expect(body).toContain('password=p%40ss+w0rd%21');
+      expect(body).toContain('service=moodle_mobile_app');
+      expect((init as RequestInit).method).toBe('POST');
+    });
+
+    it('invalid credentials → MoodleAuthError(INVALID_CREDENTIALS) without echoing the password', async () => {
+      mockFetchQueue([
+        { error: 'Invalid login, please try again', errorcode: 'invalidlogin', stacktrace: null },
+      ]);
+      const adapter = new MoodleAdapter(cfg);
+      try {
+        await adapter.exchangePasswordForToken('alice', 'super-secret-123', 'moodle_mobile_app');
+        throw new Error('expected throw');
+      } catch (err) {
+        expect(err).toBeInstanceOf(MoodleAuthError);
+        expect((err as MoodleAuthError).code).toBe('INVALID_CREDENTIALS');
+        // Sanity: the error message never contains the password.
+        expect((err as MoodleAuthError).message).not.toContain('super-secret-123');
+      }
+    });
+
+    it('Web Services disabled → WEBSERVICE_DISABLED', async () => {
+      mockFetchQueue([
+        { error: 'Web services are not enabled', errorcode: 'enablewsdescription' },
+      ]);
+      const adapter = new MoodleAdapter(cfg);
+      await expect(
+        adapter.exchangePasswordForToken('a', 'b', 'moodle_mobile_app'),
+      ).rejects.toMatchObject({ code: 'WEBSERVICE_DISABLED' });
+    });
+
+    it('unknown service → SERVICE_NOT_FOUND', async () => {
+      mockFetchQueue([
+        { error: 'Service not found', errorcode: 'wsservernotdefined' },
+      ]);
+      const adapter = new MoodleAdapter(cfg);
+      await expect(
+        adapter.exchangePasswordForToken('a', 'b', 'nonexistent'),
+      ).rejects.toMatchObject({ code: 'SERVICE_NOT_FOUND' });
+    });
+
+    it('SSO-only Moodle → SSO_REQUIRED', async () => {
+      mockFetchQueue([
+        { error: 'You must sign in with your institutional SAML account', errorcode: 'externalauth' },
+      ]);
+      const adapter = new MoodleAdapter(cfg);
+      await expect(
+        adapter.exchangePasswordForToken('a', 'b', 'moodle_mobile_app'),
+      ).rejects.toMatchObject({ code: 'SSO_REQUIRED' });
+    });
+
+    it('non-JSON response (HTML login/SSO page) → PASSWORD_AUTH_UNSUPPORTED', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response('<html><body>SSO redirect</body></html>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        }),
+      );
+      const adapter = new MoodleAdapter(cfg);
+      await expect(
+        adapter.exchangePasswordForToken('a', 'b', 'moodle_mobile_app'),
+      ).rejects.toMatchObject({ code: 'PASSWORD_AUTH_UNSUPPORTED' });
+    });
+
+    it('HTTP 5xx → MOODLE_UNAVAILABLE', async () => {
+      mockFetchQueue([{ status: 503 }]);
+      const adapter = new MoodleAdapter(cfg);
+      await expect(
+        adapter.exchangePasswordForToken('a', 'b', 'moodle_mobile_app'),
+      ).rejects.toMatchObject({ code: 'MOODLE_UNAVAILABLE' });
+    });
+
+    it('HTTP 429 → RATE_LIMITED', async () => {
+      mockFetchQueue([{ status: 429 }]);
+      const adapter = new MoodleAdapter(cfg);
+      await expect(
+        adapter.exchangePasswordForToken('a', 'b', 'moodle_mobile_app'),
+      ).rejects.toMatchObject({ code: 'RATE_LIMITED' });
+    });
+
+    it('network error → MOODLE_UNAVAILABLE (and password never in message)', async () => {
+      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('ECONNREFUSED'));
+      const adapter = new MoodleAdapter(cfg);
+      try {
+        await adapter.exchangePasswordForToken('alice', 'top-secret-42', 'moodle_mobile_app');
+        throw new Error('expected throw');
+      } catch (err) {
+        expect(err).toBeInstanceOf(MoodleAuthError);
+        expect((err as MoodleAuthError).code).toBe('MOODLE_UNAVAILABLE');
+        expect((err as MoodleAuthError).message).not.toContain('top-secret-42');
+      }
+    });
+
+    it('rejects empty credentials without hitting the network', async () => {
+      const spy = vi.spyOn(globalThis, 'fetch');
+      const adapter = new MoodleAdapter(cfg);
+      await expect(
+        adapter.exchangePasswordForToken('', 'x', 'moodle_mobile_app'),
+      ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
+      await expect(
+        adapter.exchangePasswordForToken('x', '', 'moodle_mobile_app'),
+      ).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' });
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('rejects missing serviceShortname without hitting the network', async () => {
+      const spy = vi.spyOn(globalThis, 'fetch');
+      const adapter = new MoodleAdapter(cfg);
+      await expect(
+        adapter.exchangePasswordForToken('a', 'b', ''),
+      ).rejects.toMatchObject({ code: 'SERVICE_NOT_FOUND' });
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('does not touch the SyncMetrics collector', async () => {
+      // Password path uses a distinct fetch (not `call()`), so the metrics
+      // collector — which is meant for user-data sync timing — must not be
+      // incremented. Otherwise credentials would appear in metrics traces.
+      const { SyncMetrics } = await import('./metrics');
+      const metrics = new SyncMetrics();
+      mockFetchQueue([{ token: 't' }]);
+      const adapter = new MoodleAdapter(cfg, metrics);
+      await adapter.exchangePasswordForToken('a', 'b', 'moodle_mobile_app');
+      expect(metrics.requests).toBe(0);
     });
   });
 });

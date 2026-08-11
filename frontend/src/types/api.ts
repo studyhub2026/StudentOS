@@ -812,6 +812,12 @@ export interface LmsConnection {
   lastSyncAt: string | null;
   tokenExpiresAt: string | null;
   adapterVersion: string;
+  // Raw profile blob cached from the last successful sync. Includes provider
+  // fields (name, email, studentId, avatarUrl) plus a namespaced OmnelOS
+  // authMode marker so the UI can show "Web Service Token" vs "Username +
+  // Password → Token" on the connection card.
+  profileData: Record<string, unknown> | null;
+  remoteUserId: string | null;
   createdAt: string;
   updatedAt: string;
   _count: {
