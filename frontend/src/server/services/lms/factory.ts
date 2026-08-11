@@ -5,6 +5,7 @@ import { AppError } from '@/server/lib/errors';
 import type { AdapterConfig, LmsAdapter } from './types';
 import { CanvasAdapter } from './canvas';
 import { MoodleAdapter } from './moodle';
+import { GoogleClassroomAdapter } from './google-classroom';
 import type { SyncMetrics } from './metrics';
 import { getMeta, hasCapability as registryHasCapability } from './registry';
 import type { AuthMode } from './registry';
@@ -43,6 +44,11 @@ function credentialsFor(provider: LmsProvider): { clientId: string; clientSecret
   switch (provider) {
     case LmsProvider.CANVAS:
       return { clientId: env.CANVAS_CLIENT_ID ?? '', clientSecret: env.CANVAS_CLIENT_SECRET ?? '' };
+    case LmsProvider.GOOGLE_CLASSROOM:
+      // Reuses the Google OAuth credentials already configured for sign-in —
+      // no separate developer key needed. The scopes at authorize time
+      // determine what the Classroom adapter can actually read.
+      return { clientId: env.GOOGLE_CLIENT_ID ?? '', clientSecret: env.GOOGLE_CLIENT_SECRET ?? '' };
     default:
       return { clientId: '', clientSecret: '' };
   }
@@ -66,6 +72,10 @@ export function isProviderReady(provider: LmsProvider): boolean {
     case LmsProvider.MOODLE:
       // Moodle uses per-user tokens — no server credentials required.
       return true;
+    case LmsProvider.GOOGLE_CLASSROOM: {
+      const { clientId, clientSecret } = credentialsFor(provider);
+      return Boolean(clientId && clientSecret);
+    }
     default:
       return false;
   }
@@ -99,6 +109,15 @@ export function getAdapter(
       return new CanvasAdapter(config, metrics);
     case LmsProvider.MOODLE:
       return new MoodleAdapter(config, metrics);
+    case LmsProvider.GOOGLE_CLASSROOM:
+      if (!clientId || !clientSecret) {
+        throw new AppError(
+          'Google Classroom is not configured on this server (set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)',
+          503,
+          'LMS_NOT_CONFIGURED',
+        );
+      }
+      return new GoogleClassroomAdapter(config, metrics);
     default:
       throw new AppError(
         `The ${provider} adapter is not implemented yet`,
