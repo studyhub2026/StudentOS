@@ -24,6 +24,10 @@ import { aiMemoryService } from '@/server/services/ai-memory.service';
  * structured feature validates the model's JSON before it reaches a caller.
  */
 
+/**
+ * Full-history include: every message in the thread, oldest first. Used by
+ * detail-view endpoints where the client wants the whole transcript.
+ */
 const conversationInclude = {
   messages: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.AiConversationInclude;
@@ -34,6 +38,35 @@ export type ConversationWithMessages = Prisma.AiConversationGetPayload<{
 
 /** Turns kept in the model's context window. Older turns stay in the database. */
 const CONTEXT_TURNS = 20;
+
+/**
+ * Hot-path include: only the tail of the thread that the model actually needs.
+ * `take: CONTEXT_TURNS + 2` covers the 20-turn window plus a small buffer so we
+ * still have full context after the current user turn is appended in memory.
+ * Ordered desc + reversed in the caller so we hit the index on (conversationId,
+ * createdAt DESC) and never scan discarded rows.
+ */
+const chatIncludeTail = {
+  messages: { orderBy: { createdAt: 'desc' as const }, take: CONTEXT_TURNS + 2 },
+} satisfies Prisma.AiConversationInclude;
+
+type ConversationWithTail = Prisma.AiConversationGetPayload<{
+  include: typeof chatIncludeTail;
+}>;
+
+async function loadConversationTail(
+  userId: string,
+  id: string,
+): Promise<ConversationWithTail> {
+  const conversation = await prisma.aiConversation.findFirst({
+    where: { id, userId, deletedAt: null },
+    include: chatIncludeTail,
+  });
+  if (!conversation) throw new NotFoundError('Conversation');
+  // Restore chronological order so toGeminiMessages walks user→model→user…
+  conversation.messages.reverse();
+  return conversation;
+}
 
 // --- Conversations ----------------------------------------------------------
 
@@ -154,29 +187,48 @@ export async function sendMessage(
     fileIds?: string[];
   },
 ): Promise<ChatResult> {
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId },
-    select: { aiTone: true, aiModel: true },
-  });
-
-  let conversation = input.conversationId
-    ? await getConversation(userId, input.conversationId)
+  // Resolve the target conversation first so subsequent DB calls that need its
+  // id can proceed in parallel. Uses the tail include so we never read the
+  // whole thread just to keep the last 20 turns.
+  const conversation = input.conversationId
+    ? await loadConversationTail(userId, input.conversationId)
     : await createConversation(userId, {
         feature: input.feature,
         title: deriveTitle(input.content),
       });
 
-  const userMessage = await prisma.aiMessage.create({
-    data: { conversationId: conversation.id, role: AiRole.USER, content: input.content },
-  });
+  // Persist the user turn, and — in parallel — read the three pieces of
+  // context we'll need to build the prompt. All four operations are
+  // independent so we can wait for them together instead of serially.
+  const [userMessage, settings, files, memoryContext] = await Promise.all([
+    prisma.aiMessage.create({
+      data: { conversationId: conversation.id, role: AiRole.USER, content: input.content },
+    }),
+    prisma.userSettings.findUnique({
+      where: { userId },
+      select: { aiTone: true, aiModel: true },
+    }),
+    prisma.uploadedFile.findMany({
+      where: { conversationId: conversation.id, userId, status: 'READY' },
+      orderBy: { createdAt: 'asc' },
+    }),
+    aiMemoryService.getMemoryContext(userId),
+  ]);
 
   // Link any just-uploaded files to the message that first referenced them.
+  // Fire-and-forget: the link is metadata, not required for the model call.
   if (input.fileIds && input.fileIds.length > 0) {
-    await aiFileService.attachFilesToMessage(input.fileIds, userMessage.id);
+    void aiFileService.attachFilesToMessage(input.fileIds, userMessage.id);
   }
 
-  // Re-read so the outgoing context includes the turn just written.
-  conversation = await getConversation(userId, conversation.id);
+  const fileContext = await aiFileService.buildFileContext(files);
+
+  // Synthesise the fresh transcript in memory rather than re-reading the DB.
+  // The tail we already loaded is up-to-date except for the turn we just wrote.
+  const transcript = [
+    ...conversation.messages,
+    { role: AiRole.USER, content: input.content },
+  ];
 
   const featureKey = conversation.feature as AiFeatureKey;
   const baseInstruction = withTone(
@@ -184,23 +236,12 @@ export async function sendMessage(
     settings?.aiTone ?? 'encouraging',
   );
 
-  // Every ready file on the conversation is included each turn, so questions
-  // about a document keep working after it has scrolled out of view.
-  const files = await prisma.uploadedFile.findMany({
-    where: { conversationId: conversation.id, userId, status: 'READY' },
-    orderBy: { createdAt: 'asc' },
-  });
-  const fileContext = await aiFileService.buildFileContext(files);
-
-  // Long-term memory keeps the assistant personal across separate conversations.
-  const memoryContext = await aiMemoryService.getMemoryContext(userId);
-
   const systemInstruction = [baseInstruction, memoryContext, fileContext.textPreamble]
     .filter(Boolean)
     .join('\n\n');
 
   const result = await geminiService.generateText({
-    messages: toGeminiMessages(conversation.messages),
+    messages: toGeminiMessages(transcript),
     systemInstruction,
     ...(input.tier ? { tier: input.tier } : {}),
     ...(fileContext.inlineParts.length > 0
@@ -256,36 +297,74 @@ export async function* streamMessage(
     conversationId?: string;
     feature: AiFeature;
     content: string;
+    tier?: 'flash' | 'pro';
+    fileIds?: string[];
     signal?: AbortSignal;
   },
 ): AsyncGenerator<{ type: 'meta' | 'delta' | 'done'; data: unknown }, void, undefined> {
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId },
-    select: { aiTone: true },
-  });
-
-  let conversation = input.conversationId
-    ? await getConversation(userId, input.conversationId)
+  const conversation = input.conversationId
+    ? await loadConversationTail(userId, input.conversationId)
     : await createConversation(userId, {
         feature: input.feature,
         title: deriveTitle(input.content),
       });
 
-  await prisma.aiMessage.create({
-    data: { conversationId: conversation.id, role: AiRole.USER, content: input.content },
-  });
-
-  conversation = await getConversation(userId, conversation.id);
-
+  // Emit the meta frame BEFORE any further DB work so the browser flushes its
+  // fetch reader immediately and the UI can render an in-flight bubble.
   yield { type: 'meta', data: { conversationId: conversation.id } };
 
+  // Persist the user turn + gather context in parallel. Same shape as
+  // sendMessage so streaming replies get memory + files + tone that
+  // non-streaming replies have always had.
+  const [userMessage, settings, files, memoryContext] = await Promise.all([
+    prisma.aiMessage.create({
+      data: { conversationId: conversation.id, role: AiRole.USER, content: input.content },
+    }),
+    prisma.userSettings.findUnique({
+      where: { userId },
+      select: { aiTone: true },
+    }),
+    prisma.uploadedFile.findMany({
+      where: { conversationId: conversation.id, userId, status: 'READY' },
+      orderBy: { createdAt: 'asc' },
+    }),
+    aiMemoryService.getMemoryContext(userId),
+  ]);
+
+  if (input.fileIds && input.fileIds.length > 0) {
+    void aiFileService.attachFilesToMessage(input.fileIds, userMessage.id);
+  }
+
+  const fileContext = await aiFileService.buildFileContext(files);
+
+  // Fresh transcript = tail we loaded + the turn we just wrote. Skips the
+  // second getConversation round-trip that used to happen here.
+  const transcript = [
+    ...conversation.messages,
+    { role: AiRole.USER, content: input.content },
+  ];
+
   const featureKey = conversation.feature as AiFeatureKey;
+  const baseInstruction = withTone(
+    SYSTEM_PROMPTS[featureKey] ?? SYSTEM_PROMPTS.CHAT,
+    settings?.aiTone ?? 'encouraging',
+  );
+  const systemInstruction = [baseInstruction, memoryContext, fileContext.textPreamble]
+    .filter(Boolean)
+    .join('\n\n');
+
   const stream = geminiService.streamText({
-    messages: toGeminiMessages(conversation.messages),
-    systemInstruction: withTone(
-      SYSTEM_PROMPTS[featureKey] ?? SYSTEM_PROMPTS.CHAT,
-      settings?.aiTone ?? 'encouraging',
-    ),
+    messages: toGeminiMessages(transcript),
+    systemInstruction,
+    ...(input.tier ? { tier: input.tier } : {}),
+    ...(fileContext.inlineParts.length > 0
+      ? {
+          attachments: fileContext.inlineParts.map((part) => ({
+            mimeType: part.mimeType,
+            dataBase64: part.dataBase64,
+          })),
+        }
+      : {}),
     ...(input.signal ? { signal: input.signal } : {}),
   });
 

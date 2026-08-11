@@ -1,8 +1,10 @@
 'use client';
 
+import { useCallback, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient, apiErrorMessage } from '@/lib/api-client';
+import { postSse } from '@/lib/sse';
 import type { ApiEnvelope } from '@/types/api';
 
 export type AiFeature =
@@ -139,6 +141,169 @@ export function useSendChat() {
     },
     onError: (error) => toast.error(apiErrorMessage(error)),
   });
+}
+
+/**
+ * Streaming chat hook. Same request payload as `useSendChat` — but the reply
+ * arrives token-by-token via the SSE endpoint at `/ai/chat/stream`, so the
+ * user sees the answer forming instead of waiting for the whole thing.
+ *
+ * Optimistic updates:
+ *   - User's turn is appended to the React Query cache immediately.
+ *   - A placeholder assistant turn (`__streaming: true`) is appended too and
+ *     patched on every `delta` frame. The placeholder id is stable for the
+ *     duration of the stream so React reconciles the same bubble.
+ *   - The `done` frame invalidates the conversation list so the sidebar
+ *     picks up the new/renamed thread.
+ *
+ * Aborting: `stop()` cancels the in-flight fetch; the server-side generator
+ * observes `req.signal.aborted` and persists whatever accumulated so far.
+ */
+export interface StreamChatInput {
+  conversationId?: string;
+  content: string;
+  tier?: AiTier;
+  fileIds?: string[];
+}
+
+export function useSendChatStream() {
+  const queryClient = useQueryClient();
+  const [isStreaming, setIsStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const stop = useCallback((): void => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsStreaming(false);
+  }, []);
+
+  const send = useCallback(
+    async (input: StreamChatInput): Promise<{ conversationId: string } | null> => {
+      // Cancel any prior in-flight turn before starting the next one.
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setIsStreaming(true);
+
+      // Stable ids so React keys the same bubbles across delta patches.
+      const userMessageId = `optimistic-user-${Date.now()}`;
+      const assistantMessageId = `streaming-${Date.now()}`;
+      const nowIso = new Date().toISOString();
+
+      // The first meta frame carries the real conversationId (matters when we
+      // started without one — server auto-creates it). Hold it in this scope.
+      let conversationId = input.conversationId ?? null;
+
+      // Append the optimistic user turn + empty assistant placeholder to the
+      // conversation cache immediately, so the UI updates before the network.
+      const seedConversation = (cid: string) => {
+        queryClient.setQueryData<ConversationDetail>(
+          aiKeys.conversation(cid),
+          (current) => {
+            const base: ConversationDetail = current ?? {
+              id: cid,
+              title: input.content.slice(0, 60),
+              feature: 'CHAT',
+              messages: [],
+            };
+            // Avoid double-appending if this render already ran.
+            if (base.messages.some((m) => m.id === userMessageId)) return base;
+            return {
+              ...base,
+              messages: [
+                ...base.messages,
+                { id: userMessageId, role: 'USER', content: input.content, createdAt: nowIso },
+                { id: assistantMessageId, role: 'MODEL', content: '', createdAt: nowIso },
+              ],
+            };
+          },
+        );
+      };
+
+      if (conversationId) seedConversation(conversationId);
+
+      // Patches only the assistant placeholder's content — cheap enough to run
+      // on every delta because setQueryData structurally shares unchanged msgs.
+      const patchAssistant = (nextContent: string) => {
+        if (!conversationId) return;
+        queryClient.setQueryData<ConversationDetail>(
+          aiKeys.conversation(conversationId),
+          (current) => {
+            if (!current) return current;
+            return {
+              ...current,
+              messages: current.messages.map((m) =>
+                m.id === assistantMessageId ? { ...m, content: nextContent } : m,
+              ),
+            };
+          },
+        );
+      };
+
+      let accumulated = '';
+      try {
+        const generator = postSse(
+          '/api/v1/ai/chat/stream',
+          {
+            feature: 'CHAT',
+            content: input.content,
+            ...(input.conversationId ? { conversationId: input.conversationId } : {}),
+            ...(input.tier ? { tier: input.tier } : {}),
+            ...(input.fileIds && input.fileIds.length > 0 ? { fileIds: input.fileIds } : {}),
+          },
+          controller.signal,
+        );
+
+        for await (const frame of generator) {
+          if (frame.event === 'meta') {
+            const meta = JSON.parse(frame.data) as { conversationId: string };
+            conversationId = meta.conversationId;
+            seedConversation(conversationId);
+          } else if (frame.event === 'delta') {
+            const delta = JSON.parse(frame.data) as string;
+            accumulated += delta;
+            patchAssistant(accumulated);
+          } else if (frame.event === 'error') {
+            const err = JSON.parse(frame.data) as { message?: string };
+            throw new Error(err.message ?? 'Streaming failed');
+          }
+        }
+
+        // Once the stream closes we refresh the sidebar so a fresh conversation
+        // shows up and its title/updated-at is authoritative.
+        void queryClient.invalidateQueries({ queryKey: aiKeys.conversations() });
+        return conversationId ? { conversationId } : null;
+      } catch (error) {
+        // Abort is a user action, not an error to toast.
+        const wasAborted = controller.signal.aborted;
+        if (!wasAborted) {
+          const message = error instanceof Error ? error.message : apiErrorMessage(error);
+          toast.error(message);
+          // Roll back the empty assistant placeholder if we never got any
+          // content, so the user isn't left staring at a blank bubble.
+          if (!accumulated && conversationId) {
+            queryClient.setQueryData<ConversationDetail>(
+              aiKeys.conversation(conversationId),
+              (current) =>
+                current
+                  ? {
+                      ...current,
+                      messages: current.messages.filter((m) => m.id !== assistantMessageId),
+                    }
+                  : current,
+            );
+          }
+        }
+        return null;
+      } finally {
+        setIsStreaming(false);
+        abortRef.current = null;
+      }
+    },
+    [queryClient],
+  );
+
+  return { send, stop, isStreaming };
 }
 
 export function useDeleteConversation() {
