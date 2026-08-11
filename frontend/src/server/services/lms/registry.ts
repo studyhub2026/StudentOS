@@ -37,6 +37,7 @@ export interface LmsProviderMeta {
 }
 
 const canvasReady = (): boolean => Boolean(env.CANVAS_CLIENT_ID && env.CANVAS_CLIENT_SECRET);
+const googleReady = (): boolean => Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 
 // Note: the `status` field reflects code-level readiness, not runtime health.
 // Runtime health (token expired, portal unreachable, sync failing) is per-
@@ -94,11 +95,11 @@ const REGISTRY: LmsProviderMeta[] = [
     icon: '📗',
     color: '#1a73e8',
     authMode: 'oauth',
-    adapterVersion: '0.1.0',
-    status: 'IN_DEVELOPMENT',
+    adapterVersion: '1.0.0',
+    status: 'LIVE',
     capabilities: ['COURSES', 'ASSIGNMENTS', 'ANNOUNCEMENTS', 'FILES', 'GRADES'],
     documentationUrl: 'https://developers.google.com/classroom',
-    notes: 'Adapter under active development.',
+    notes: 'Reuses the app’s Google OAuth credentials — no separate developer key required.',
   },
   {
     id: LmsProvider.BLACKBOARD,
@@ -217,6 +218,9 @@ function readinessFor(meta: LmsProviderMeta): { ready: boolean; reason?: string 
   }
   if (meta.id === LmsProvider.CANVAS && !canvasReady()) {
     return { ready: false, reason: 'Server missing CANVAS_CLIENT_ID / CANVAS_CLIENT_SECRET' };
+  }
+  if (meta.id === LmsProvider.GOOGLE_CLASSROOM && !googleReady()) {
+    return { ready: false, reason: 'Server missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET' };
   }
   return { ready: true };
 }
