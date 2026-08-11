@@ -556,6 +556,200 @@ export async function discoverGroups(userId: string, search?: string) {
   return groups.map(({ _count, ...group }) => ({ ...group, memberCount: _count.members }));
 }
 
+// --- Resources ---------------------------------------------------------------
+
+export async function listResources(userId: string, groupId: string) {
+  await requireMembership(userId, groupId);
+  return prisma.groupResource.findMany({
+    where: { groupId },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      url: true,
+      createdAt: true,
+      user: { select: { id: true, name: true, username: true } },
+    },
+  });
+}
+
+export async function addResource(
+  userId: string,
+  groupId: string,
+  input: { type: string; title: string; url?: string },
+) {
+  await requireMembership(userId, groupId);
+  return prisma.groupResource.create({
+    data: { groupId, userId, type: input.type, title: input.title, url: input.url ?? null },
+    select: {
+      id: true, type: true, title: true, url: true, createdAt: true,
+      user: { select: { id: true, name: true, username: true } },
+    },
+  });
+}
+
+export async function deleteResource(userId: string, groupId: string, resourceId: string) {
+  const role = await requireMembership(userId, groupId);
+  const resource = await prisma.groupResource.findFirst({
+    where: { id: resourceId, groupId },
+    select: { userId: true },
+  });
+  if (!resource) throw new NotFoundError('Resource');
+  if (resource.userId !== userId && ROLE_RANK[role] < ROLE_RANK[GroupRole.MODERATOR]) {
+    throw new ForbiddenError('You can only delete your own resources');
+  }
+  return prisma.groupResource.delete({ where: { id: resourceId } });
+}
+
+// --- Tasks -------------------------------------------------------------------
+
+export async function listTasks(userId: string, groupId: string) {
+  await requireMembership(userId, groupId);
+  return prisma.groupTask.findMany({
+    where: { groupId },
+    orderBy: [{ completed: 'asc' }, { createdAt: 'desc' }],
+    take: 50,
+    select: {
+      id: true,
+      title: true,
+      completed: true,
+      dueAt: true,
+      createdAt: true,
+      creator: { select: { id: true, name: true, username: true } },
+    },
+  });
+}
+
+export async function addTask(
+  userId: string,
+  groupId: string,
+  input: { title: string; dueAt?: string },
+) {
+  await requireMembership(userId, groupId);
+  return prisma.groupTask.create({
+    data: {
+      groupId,
+      createdBy: userId,
+      title: input.title,
+      dueAt: input.dueAt ? new Date(input.dueAt) : null,
+    },
+    select: {
+      id: true, title: true, completed: true, dueAt: true, createdAt: true,
+      creator: { select: { id: true, name: true, username: true } },
+    },
+  });
+}
+
+export async function toggleTask(userId: string, groupId: string, taskId: string) {
+  await requireMembership(userId, groupId);
+  const task = await prisma.groupTask.findFirst({
+    where: { id: taskId, groupId },
+    select: { completed: true },
+  });
+  if (!task) throw new NotFoundError('Task');
+  return prisma.groupTask.update({
+    where: { id: taskId },
+    data: { completed: !task.completed },
+    select: { id: true, completed: true },
+  });
+}
+
+export async function deleteTask(userId: string, groupId: string, taskId: string) {
+  const role = await requireMembership(userId, groupId);
+  const task = await prisma.groupTask.findFirst({
+    where: { id: taskId, groupId },
+    select: { createdBy: true },
+  });
+  if (!task) throw new NotFoundError('Task');
+  if (task.createdBy !== userId && ROLE_RANK[role] < ROLE_RANK[GroupRole.MODERATOR]) {
+    throw new ForbiddenError('You can only delete your own tasks');
+  }
+  return prisma.groupTask.delete({ where: { id: taskId } });
+}
+
+// --- Polls -------------------------------------------------------------------
+
+export async function listPolls(userId: string, groupId: string) {
+  await requireMembership(userId, groupId);
+  return prisma.groupPoll.findMany({
+    where: { groupId },
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+    select: {
+      id: true,
+      question: true,
+      options: true,
+      closedAt: true,
+      createdAt: true,
+      user: { select: { id: true, name: true, username: true } },
+    },
+  });
+}
+
+export async function createPoll(
+  userId: string,
+  groupId: string,
+  input: { question: string; options: string[] },
+) {
+  await requireMembership(userId, groupId);
+  const options = input.options.map((text) => ({ text, votes: [] as string[] }));
+  return prisma.groupPoll.create({
+    data: { groupId, userId, question: input.question, options: options as never },
+    select: {
+      id: true, question: true, options: true, closedAt: true, createdAt: true,
+      user: { select: { id: true, name: true, username: true } },
+    },
+  });
+}
+
+export async function votePoll(userId: string, groupId: string, pollId: string, optionIndex: number) {
+  await requireMembership(userId, groupId);
+  const poll = await prisma.groupPoll.findFirst({
+    where: { id: pollId, groupId },
+    select: { options: true, closedAt: true },
+  });
+  if (!poll) throw new NotFoundError('Poll');
+  if (poll.closedAt) throw new BadRequestError('This poll is closed');
+
+  const options = poll.options as { text: string; votes: string[] }[];
+  if (optionIndex < 0 || optionIndex >= options.length) {
+    throw new BadRequestError('Invalid option index');
+  }
+
+  for (const opt of options) {
+    opt.votes = opt.votes.filter((id) => id !== userId);
+  }
+  options[optionIndex]!.votes.push(userId);
+
+  return prisma.groupPoll.update({
+    where: { id: pollId },
+    data: { options: options as never },
+    select: {
+      id: true, question: true, options: true, closedAt: true, createdAt: true,
+      user: { select: { id: true, name: true, username: true } },
+    },
+  });
+}
+
+export async function closePoll(userId: string, groupId: string, pollId: string) {
+  const role = await requireMembership(userId, groupId);
+  const poll = await prisma.groupPoll.findFirst({
+    where: { id: pollId, groupId },
+    select: { userId: true },
+  });
+  if (!poll) throw new NotFoundError('Poll');
+  if (poll.userId !== userId && ROLE_RANK[role] < ROLE_RANK[GroupRole.MODERATOR]) {
+    throw new ForbiddenError('Only the poll creator or a moderator can close it');
+  }
+  return prisma.groupPoll.update({
+    where: { id: pollId },
+    data: { closedAt: new Date() },
+    select: { id: true, closedAt: true },
+  });
+}
+
 export const groupService = {
   listGroups,
   getGroup,
@@ -576,4 +770,15 @@ export const groupService = {
   editMessage,
   discoverGroups,
   requireMembership,
+  listResources,
+  addResource,
+  deleteResource,
+  listTasks,
+  addTask,
+  toggleTask,
+  deleteTask,
+  listPolls,
+  createPoll,
+  votePoll,
+  closePoll,
 } as const;

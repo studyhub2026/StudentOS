@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '@/server/db';
 import { logger } from '@/server/lib/logger';
 import { NotFoundError } from '@/server/lib/errors';
+import { emit } from '@/server/services/event-bus';
 import { geminiService } from '@/server/services/gemini.service';
 import { getTutorOrThrow } from '@/server/services/tutor.service';
 import {
@@ -154,6 +155,8 @@ export async function submitQuiz(
     },
     select: { masteryScore: true, weakTopics: true, quizzesTaken: true },
   });
+
+  emit({ type: 'quiz.completed', userId });
 
   return updated;
 }

@@ -16,6 +16,8 @@ import {
 import { geminiService, type GeminiMessage } from '@/server/services/gemini.service';
 import { aiFileService } from '@/server/services/ai-file.service';
 import { aiMemoryService } from '@/server/services/ai-memory.service';
+import { aiContextService } from '@/server/services/ai-context.service';
+import { emit } from '@/server/services/event-bus';
 
 /**
  * Conversational AI and the structured generators that back the AI suite.
@@ -200,7 +202,7 @@ export async function sendMessage(
   // Persist the user turn, and — in parallel — read the three pieces of
   // context we'll need to build the prompt. All four operations are
   // independent so we can wait for them together instead of serially.
-  const [userMessage, settings, files, memoryContext] = await Promise.all([
+  const [userMessage, settings, files, memoryContext, academicContext] = await Promise.all([
     prisma.aiMessage.create({
       data: { conversationId: conversation.id, role: AiRole.USER, content: input.content },
     }),
@@ -213,6 +215,7 @@ export async function sendMessage(
       orderBy: { createdAt: 'asc' },
     }),
     aiMemoryService.getMemoryContext(userId),
+    aiContextService.retrieveAcademicContext(userId, input.content),
   ]);
 
   // Link any just-uploaded files to the message that first referenced them.
@@ -236,7 +239,7 @@ export async function sendMessage(
     settings?.aiTone ?? 'encouraging',
   );
 
-  const systemInstruction = [baseInstruction, memoryContext, fileContext.textPreamble]
+  const systemInstruction = [baseInstruction, memoryContext, academicContext, fileContext.textPreamble]
     .filter(Boolean)
     .join('\n\n');
 
@@ -271,6 +274,8 @@ export async function sendMessage(
       data: { model: result.model, updatedAt: new Date() },
     }),
   ]);
+
+  emit({ type: 'ai.chat.sent', userId });
 
   return {
     conversationId: conversation.id,
@@ -316,7 +321,7 @@ export async function* streamMessage(
   // Persist the user turn + gather context in parallel. Same shape as
   // sendMessage so streaming replies get memory + files + tone that
   // non-streaming replies have always had.
-  const [userMessage, settings, files, memoryContext] = await Promise.all([
+  const [userMessage, settings, files, memoryContext, academicContext] = await Promise.all([
     prisma.aiMessage.create({
       data: { conversationId: conversation.id, role: AiRole.USER, content: input.content },
     }),
@@ -329,6 +334,7 @@ export async function* streamMessage(
       orderBy: { createdAt: 'asc' },
     }),
     aiMemoryService.getMemoryContext(userId),
+    aiContextService.retrieveAcademicContext(userId, input.content),
   ]);
 
   if (input.fileIds && input.fileIds.length > 0) {
@@ -349,7 +355,7 @@ export async function* streamMessage(
     SYSTEM_PROMPTS[featureKey] ?? SYSTEM_PROMPTS.CHAT,
     settings?.aiTone ?? 'encouraging',
   );
-  const systemInstruction = [baseInstruction, memoryContext, fileContext.textPreamble]
+  const systemInstruction = [baseInstruction, memoryContext, academicContext, fileContext.textPreamble]
     .filter(Boolean)
     .join('\n\n');
 

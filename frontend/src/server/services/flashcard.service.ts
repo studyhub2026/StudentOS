@@ -2,6 +2,7 @@ import 'server-only';
 import { Prisma, type CardDifficulty } from '@prisma/client';
 import { prisma } from '@/server/db';
 import { BadRequestError, NotFoundError } from '@/server/lib/errors';
+import { emit } from '@/server/services/event-bus';
 import {
   MATURE_INTERVAL_DAYS,
   RATING_TO_QUALITY,
@@ -431,6 +432,8 @@ export async function reviewCard(
       },
     }),
   ]);
+
+  emit({ type: 'flashcard.reviewed', userId, count: 1 });
 
   return {
     cardId,

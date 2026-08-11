@@ -9,6 +9,16 @@ const widgetLayoutSchema = z.array(
   z.object({ key: z.string().min(1).max(40), hidden: z.boolean().optional() }),
 ).max(30);
 
+const notificationPrefsSchema = z.record(
+  z.enum([
+    'ASSIGNMENT_DUE', 'ASSIGNMENT_OVERDUE', 'SCHEDULE_REMINDER',
+    'FLASHCARD_REVIEW', 'GROUP_INVITE', 'GROUP_MESSAGE',
+    'FRIEND_REQUEST', 'ACHIEVEMENT_UNLOCKED', 'SYSTEM',
+    'LMS_SYNC_COMPLETE', 'LMS_NEW_ASSIGNMENT', 'LMS_NEW_GRADE', 'LMS_ANNOUNCEMENT',
+  ]),
+  z.boolean(),
+).optional();
+
 const bodySchema = z.object({
   profilePublic: z.boolean().optional(),
   bio: z.string().max(280).optional().nullable(),
@@ -16,6 +26,7 @@ const bodySchema = z.object({
   pushNotifications: z.boolean().optional(),
   dashboardLayout: widgetLayoutSchema.optional().nullable(),
   locale: z.enum(['en', 'ar']).optional(),
+  notificationPrefs: notificationPrefsSchema,
 });
 
 /**
@@ -35,6 +46,7 @@ export const GET = route(async (req: NextRequest) => {
         pushNotifications: true,
         dashboardLayout: true,
         locale: true,
+        notificationPrefs: true,
       },
     }),
     prisma.user.findUnique({ where: { id: user.id }, select: { bio: true } }),
@@ -45,6 +57,7 @@ export const GET = route(async (req: NextRequest) => {
     pushNotifications: settings?.pushNotifications ?? true,
     dashboardLayout: settings?.dashboardLayout ?? null,
     locale: settings?.locale ?? 'en',
+    notificationPrefs: settings?.notificationPrefs ?? null,
     bio: profile?.bio ?? null,
   });
 });
@@ -61,6 +74,7 @@ export const PATCH = route(async (req: NextRequest) => {
   if (typeof body.pushNotifications === 'boolean') settingsFields.pushNotifications = body.pushNotifications;
   if (body.dashboardLayout !== undefined) settingsFields.dashboardLayout = body.dashboardLayout;
   if (typeof body.locale === 'string') settingsFields.locale = body.locale;
+  if (body.notificationPrefs !== undefined) settingsFields.notificationPrefs = body.notificationPrefs;
 
   const [settings, profile] = await prisma.$transaction([
     Object.keys(settingsFields).length > 0
@@ -74,6 +88,7 @@ export const PATCH = route(async (req: NextRequest) => {
             pushNotifications: true,
             dashboardLayout: true,
             locale: true,
+            notificationPrefs: true,
           },
         })
       : prisma.userSettings.findUnique({
@@ -84,6 +99,7 @@ export const PATCH = route(async (req: NextRequest) => {
             pushNotifications: true,
             dashboardLayout: true,
             locale: true,
+            notificationPrefs: true,
           },
         }),
     body.bio !== undefined
@@ -101,6 +117,7 @@ export const PATCH = route(async (req: NextRequest) => {
     pushNotifications: settings?.pushNotifications ?? true,
     dashboardLayout: settings?.dashboardLayout ?? null,
     locale: settings?.locale ?? 'en',
+    notificationPrefs: settings?.notificationPrefs ?? null,
     bio: profile?.bio ?? null,
   });
 });

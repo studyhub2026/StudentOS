@@ -6,13 +6,20 @@ import { motion } from 'framer-motion';
 import {
   AlertTriangle,
   CalendarClock,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
   ClipboardList,
+  Database,
   GraduationCap,
+  History,
   Loader2,
   MapPin,
   Sparkles,
+  Trash2,
   TrendingDown,
   TrendingUp,
+  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -20,6 +27,16 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useExamWorkspace, type UpcomingExam } from '@/hooks/use-exam-workspace';
 import { useExam, type ExamResult } from '@/hooks/use-ai';
+import {
+  useExamHistory,
+  useExamAttempt,
+  useQuestionBanks,
+  useSaveQuestionBank,
+  useDeleteQuestionBank,
+  useStartExam,
+  useSubmitExam,
+  type ExamAttemptFull,
+} from '@/hooks/use-exam-extended';
 import { cn, formatDueDate } from '@/lib/utils';
 import { apiErrorMessage } from '@/lib/api-client';
 import { useT } from '@/lib/i18n/provider';
@@ -211,6 +228,10 @@ export default function ExamModePage() {
               </ul>
             </section>
           ) : null}
+
+          <ExamAttemptHistory />
+
+          <QuestionBankSection />
         </>
       )}
     </div>
@@ -282,7 +303,10 @@ function MockExamGenerator() {
   const [durationMinutes, setDurationMinutes] = useState(30);
   const [level, setLevel] = useState('intermediate');
   const [paper, setPaper] = useState<ExamResult | null>(null);
+  const [takingExam, setTakingExam] = useState<ExamAttemptFull | null>(null);
   const mutate = useExam();
+  const saveBank = useSaveQuestionBank();
+  const startExam = useStartExam();
   const t = useT();
 
   async function submit(e: React.FormEvent) {
@@ -375,13 +399,54 @@ function MockExamGenerator() {
         </div>
       </form>
 
-      {paper ? (
+      {paper && !takingExam ? (
         <div className="space-y-3 border-t border-border p-6">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold">{paper.title}</p>
-            <p className="text-xs text-fg-muted">
-              {paper.durationMinutes} min · {paper.totalMarks} marks
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">{paper.title}</p>
+              <p className="text-xs text-fg-muted">
+                {paper.durationMinutes} min · {paper.totalMarks} marks
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={saveBank.isPending}
+                onClick={async () => {
+                  try {
+                    await saveBank.mutateAsync({
+                      title: paper.title,
+                      questions: paper.questions,
+                    });
+                    toast.success('Saved to question bank');
+                  } catch (err) {
+                    toast.error(apiErrorMessage(err));
+                  }
+                }}
+              >
+                <Database className="h-3.5 w-3.5" aria-hidden /> Save to Bank
+              </Button>
+              <Button
+                size="sm"
+                disabled={startExam.isPending}
+                onClick={async () => {
+                  try {
+                    const attempt = await startExam.mutateAsync({
+                      title: paper.title,
+                      questions: paper.questions,
+                      totalMarks: paper.totalMarks,
+                      duration: paper.durationMinutes * 60,
+                    });
+                    setTakingExam(attempt);
+                  } catch (err) {
+                    toast.error(apiErrorMessage(err));
+                  }
+                }}
+              >
+                Take Exam
+              </Button>
+            </div>
           </div>
           <ol className="space-y-3 text-sm">
             {paper.questions.map((q, i) => (
@@ -401,6 +466,266 @@ function MockExamGenerator() {
           </ol>
         </div>
       ) : null}
+
+      {takingExam ? (
+        <LiveExamSession
+          attempt={takingExam}
+          onFinish={() => {
+            setTakingExam(null);
+            setPaper(null);
+          }}
+        />
+      ) : null}
     </Card>
+  );
+}
+
+function LiveExamSession({ attempt, onFinish }: { attempt: ExamAttemptFull; onFinish: () => void }) {
+  const questions = attempt.questions;
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const submitExam = useSubmitExam();
+  const [result, setResult] = useState<ExamAttemptFull | null>(null);
+
+  async function handleSubmit() {
+    try {
+      const res = await submitExam.mutateAsync({ attemptId: attempt.id, answers });
+      setResult(res);
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
+  }
+
+  if (result) {
+    return (
+      <div className="space-y-4 border-t border-border p-6">
+        <ExamAnalysisPanel attempt={result} />
+        <Button variant="outline" onClick={onFinish}>
+          Back to Exam Mode
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 border-t border-border p-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold">{attempt.title}</p>
+        <p className="text-xs text-fg-muted">{attempt.totalMarks} marks</p>
+      </div>
+      <ol className="space-y-4">
+        {questions.map((q, i) => (
+          <li key={i} className="rounded-lg border border-border bg-surface-raised/60 p-4">
+            <p className="text-sm font-medium">
+              Q{q.number ?? i + 1}. {q.question}{' '}
+              <span className="text-xs text-fg-subtle">({q.marks} marks)</span>
+            </p>
+            <textarea
+              rows={3}
+              className="mt-2 w-full rounded-lg border border-border bg-surface p-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40"
+              placeholder="Your answer..."
+              value={answers[q.number ?? i + 1] ?? ''}
+              onChange={(e) => setAnswers((prev) => ({ ...prev, [q.number ?? i + 1]: e.target.value }))}
+            />
+          </li>
+        ))}
+      </ol>
+      <div className="flex gap-2">
+        <Button onClick={handleSubmit} disabled={submitExam.isPending}>
+          {submitExam.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Grading...
+            </>
+          ) : (
+            'Submit Exam'
+          )}
+        </Button>
+        <Button variant="outline" onClick={onFinish}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ExamAnalysisPanel({ attempt }: { attempt: ExamAttemptFull }) {
+  const analysis = attempt.analysis;
+  const pct = attempt.score != null ? Math.round((attempt.score / attempt.totalMarks) * 100) : null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand/12">
+          <span className="text-2xl font-bold text-brand-bright">{pct != null ? `${pct}%` : '?'}</span>
+        </div>
+        <div>
+          <p className="text-sm font-semibold">{attempt.title}</p>
+          <p className="text-xs text-fg-muted">
+            {attempt.score ?? 0} / {attempt.totalMarks} marks
+          </p>
+        </div>
+      </div>
+
+      {analysis ? (
+        <>
+          <div className="space-y-2">
+            {analysis.perQuestion.map((pq) => (
+              <div
+                key={pq.number}
+                className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm"
+              >
+                {pq.marksAwarded >= (attempt.questions.find((q) => q.number === pq.number)?.marks ?? 1) ? (
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden />
+                ) : (
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">
+                    Q{pq.number}: {pq.marksAwarded} marks
+                  </p>
+                  <p className="mt-0.5 text-xs text-fg-muted">{pq.feedback}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {analysis.strengths.length > 0 && (
+              <div className="rounded-lg border border-success/20 bg-success/5 p-3">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-success">Strengths</p>
+                <ul className="space-y-1 text-xs text-fg-muted">
+                  {analysis.strengths.map((s, i) => (
+                    <li key={i}>• {s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {analysis.weaknesses.length > 0 && (
+              <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-warning">Weaknesses</p>
+                <ul className="space-y-1 text-xs text-fg-muted">
+                  {analysis.weaknesses.map((w, i) => (
+                    <li key={i}>• {w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {analysis.recommendations.length > 0 && (
+            <div className="rounded-lg border border-brand/20 bg-brand/5 p-3">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-brand-bright">Recommendations</p>
+              <ul className="space-y-1 text-xs text-fg-muted">
+                {analysis.recommendations.map((r, i) => (
+                  <li key={i}>• {r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="text-sm text-fg-muted">AI analysis unavailable for this attempt.</p>
+      )}
+    </div>
+  );
+}
+
+function ExamAttemptHistory() {
+  const { data: attempts, isLoading } = useExamHistory();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data: expanded } = useExamAttempt(expandedId);
+
+  if (isLoading) return <Skeleton className="h-32 w-full" />;
+  if (!attempts || attempts.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
+        <History className="h-3.5 w-3.5" aria-hidden /> Exam Attempt History
+      </h2>
+      <div className="space-y-2">
+        {attempts.map((a) => {
+          const pct = a.score != null ? Math.round((a.score / a.totalMarks) * 100) : null;
+          const isExpanded = expandedId === a.id;
+          return (
+            <Card key={a.id} className="overflow-hidden">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between p-3 text-left text-sm hover:bg-surface-raised/60 transition-colors"
+                onClick={() => setExpandedId(isExpanded ? null : a.id)}
+              >
+                <span className="flex items-center gap-3 min-w-0">
+                  <span
+                    className={cn(
+                      'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold',
+                      pct != null && pct >= 70
+                        ? 'bg-success/12 text-success'
+                        : pct != null
+                          ? 'bg-warning/12 text-warning'
+                          : 'bg-surface-raised text-fg-muted',
+                    )}
+                  >
+                    {pct != null ? `${pct}%` : '—'}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{a.title}</span>
+                    <span className="block text-xs text-fg-subtle">
+                      {new Date(a.startedAt).toLocaleDateString()} · {a.subject?.name ?? ''}
+                      {a.completedAt ? '' : ' · In progress'}
+                    </span>
+                  </span>
+                </span>
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
+                ) : (
+                  <ChevronDown className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
+                )}
+              </button>
+              {isExpanded && expanded ? (
+                <div className="border-t border-border p-4">
+                  <ExamAnalysisPanel attempt={expanded} />
+                </div>
+              ) : null}
+            </Card>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function QuestionBankSection() {
+  const { data: banks, isLoading } = useQuestionBanks();
+  const deleteBank = useDeleteQuestionBank();
+
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
+  if (!banks || banks.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-fg-subtle">
+        <Database className="h-3.5 w-3.5" aria-hidden /> Question Banks
+      </h2>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {banks.map((bank) => (
+          <Card key={bank.id} className="flex items-center justify-between p-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{bank.title}</p>
+              <p className="text-xs text-fg-subtle">
+                {bank.subject?.name ?? 'General'} · {new Date(bank.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="shrink-0 rounded p-1.5 text-fg-subtle hover:text-danger transition-colors"
+              onClick={() => {
+                void deleteBank.mutateAsync(bank.id).then(() => toast.success('Deleted'));
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </Card>
+        ))}
+      </div>
+    </section>
   );
 }

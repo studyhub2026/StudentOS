@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { Prisma, type SharePermission } from '@prisma/client';
 import { prisma } from '@/server/db';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@/server/lib/errors';
+import { emit } from '@/server/services/event-bus';
 import type {
   CreateNoteInput,
   ListNotesQuery,
@@ -151,7 +152,7 @@ export async function createNote(
 
   const content = input.content ?? '';
 
-  return prisma.note.create({
+  const note = await prisma.note.create({
     data: {
       userId,
       title: input.title,
@@ -167,6 +168,10 @@ export async function createNote(
     },
     include: noteInclude,
   });
+
+  emit({ type: 'note.created', userId });
+
+  return note;
 }
 
 /**

@@ -567,6 +567,48 @@ export async function getSystemHealth(config: {
   };
 }
 
+export async function getUniversityOverview() {
+  const [
+    totalConnections,
+    activeConnections,
+    recentSyncs,
+    failedSyncs,
+  ] = await Promise.all([
+    prisma.lmsConnection.count(),
+    prisma.lmsConnection.count({ where: { status: 'CONNECTED' } }),
+    prisma.syncLog.findMany({
+      orderBy: { startedAt: 'desc' },
+      take: 20,
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        endedAt: true,
+        assignmentsCreated: true,
+        gradesCreated: true,
+        errors: true,
+        connection: {
+          select: {
+            id: true,
+            provider: true,
+            user: { select: { id: true, name: true, username: true } },
+          },
+        },
+      },
+    }),
+    prisma.syncLog.count({
+      where: { status: 'FAILED', startedAt: { gte: new Date(Date.now() - 7 * 86400000) } },
+    }),
+  ]);
+
+  return {
+    totalConnections,
+    activeConnections,
+    recentSyncs,
+    failedSyncs7d: failedSyncs,
+  };
+}
+
 export const adminService = {
   getOverview,
   listUsers,
@@ -580,4 +622,5 @@ export const adminService = {
   listGroups,
   listActivityLogs,
   getSystemHealth,
+  getUniversityOverview,
 } as const;
