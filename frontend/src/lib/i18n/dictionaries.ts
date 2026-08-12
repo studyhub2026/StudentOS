@@ -513,6 +513,21 @@ export const en = {
   // Navigation — University & Courses
   'nav.university': 'University',
   'nav.courses': 'Courses',
+  'nav.mindMap': 'Mind Map',
+
+  // Mind Map
+  'mindMap.subtitle': 'Visualize courses, topics and concepts as interactive graphs.',
+  'mindMap.new': 'New Mind Map',
+  'mindMap.aiGenerate': 'AI Generate',
+  'mindMap.searchPlaceholder': 'Search your mind maps…',
+  'mindMap.emptyTitle': 'Create your first Mind Map',
+  'mindMap.emptyBody': 'Organize a subject visually, or let AI turn a topic into a full graph.',
+  'mindMap.startFromScratch': 'Start from scratch',
+  'mindMap.generateWithAi': 'Generate with AI',
+  'mindMap.startFromCourse': 'From a course',
+  'mindMap.aiPromptTitle': 'Generate a mind map',
+  'mindMap.aiPromptPlaceholder': 'Describe the topic — e.g. "Introduction to Cybersecurity" or "Data Structures overview"',
+  'mindMap.generate': 'Generate',
 
   // University Integration
   'uni.title': 'University Sync',
@@ -1036,6 +1051,21 @@ export const ar: Partial<Record<TranslationKey, string>> = {
   // Navigation — University & Courses
   'nav.university': 'الجامعة',
   'nav.courses': 'المقررات',
+  'nav.mindMap': 'الخريطة الذهنية',
+
+  // Mind Map
+  'mindMap.subtitle': 'صوّر المقررات والمواضيع والمفاهيم كرسوم بيانية تفاعلية.',
+  'mindMap.new': 'خريطة جديدة',
+  'mindMap.aiGenerate': 'إنشاء بالذكاء الاصطناعي',
+  'mindMap.searchPlaceholder': 'ابحث في خرائطك الذهنية…',
+  'mindMap.emptyTitle': 'أنشئ أول خريطة ذهنية لك',
+  'mindMap.emptyBody': 'نظّم مادة بصريًا، أو دع الذكاء الاصطناعي يحوّل موضوعًا إلى رسم بياني كامل.',
+  'mindMap.startFromScratch': 'ابدأ من الصفر',
+  'mindMap.generateWithAi': 'أنشئ بالذكاء الاصطناعي',
+  'mindMap.startFromCourse': 'من مقرر',
+  'mindMap.aiPromptTitle': 'أنشئ خريطة ذهنية',
+  'mindMap.aiPromptPlaceholder': 'اوصف الموضوع — مثال: «مقدمة في الأمن السيبراني» أو «نظرة عامة على هياكل البيانات»',
+  'mindMap.generate': 'أنشئ',
 
   // University Integration
   'uni.title': 'مزامنة الجامعة',

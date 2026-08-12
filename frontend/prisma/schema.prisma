@@ -272,6 +272,8 @@ model User {
   groupTasks     GroupTask[]     @relation("GroupTaskCreator")
   groupPolls     GroupPoll[]
 
+  mindMaps       MindMap[]
+
   @@index([role])
   @@index([deletedAt])
   @@index([lastActiveDate])
@@ -428,6 +430,7 @@ model Subject {
   lmsCourses     LmsCourse[]
   questionBanks  QuestionBank[]
   examAttempts   ExamAttempt[]
+  mindMaps       MindMap[]
 
   @@unique([userId, name])
   @@index([userId, archived])
@@ -1970,4 +1973,109 @@ model GroupPoll {
 
   @@index([groupId, createdAt])
   @@map("group_polls")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mind Maps — visual node/edge graphs students build to organise study material.
+// Nodes may reference existing Notes/Assignments/Subjects/LmsCourses etc. via
+// loose (refType, refId) pointers so a mind map survives the target being
+// deleted (the node is kept and rendered with a "target unavailable" chip).
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MindMap {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String?
+  favorite    Boolean @default(false)
+  aiGenerated Boolean @default(false)
+
+  // Editor state: { viewport: {x, y, zoom}, layout: 'radial'|'tree'|'free' }.
+  settings Json?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  nodes MindMapNode[]
+  edges MindMapEdge[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, favorite])
+  @@index([userId, deletedAt])
+  @@index([subjectId])
+  @@map("mind_maps")
+}
+
+model MindMapNode {
+  id        String  @id @default(cuid())
+  mindMapId String
+  mindMap   MindMap @relation(fields: [mindMapId], references: [id], onDelete: Cascade)
+
+  // Logical parent (for keyboard "add sibling"/"add child" traversal). Not
+  // the same as an edge — a node can be a topic under another and also be
+  // connected via cross-links.
+  parentId String?
+
+  // Free-text tag rather than an enum so AI generation can introduce new
+  // types without a migration. Client renders known types with icons/colors.
+  type String @default("topic")
+
+  title   String
+  content String?
+
+  x Float @default(0)
+  y Float @default(0)
+
+  color String?
+  icon  String?
+  tags  String[] @default([])
+
+  // Loose reference to another OmnelOS entity — 'note' | 'assignment' |
+  // 'subject' | 'lms_course' | 'lms_assignment' | 'exam' etc.
+  refType String?
+  refId   String?
+
+  // Editor-only visual overrides (width, borderStyle, etc.).
+  style    Json?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mindMapId])
+  @@index([mindMapId, type])
+  @@index([refType, refId])
+  @@map("mind_map_nodes")
+}
+
+model MindMapEdge {
+  id        String  @id @default(cuid())
+  mindMapId String
+  mindMap   MindMap @relation(fields: [mindMapId], references: [id], onDelete: Cascade)
+
+  // Source/target reference MindMapNode ids but are NOT FKs — bulk-save may
+  // reference nodes about to be created in the same transaction, and we run
+  // the referential-integrity check in application code (which also catches
+  // cross-map ids that a FK wouldn't).
+  sourceId String
+  targetId String
+
+  label String?
+  type  String  @default("default")
+
+  style    Json?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mindMapId])
+  @@index([mindMapId, sourceId])
+  @@index([mindMapId, targetId])
+  @@map("mind_map_edges")
 }

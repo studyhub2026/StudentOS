@@ -15,6 +15,7 @@ import {
   FileText,
   Flame,
   ClipboardList,
+  GitBranch,
   GraduationCap,
   Layers,
   ListTree,
@@ -60,6 +61,7 @@ const NAV: { href: string; labelKey: TranslationKey; icon: typeof BarChart3 }[] 
   { href: '/groups', labelKey: 'nav.groups', icon: Users },
   { href: '/university', labelKey: 'nav.university', icon: Cloud },
   { href: '/courses', labelKey: 'nav.courses', icon: Sparkles },
+  { href: '/mind-map', labelKey: 'nav.mindMap', icon: GitBranch },
 ];
 
 /** Appended only for administrators. */
