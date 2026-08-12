@@ -1,6 +1,7 @@
 import 'server-only';
 import { prisma } from '@/server/db';
 import { ForbiddenError, NotFoundError } from '@/server/lib/errors';
+import { invalidateAuthCache } from '@/server/lib/auth';
 
 export interface CreateSessionParams {
   userId: string;
@@ -76,6 +77,7 @@ export async function revokeSession(userId: string, sessionId: string): Promise<
     where: { id: sessionId },
     data: { revokedAt: new Date() },
   });
+  invalidateAuthCache(sessionId);
 }
 
 /**

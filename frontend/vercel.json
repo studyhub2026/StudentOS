@@ -2,5 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+
+  "//": "Regions — colocate Functions with the Supabase Postgres pooler in ap-south-1 (Mumbai). The default iad1 sits ~13,000 km from the DB, and every Prisma round-trip pays that latency; a single 200 ms RTT × 10 sequential queries = 2 s of pure network wait per page. bom1 puts compute in the same AWS region as the database.",
+  "regions": ["bom1"]
 }

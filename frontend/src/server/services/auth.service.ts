@@ -9,6 +9,7 @@ import {
   UnauthorizedError,
 } from '@/server/lib/errors';
 import { generateOpaqueToken, hashToken } from '@/server/lib/jwt';
+import { invalidateAuthCache } from '@/server/lib/auth';
 import { hashPassword, verifyPassword } from '@/server/lib/password';
 import { emailService } from '@/server/services/email.service';
 import type { OAuthProfile, ProviderKey } from '@/server/services/oauth.service';
@@ -186,6 +187,9 @@ export async function logout(sessionId: string, refreshToken?: string): Promise<
     where: { id: sessionId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+  // Evict the in-memory session cache so a subsequent request from this
+  // Function instance can't succeed against the still-cached entry.
+  invalidateAuthCache(sessionId);
 }
 
 // --- Email verification -----------------------------------------------------
