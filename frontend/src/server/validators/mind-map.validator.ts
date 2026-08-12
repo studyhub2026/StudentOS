@@ -103,7 +103,24 @@ export const generateMindMapSchema = z.object({
   prompt: z.string().min(2).max(2000),
   subjectId: z.string().optional(),
   noteIds: z.array(z.string()).max(20).optional(),
+  documentIds: z.array(z.string()).max(10).optional(),
+  lmsCourseId: z.string().optional(),
+  includeCourseContext: z.boolean().optional(),
   depth: z.enum(['shallow', 'normal', 'deep']).default('normal'),
+});
+
+export const mapActionSchema = z.object({
+  action: z.enum(['summarise-map', 'study-guide', 'analyse']),
+});
+
+export const branchActionSchema = z.object({
+  action: z.enum(['summarise-branch']),
+  nodeId: z.string().min(1).max(60),
+});
+
+export const chatMapSchema = z.object({
+  question: z.string().min(1).max(1000),
+  selectedNodeId: z.string().max(60).optional(),
 });
 
 export const expandNodeSchema = z.object({

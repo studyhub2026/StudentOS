@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import {
   Copy,
   GitBranch,
@@ -53,13 +54,10 @@ export default function MindMapListPage() {
     }
   }
 
-  async function handleAiGenerate(prompt: string) {
+  async function handleAiGenerate(payload: GenerateBody) {
     setAiBusy(true);
     try {
-      const { data } = await apiClient.post<ApiEnvelope<{ id: string }>>('/mind-maps/generate', {
-        prompt,
-        depth: 'normal',
-      });
+      const { data } = await apiClient.post<ApiEnvelope<{ id: string }>>('/mind-maps/generate', payload);
       toast.success('Mind map generated');
       router.push(`/mind-map/${data.data.id}`);
     } catch (err) {
@@ -262,17 +260,120 @@ function EmptyState({ onCreate, onAi }: { onCreate: () => void; onAi: () => void
   );
 }
 
+type GenerateSource = 'topic' | 'notes' | 'subject' | 'document' | 'lms_course';
+
+interface GenerateBody {
+  prompt: string;
+  depth: 'shallow' | 'normal' | 'deep';
+  subjectId?: string;
+  noteIds?: string[];
+  documentIds?: string[];
+  lmsCourseId?: string;
+  includeCourseContext?: boolean;
+}
+
+/**
+ * Extended AI generation dialog — the source picker on top lets the student
+ * bias generation with their own material (notes, KB docs, LMS courses) so
+ * the resulting map is grounded in real content instead of pure Gemini
+ * common-sense. The "Topic only" mode preserves the original single-textarea
+ * behaviour so nothing regresses.
+ */
 function AiPromptCard({
   onSubmit,
   onCancel,
   busy,
 }: {
-  onSubmit: (prompt: string) => void;
+  onSubmit: (payload: GenerateBody) => void;
   onCancel: () => void;
   busy: boolean;
 }) {
-  const [prompt, setPrompt] = useState('');
   const t = useT();
+  const [prompt, setPrompt] = useState('');
+  const [depth, setDepth] = useState<'shallow' | 'normal' | 'deep'>('normal');
+  const [source, setSource] = useState<GenerateSource>('topic');
+  const [pickedIds, setPickedIds] = useState<string[]>([]);
+
+  const [libraryQuery, setLibraryQuery] = useState('');
+  const { data: baseLib } = useQuery({
+    queryKey: ['mind-map-library', libraryQuery],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (libraryQuery) params.set('search', libraryQuery);
+      const { data } = await apiClient.get<
+        ApiEnvelope<{
+          subjects: { id: string; name: string; color: string; code: string | null }[];
+          notes: { id: string; title: string }[];
+          assignments: { id: string; title: string }[];
+        }>
+      >(`/mind-maps/library${params.toString() ? `?${params.toString()}` : ''}`);
+      return data.data;
+    },
+    enabled: source === 'notes' || source === 'subject',
+    staleTime: 60_000,
+  });
+  const { data: extLib } = useQuery({
+    queryKey: ['mind-map-library-extended', libraryQuery],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (libraryQuery) params.set('search', libraryQuery);
+      const { data } = await apiClient.get<
+        ApiEnvelope<{
+          documents: { id: string; filename: string }[];
+          lmsCourses: { id: string; name: string; code: string | null }[];
+        }>
+      >(`/mind-maps/library-extended${params.toString() ? `?${params.toString()}` : ''}`);
+      return data.data;
+    },
+    enabled: source === 'document' || source === 'lms_course',
+    staleTime: 60_000,
+  });
+
+  const pickerItems = (() => {
+    if (source === 'notes')
+      return (baseLib?.notes ?? []).map((n) => ({ id: n.id, label: n.title, sub: 'Note' }));
+    if (source === 'subject')
+      return (baseLib?.subjects ?? []).map((s) => ({
+        id: s.id,
+        label: s.name,
+        sub: s.code ?? 'Subject',
+      }));
+    if (source === 'document')
+      return (extLib?.documents ?? []).map((d) => ({
+        id: d.id,
+        label: d.filename,
+        sub: 'Knowledge doc',
+      }));
+    if (source === 'lms_course')
+      return (extLib?.lmsCourses ?? []).map((c) => ({
+        id: c.id,
+        label: c.name,
+        sub: c.code ?? 'LMS course',
+      }));
+    return [];
+  })();
+
+  function togglePick(id: string) {
+    setPickedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function submit() {
+    const p = prompt.trim();
+    if (p.length < 3) return;
+    const body: GenerateBody = { prompt: p, depth };
+    if (source === 'notes' && pickedIds.length > 0) body.noteIds = pickedIds.slice(0, 5);
+    if (source === 'subject' && pickedIds[0]) {
+      body.subjectId = pickedIds[0];
+      body.includeCourseContext = true;
+    }
+    if (source === 'document' && pickedIds.length > 0) body.documentIds = pickedIds.slice(0, 3);
+    if (source === 'lms_course' && pickedIds[0]) body.lmsCourseId = pickedIds[0];
+    onSubmit(body);
+  }
+
+  const needsPick = source !== 'topic';
+  const canSubmit = prompt.trim().length >= 3 && (!needsPick || pickedIds.length > 0);
+
   return (
     <Card>
       <CardHeader>
@@ -280,22 +381,124 @@ function AiPromptCard({
           <Sparkles className="h-4 w-4 text-brand-bright" aria-hidden /> {t('mindMap.aiPromptTitle')}
         </CardTitle>
       </CardHeader>
-      <div className="space-y-2 p-4">
+      <div className="space-y-3 p-4">
+        <div className="flex flex-wrap gap-1 rounded-lg bg-surface-raised/60 p-1">
+          {(
+            [
+              { k: 'topic', label: 'Topic only' },
+              { k: 'notes', label: 'From notes' },
+              { k: 'subject', label: 'From subject' },
+              { k: 'document', label: 'From KB doc' },
+              { k: 'lms_course', label: 'From LMS course' },
+            ] as const
+          ).map(({ k, label }) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => {
+                setSource(k);
+                setPickedIds([]);
+              }}
+              className={cn(
+                'flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                source === k ? 'bg-brand/12 text-brand-bright' : 'text-fg-muted hover:text-fg',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <textarea
-          rows={3}
+          rows={2}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder={t('mindMap.aiPromptPlaceholder')}
           className="w-full rounded-xl border border-border bg-surface-raised p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40"
         />
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" onClick={onCancel} disabled={busy}>
-            {t('common.cancel')}
-          </Button>
-          <Button onClick={() => onSubmit(prompt.trim())} disabled={busy || prompt.trim().length < 3}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {t('mindMap.generate')}
-          </Button>
+
+        {needsPick ? (
+          <div>
+            <input
+              value={libraryQuery}
+              onChange={(e) => setLibraryQuery(e.target.value)}
+              placeholder="Search…"
+              className="mb-1.5 w-full rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs outline-none focus:border-brand"
+            />
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
+              {pickerItems.length === 0 ? (
+                <p className="p-3 text-center text-xs text-fg-subtle">Nothing found.</p>
+              ) : (
+                pickerItems.map((it) => {
+                  const picked = pickedIds.includes(it.id);
+                  return (
+                    <label
+                      key={it.id}
+                      className={cn(
+                        'flex cursor-pointer items-center gap-2 px-2 py-1.5 text-xs hover:bg-surface-raised',
+                        picked && 'bg-brand/8',
+                      )}
+                    >
+                      <input
+                        type={source === 'subject' || source === 'lms_course' ? 'radio' : 'checkbox'}
+                        name="picker"
+                        checked={picked}
+                        onChange={() => {
+                          if (source === 'subject' || source === 'lms_course') {
+                            setPickedIds([it.id]);
+                          } else {
+                            togglePick(it.id);
+                          }
+                        }}
+                        className="shrink-0"
+                      />
+                      <span className="min-w-0 flex-1 truncate">{it.label}</span>
+                      <span className="text-fg-subtle">{it.sub}</span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            <p className="mt-1 text-[10px] text-fg-subtle">
+              {source === 'notes'
+                ? 'Up to 5 notes; excerpts (~400 chars) bias the AI.'
+                : source === 'subject'
+                  ? 'Assignments, LMS files and announcements from this subject are included.'
+                  : source === 'document'
+                    ? 'Up to 3 documents; the first ~2000 chars of each are shared.'
+                    : 'Assignments, files and announcements from this course are included.'}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-fg-muted">Depth:</span>
+            {(['shallow', 'normal', 'deep'] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDepth(d)}
+                className={cn(
+                  'rounded-md border px-2 py-0.5 transition-colors',
+                  depth === d
+                    ? 'border-brand bg-brand/12 text-brand-bright'
+                    : 'border-border text-fg-muted hover:border-border-strong',
+                )}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+          <div className="ml-auto flex justify-end gap-2">
+            <Button variant="ghost" onClick={onCancel} disabled={busy}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={submit} disabled={busy || !canSubmit}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {t('mindMap.generate')}
+            </Button>
+          </div>
         </div>
       </div>
     </Card>
