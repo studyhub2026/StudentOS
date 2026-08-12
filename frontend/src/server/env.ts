@@ -32,6 +32,21 @@ const schema = z.object({
   GEMINI_DEFAULT_MODEL: z.string().default('gemini-flash-latest'),
   GEMINI_PRO_MODEL: z.string().default('gemini-pro-latest'),
 
+  // DeepSeek — OpenAI-compatible chat completions API. Optional; if unset,
+  // the resolver silently falls back to Gemini and every existing AI feature
+  // keeps working exactly as before.
+  DEEPSEEK_API_KEY: z.string().optional().or(z.literal('')),
+  DEEPSEEK_BASE_URL: z.string().url().default('https://api.deepseek.com'),
+  DEEPSEEK_DEFAULT_MODEL: z.string().default('deepseek-chat'),
+  DEEPSEEK_REASONING_MODEL: z.string().default('deepseek-reasoner'),
+
+  // Per-task provider routing. Blank => resolver default (Gemini everywhere).
+  // Values are the provider id: 'gemini' or 'deepseek'.
+  AI_CHAT_PROVIDER: z.string().optional().or(z.literal('')),
+  AI_REASONING_PROVIDER: z.string().optional().or(z.literal('')),
+  AI_JSON_PROVIDER: z.string().optional().or(z.literal('')),
+  AI_SUMMARY_PROVIDER: z.string().optional().or(z.literal('')),
+
   GOOGLE_CLIENT_ID: z.string().optional().or(z.literal('')),
   GOOGLE_CLIENT_SECRET: z.string().optional().or(z.literal('')),
   GITHUB_CLIENT_ID: z.string().optional().or(z.literal('')),
@@ -179,6 +194,7 @@ export const env = {
   hasSupabaseRealtime: Boolean(raw.SUPABASE_URL && raw.SUPABASE_SERVICE_ROLE_KEY),
   hasRedis: Boolean(raw.REDIS_URL),
   hasCanvasOAuth: Boolean(raw.CANVAS_CLIENT_ID && raw.CANVAS_CLIENT_SECRET),
+  hasDeepSeek: Boolean(raw.DEEPSEEK_API_KEY),
   hasBlackboardOAuth: Boolean(raw.BLACKBOARD_CLIENT_ID && raw.BLACKBOARD_CLIENT_SECRET),
   hasBrightspaceOAuth: Boolean(raw.BRIGHTSPACE_CLIENT_ID && raw.BRIGHTSPACE_CLIENT_SECRET),
   hasMsOAuth: Boolean(raw.MS_CLIENT_ID && raw.MS_CLIENT_SECRET),

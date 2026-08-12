@@ -14,6 +14,8 @@ import {
   type AiFeatureKey,
 } from '@/server/services/ai-prompts';
 import { geminiService, type GeminiMessage } from '@/server/services/gemini.service';
+import { resolveProvider } from '@/server/ai/router';
+import type { AiMessage } from '@/server/ai/provider';
 import { aiFileService } from '@/server/services/ai-file.service';
 import { aiMemoryService } from '@/server/services/ai-memory.service';
 import { aiContextService } from '@/server/services/ai-context.service';
@@ -149,6 +151,23 @@ export async function renameConversation(
 function deriveTitle(prompt: string): string {
   const firstLine = prompt.split('\n')[0]?.trim() ?? 'New conversation';
   return firstLine.length <= 60 ? firstLine : `${firstLine.slice(0, 57).trimEnd()}…`;
+}
+
+/**
+ * Provider-neutral message shape used by streaming (goes through the
+ * resolver + AiProvider). `toGeminiMessages` below keeps the non-stream
+ * paths that still call geminiService directly unchanged.
+ */
+function toProviderMessages(
+  messages: { role: AiRole; content: string }[],
+): AiMessage[] {
+  return messages
+    .filter((message) => message.role !== AiRole.SYSTEM)
+    .slice(-CONTEXT_TURNS)
+    .map((message) => ({
+      role: message.role === AiRole.USER ? ('user' as const) : ('assistant' as const),
+      content: message.content,
+    }));
 }
 
 function toGeminiMessages(
@@ -359,8 +378,13 @@ export async function* streamMessage(
     .filter(Boolean)
     .join('\n\n');
 
-  const stream = geminiService.streamText({
-    messages: toGeminiMessages(transcript),
+  // Route through the resolver — chat picks up AI_CHAT_PROVIDER if set,
+  // otherwise falls back to Gemini so existing deployments keep identical
+  // behavior. The provider adapter maps our AiMessage shape to whatever the
+  // underlying SDK/API expects, so no branching per provider here.
+  const provider = resolveProvider({ task: 'chat' });
+  const stream = provider.streamText({
+    messages: toProviderMessages(transcript),
     systemInstruction,
     ...(input.tier ? { tier: input.tier } : {}),
     ...(fileContext.inlineParts.length > 0
@@ -375,7 +399,7 @@ export async function* streamMessage(
   });
 
   let accumulated = '';
-  let final: Awaited<ReturnType<typeof geminiService.generateText>> | null = null;
+  let final: Awaited<ReturnType<typeof provider.generateText>> | null = null;
 
   try {
     let next = await stream.next();
@@ -396,8 +420,8 @@ export async function* streamMessage(
             content: accumulated,
             ...(final
               ? {
-                  promptTokens: final.promptTokens,
-                  completionTokens: final.completionTokens,
+                  promptTokens: final.usage.promptTokens,
+                  completionTokens: final.usage.completionTokens,
                   latencyMs: final.latencyMs,
                   finishReason: final.finishReason,
                 }
@@ -414,7 +438,12 @@ export async function* streamMessage(
 
   yield {
     type: 'done',
-    data: { conversationId: conversation.id, totalTokens: final?.totalTokens ?? 0 },
+    data: {
+      conversationId: conversation.id,
+      totalTokens: final?.usage.totalTokens ?? 0,
+      provider: final?.provider,
+      model: final?.model,
+    },
   };
 }
 

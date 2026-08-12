@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -21,7 +22,20 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { MarkdownPreview } from '@/components/notes/markdown-preview';
+// MessageContent is the chat-optimised Markdown renderer with tables,
+// syntax highlighting, and per-block copy button. Dynamic-imported so pages
+// that never load AI chat don't ship react-markdown + highlight.js
+// (~90 KB gzip). Falls back to a plain-text render while loading — perfect
+// during a stream because the shell is already there.
+const MessageContent = dynamic(
+  () => import('@/components/ai/message-content').then((m) => m.MessageContent),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="whitespace-pre-wrap text-sm text-fg-muted" aria-live="polite" />
+    ),
+  },
+);
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -491,7 +505,7 @@ function MessageBubble({ message }: { message: AiMessage }) {
         {isUser ? (
           message.content
         ) : (
-          <MarkdownPreview content={message.content} />
+          <MessageContent content={message.content} />
         )}
       </div>
     </div>
