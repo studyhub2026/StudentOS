@@ -266,6 +266,12 @@ model User {
 
   lmsConnections  LmsConnection[]
 
+  questionBanks  QuestionBank[]
+  examAttempts   ExamAttempt[]
+  groupResources GroupResource[]
+  groupTasks     GroupTask[]     @relation("GroupTaskCreator")
+  groupPolls     GroupPoll[]
+
   @@index([role])
   @@index([deletedAt])
   @@index([lastActiveDate])
@@ -305,6 +311,10 @@ model UserSettings {
 
   aiModel String @default("gemini-2.5-flash")
   aiTone  String @default("encouraging")
+
+  // Per-type notification preferences: { ASSIGNMENT_DUE: true, SYSTEM: false, ... }
+  // Null = all enabled (default). Missing keys = enabled.
+  notificationPrefs Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -416,6 +426,8 @@ model Subject {
   studySessions  StudySession[]
   goals          Goal[]
   lmsCourses     LmsCourse[]
+  questionBanks  QuestionBank[]
+  examAttempts   ExamAttempt[]
 
   @@unique([userId, name])
   @@index([userId, archived])
@@ -844,6 +856,10 @@ model StudyGroup {
 
   members  GroupMember[]
   channels Channel[]
+
+  resources GroupResource[]
+  tasks     GroupTask[]
+  polls     GroupPoll[]
 
   @@index([ownerId])
   @@map("study_groups")
@@ -1854,4 +1870,104 @@ model LmsSyncPreview {
   @@index([connectionId, status])
   @@index([expiresAt])
   @@map("lms_sync_previews")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exam Mode 2.0
+// ─────────────────────────────────────────────────────────────────────────────
+
+model QuestionBank {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  title     String
+  questions Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, subjectId])
+  @@map("question_banks")
+}
+
+model ExamAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  title       String
+  questions   Json
+  answers     Json?
+  score       Float?
+  totalMarks  Int
+  duration    Int
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  analysis    Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, subjectId])
+  @@index([userId, completedAt])
+  @@map("exam_attempts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Groups 2.0 — shared resources, tasks, polls
+// ─────────────────────────────────────────────────────────────────────────────
+
+model GroupResource {
+  id      String     @id @default(cuid())
+  groupId String
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type  String
+  title String
+  url   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([groupId, createdAt])
+  @@map("group_resources")
+}
+
+model GroupTask {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy String
+  creator   User       @relation("GroupTaskCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  title     String
+  completed Boolean   @default(false)
+  dueAt     DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([groupId, completed])
+  @@map("group_tasks")
+}
+
+model GroupPoll {
+  id      String     @id @default(cuid())
+  groupId String
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  question String
+  options  Json
+  closedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([groupId, createdAt])
+  @@map("group_polls")
 }

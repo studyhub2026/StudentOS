@@ -59,6 +59,7 @@ const NAV: { href: string; labelKey: TranslationKey; icon: typeof BarChart3 }[] 
   { href: '/achievements', labelKey: 'nav.achievements', icon: Trophy },
   { href: '/groups', labelKey: 'nav.groups', icon: Users },
   { href: '/university', labelKey: 'nav.university', icon: Cloud },
+  { href: '/courses', labelKey: 'nav.courses', icon: Sparkles },
 ];
 
 /** Appended only for administrators. */

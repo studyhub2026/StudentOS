@@ -38,6 +38,12 @@ export interface LmsProviderMeta {
 
 const canvasReady = (): boolean => Boolean(env.CANVAS_CLIENT_ID && env.CANVAS_CLIENT_SECRET);
 const googleReady = (): boolean => Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+const blackboardReady = (): boolean =>
+  Boolean(env.BLACKBOARD_CLIENT_ID && env.BLACKBOARD_CLIENT_SECRET);
+const brightspaceReady = (): boolean =>
+  Boolean(env.BRIGHTSPACE_CLIENT_ID && env.BRIGHTSPACE_CLIENT_SECRET);
+const msReady = (): boolean => Boolean(env.MS_CLIENT_ID && env.MS_CLIENT_SECRET);
+const sakaiReady = (): boolean => Boolean(env.SAKAI_CLIENT_ID && env.SAKAI_CLIENT_SECRET);
 
 // Note: the `status` field reflects code-level readiness, not runtime health.
 // Runtime health (token expired, portal unreachable, sync failing) is per-
@@ -108,8 +114,8 @@ const REGISTRY: LmsProviderMeta[] = [
     icon: '⚫',
     color: '#262626',
     authMode: 'oauth',
-    adapterVersion: '0.0.0',
-    status: 'PLANNED',
+    adapterVersion: '1.0.0',
+    status: 'LIVE',
     capabilities: [
       'COURSES',
       'ASSIGNMENTS',
@@ -117,12 +123,9 @@ const REGISTRY: LmsProviderMeta[] = [
       'CALENDAR',
       'ANNOUNCEMENTS',
       'FILES',
-      'DISCUSSION_FORUMS',
-      'ATTENDANCE',
-      'RUBRICS',
     ],
     documentationUrl: 'https://developer.blackboard.com/portal/displayApi',
-    notes: 'Planned after Google Classroom.',
+    notes: 'Uses 3-legged OAuth2. Register at developer.blackboard.com.',
   },
   {
     id: LmsProvider.BRIGHTSPACE,
@@ -131,8 +134,8 @@ const REGISTRY: LmsProviderMeta[] = [
     icon: '🟦',
     color: '#006fbf',
     authMode: 'oauth',
-    adapterVersion: '0.0.0',
-    status: 'PLANNED',
+    adapterVersion: '1.0.0',
+    status: 'LIVE',
     capabilities: [
       'COURSES',
       'ASSIGNMENTS',
@@ -141,10 +144,9 @@ const REGISTRY: LmsProviderMeta[] = [
       'CALENDAR',
       'ANNOUNCEMENTS',
       'FILES',
-      'RUBRICS',
-      'LEARNING_OUTCOMES',
     ],
     documentationUrl: 'https://docs.valence.desire2learn.com/',
+    notes: 'OAuth2 via auth.brightspace.com. Requires per-tenant app approval.',
   },
   {
     id: LmsProvider.MS_TEAMS,
@@ -153,19 +155,19 @@ const REGISTRY: LmsProviderMeta[] = [
     icon: '🟪',
     color: '#6264a7',
     authMode: 'oauth',
-    adapterVersion: '0.0.0',
-    status: 'PLANNED',
+    adapterVersion: '1.0.0',
+    status: 'LIVE',
     capabilities: [
       'COURSES',
       'ASSIGNMENTS',
       'CALENDAR',
       'ANNOUNCEMENTS',
       'FILES',
-      'MESSAGES',
-      'VIDEO_LECTURES',
+      'GRADES',
     ],
     documentationUrl:
       'https://learn.microsoft.com/en-us/graph/api/resources/educationclass',
+    notes: 'Microsoft Graph API. Multi-tenant AAD registration works across schools.',
   },
   {
     id: LmsProvider.SAKAI,
@@ -174,8 +176,8 @@ const REGISTRY: LmsProviderMeta[] = [
     icon: '🟨',
     color: '#1a73e8',
     authMode: 'oauth',
-    adapterVersion: '0.0.0',
-    status: 'PLANNED',
+    adapterVersion: '1.0.0',
+    status: 'LIVE',
     capabilities: [
       'COURSES',
       'ASSIGNMENTS',
@@ -183,9 +185,9 @@ const REGISTRY: LmsProviderMeta[] = [
       'CALENDAR',
       'ANNOUNCEMENTS',
       'FILES',
-      'DISCUSSION_FORUMS',
     ],
     documentationUrl: 'https://www.sakailms.org/documentation',
+    notes: 'OAuth2 requires Sakai’s server-oauth bundle enabled at the institution.',
   },
 ];
 
@@ -221,6 +223,18 @@ function readinessFor(meta: LmsProviderMeta): { ready: boolean; reason?: string 
   }
   if (meta.id === LmsProvider.GOOGLE_CLASSROOM && !googleReady()) {
     return { ready: false, reason: 'Server missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET' };
+  }
+  if (meta.id === LmsProvider.BLACKBOARD && !blackboardReady()) {
+    return { ready: false, reason: 'Server missing BLACKBOARD_CLIENT_ID / BLACKBOARD_CLIENT_SECRET' };
+  }
+  if (meta.id === LmsProvider.BRIGHTSPACE && !brightspaceReady()) {
+    return { ready: false, reason: 'Server missing BRIGHTSPACE_CLIENT_ID / BRIGHTSPACE_CLIENT_SECRET' };
+  }
+  if (meta.id === LmsProvider.MS_TEAMS && !msReady()) {
+    return { ready: false, reason: 'Server missing MS_CLIENT_ID / MS_CLIENT_SECRET' };
+  }
+  if (meta.id === LmsProvider.SAKAI && !sakaiReady()) {
+    return { ready: false, reason: 'Server missing SAKAI_CLIENT_ID / SAKAI_CLIENT_SECRET' };
   }
   return { ready: true };
 }

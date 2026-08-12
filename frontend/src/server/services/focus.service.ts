@@ -3,6 +3,7 @@ import { Prisma, type StudySessionType } from '@prisma/client';
 import { prisma } from '@/server/db';
 import { BadRequestError, NotFoundError } from '@/server/lib/errors';
 import { calculateStreak } from '@/server/services/scheduling';
+import { emit } from '@/server/services/event-bus';
 
 /**
  * Focus / Pomodoro sessions.
@@ -97,7 +98,10 @@ export async function endSession(
   });
 
   await rollUpDailyStats(userId, endedAt);
-  await refreshStreak(userId);
+  const streak = await refreshStreak(userId);
+
+  emit({ type: 'focus.session.ended', userId, minutes: Math.round(durationSeconds / 60) });
+  emit({ type: 'streak.updated', userId, streak });
 
   return updated;
 }

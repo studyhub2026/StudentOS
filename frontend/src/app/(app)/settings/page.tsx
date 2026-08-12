@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { BadgeCheck, Brain, ExternalLink, Flame, Globe, Languages, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { BadgeCheck, Bell, Brain, ExternalLink, Flame, Globe, Languages, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { AvatarUploader } from '@/components/uploads/file-uploader';
 import { Badge } from '@/components/ui/badge';
@@ -110,6 +110,8 @@ export default function SettingsPage() {
       </Card>
 
       <LanguageCard />
+
+      <NotificationPrefsCard />
 
       <PublicProfileCard username={user.username} />
 
@@ -312,6 +314,101 @@ function PublicProfileCard({ username }: { username: string }) {
               className="w-full rounded-xl border border-border bg-surface-raised p-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/40"
             />
           </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+const NOTIFICATION_TYPES = [
+  { key: 'ASSIGNMENT_DUE', label: 'Assignment due reminders' },
+  { key: 'ASSIGNMENT_OVERDUE', label: 'Overdue assignment alerts' },
+  { key: 'SCHEDULE_REMINDER', label: 'Schedule reminders' },
+  { key: 'FLASHCARD_REVIEW', label: 'Flashcard review reminders' },
+  { key: 'GROUP_INVITE', label: 'Group invitations' },
+  { key: 'GROUP_MESSAGE', label: 'Group messages' },
+  { key: 'ACHIEVEMENT_UNLOCKED', label: 'Achievement unlocked' },
+  { key: 'SYSTEM', label: 'System notifications' },
+  { key: 'LMS_SYNC_COMPLETE', label: 'LMS sync complete' },
+  { key: 'LMS_NEW_ASSIGNMENT', label: 'New LMS assignments' },
+  { key: 'LMS_NEW_GRADE', label: 'New LMS grades' },
+  { key: 'LMS_ANNOUNCEMENT', label: 'LMS announcements' },
+] as const;
+
+function NotificationPrefsCard() {
+  const [prefs, setPrefs] = useState<Record<string, boolean> | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await apiClient.get<ApiEnvelope<{ notificationPrefs: Record<string, boolean> | null }>>('/auth/settings');
+        if (cancelled) return;
+        setPrefs(data.data.notificationPrefs ?? {});
+        setLoaded(true);
+      } catch (error) {
+        toast.error(apiErrorMessage(error));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const toggle = useCallback(async (key: string, enabled: boolean) => {
+    const next = { ...prefs, [key]: enabled };
+    setPrefs(next);
+    setSaving(true);
+    try {
+      await apiClient.patch('/auth/settings', { notificationPrefs: next });
+    } catch (error) {
+      toast.error(apiErrorMessage(error));
+      setPrefs(prefs);
+    } finally {
+      setSaving(false);
+    }
+  }, [prefs]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <Bell className="h-4 w-4 text-brand-bright" aria-hidden /> Notification preferences
+        </CardTitle>
+      </CardHeader>
+      <p className="mb-3 text-xs text-fg-subtle">
+        Choose which notification types to receive. Disabled types are silently skipped.
+      </p>
+      {!loaded ? (
+        <div className="space-y-2 p-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-8 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-1 p-4">
+          {NOTIFICATION_TYPES.map(({ key, label }) => {
+            const enabled = prefs?.[key] !== false;
+            return (
+              <label
+                key={key}
+                className="flex items-center justify-between rounded-lg px-2 py-2 hover:bg-surface-raised transition-colors cursor-pointer"
+              >
+                <span className="text-sm text-fg">{label}</span>
+                <span className="relative inline-flex shrink-0 items-center">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={enabled}
+                    disabled={saving}
+                    onChange={(e) => void toggle(key, e.target.checked)}
+                  />
+                  <span className="h-5 w-9 rounded-full bg-surface-raised transition-colors peer-checked:bg-brand" />
+                  <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-4" />
+                </span>
+              </label>
+            );
+          })}
         </div>
       )}
     </Card>

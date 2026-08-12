@@ -5,22 +5,46 @@ import { useParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  BarChart3,
+  CheckSquare,
   Copy,
+  ExternalLink,
+  FileText,
   Hash,
+  Link2,
   Loader2,
+  MessageSquare,
+  Plus,
   Send,
   Trash2,
   Users,
   WifiOff,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useChatRealtime } from '@/hooks/use-chat-realtime';
 import { useDeleteMessage, useGroup, useMessages } from '@/hooks/use-groups';
+import {
+  useGroupResources,
+  useAddResource,
+  useDeleteResource,
+  useGroupTasks,
+  useAddTask,
+  useToggleTask,
+  useDeleteTask,
+  useGroupPolls,
+  useCreatePoll,
+  useVotePoll,
+  useClosePoll,
+} from '@/hooks/use-group-extended';
 import { cn, initialsOf } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
+import { apiErrorMessage } from '@/lib/api-client';
+
+type GroupTab = 'chat' | 'resources' | 'tasks' | 'polls';
 
 export default function GroupChatPage() {
   const params = useParams<{ groupId: string }>();
@@ -29,6 +53,7 @@ export default function GroupChatPage() {
   const currentUser = useAuthStore((state) => state.user);
   const { data: group, isLoading } = useGroup(groupId);
 
+  const [activeTab, setActiveTab] = useState<GroupTab>('chat');
   const [channelId, setChannelId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -142,6 +167,35 @@ export default function GroupChatPage() {
         </Card>
       ) : null}
 
+      <div className="flex gap-1 rounded-xl bg-surface-raised/60 p-1">
+        {([
+          { key: 'chat', label: 'Chat', icon: MessageSquare },
+          { key: 'resources', label: 'Resources', icon: FileText },
+          { key: 'tasks', label: 'Tasks', icon: CheckSquare },
+          { key: 'polls', label: 'Polls', icon: BarChart3 },
+        ] as const).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setActiveTab(key)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+              activeTab === key
+                ? 'bg-brand/12 text-brand-bright'
+                : 'text-fg-muted hover:text-fg',
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" aria-hidden />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'resources' && <GroupResourcesTab groupId={groupId} />}
+      {activeTab === 'tasks' && <GroupTasksTab groupId={groupId} />}
+      {activeTab === 'polls' && <GroupPollsTab groupId={groupId} currentUserId={currentUser?.id ?? ''} />}
+
+      {activeTab === 'chat' && (
       <div className="grid gap-4 lg:grid-cols-[12rem_minmax(0,1fr)_12rem]">
         {/* Channels */}
         <aside className="space-y-1">
@@ -308,6 +362,335 @@ export default function GroupChatPage() {
           })}
         </aside>
       </div>
+      )}
+    </div>
+  );
+}
+
+function GroupResourcesTab({ groupId }: { groupId: string }) {
+  const { data: resources, isLoading } = useGroupResources(groupId);
+  const addResource = useAddResource(groupId);
+  const deleteResource = useDeleteResource(groupId);
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState('');
+  const [url, setUrl] = useState('');
+  const [type, setType] = useState<'link' | 'note' | 'file'>('link');
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    try {
+      await addResource.mutateAsync({ type, title: title.trim(), url: url.trim() || undefined });
+      setTitle('');
+      setUrl('');
+      setShowForm(false);
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-fg-subtle">Shared Resources</p>
+        <Button variant="outline" size="sm" onClick={() => setShowForm(!showForm)}>
+          {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+          {showForm ? 'Cancel' : 'Add'}
+        </Button>
+      </div>
+
+      {showForm && (
+        <Card className="p-4">
+          <form onSubmit={handleAdd} className="grid gap-3 sm:grid-cols-2">
+            <select
+              className="h-9 rounded-lg border border-border bg-surface-raised px-2 text-sm"
+              value={type}
+              onChange={(e) => setType(e.target.value as 'link' | 'note' | 'file')}
+            >
+              <option value="link">Link</option>
+              <option value="note">Note</option>
+              <option value="file">File</option>
+            </select>
+            <input
+              className="h-9 rounded-lg border border-border bg-surface-raised px-2 text-sm"
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <input
+              className="h-9 rounded-lg border border-border bg-surface-raised px-2 text-sm sm:col-span-2"
+              placeholder="URL (optional)"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+            <Button type="submit" size="sm" disabled={addResource.isPending || !title.trim()}>
+              Share
+            </Button>
+          </form>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        </div>
+      ) : !resources || resources.length === 0 ? (
+        <Card className="p-6 text-center text-sm text-fg-muted">
+          No shared resources yet.
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {resources.map((r) => (
+            <Card key={r.id} className="flex items-center gap-3 p-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand/12">
+                {r.type === 'link' ? <Link2 className="h-4 w-4 text-brand-bright" /> : <FileText className="h-4 w-4 text-brand-bright" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {r.url ? (
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-brand-bright">
+                      {r.title} <ExternalLink className="ml-1 inline h-3 w-3" />
+                    </a>
+                  ) : r.title}
+                </p>
+                <p className="text-xs text-fg-subtle">
+                  by {r.user.name} · {new Date(r.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="shrink-0 rounded p-1 text-fg-subtle hover:text-danger transition-colors"
+                onClick={() => void deleteResource.mutateAsync(r.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupTasksTab({ groupId }: { groupId: string }) {
+  const { data: tasks, isLoading } = useGroupTasks(groupId);
+  const addTask = useAddTask(groupId);
+  const toggleTask = useToggleTask(groupId);
+  const deleteTask = useDeleteTask(groupId);
+  const [newTitle, setNewTitle] = useState('');
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    try {
+      await addTask.mutateAsync({ title: newTitle.trim() });
+      setNewTitle('');
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-widest text-fg-subtle">Group Tasks</p>
+
+      <form onSubmit={handleAdd} className="flex gap-2">
+        <input
+          className="h-9 flex-1 rounded-lg border border-border bg-surface-raised px-3 text-sm"
+          placeholder="Add a task..."
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+        />
+        <Button type="submit" size="sm" disabled={addTask.isPending || !newTitle.trim()}>
+          <Plus className="h-3.5 w-3.5" /> Add
+        </Button>
+      </form>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+        </div>
+      ) : !tasks || tasks.length === 0 ? (
+        <Card className="p-6 text-center text-sm text-fg-muted">
+          No tasks yet. Add one above.
+        </Card>
+      ) : (
+        <div className="space-y-1">
+          {tasks.map((t) => (
+            <div
+              key={t.id}
+              className="group flex items-center gap-3 rounded-lg border border-border p-2.5 text-sm"
+            >
+              <button
+                type="button"
+                onClick={() => void toggleTask.mutateAsync(t.id)}
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors',
+                  t.completed
+                    ? 'border-success bg-success/20 text-success'
+                    : 'border-border hover:border-brand',
+                )}
+              >
+                {t.completed && <CheckSquare className="h-3 w-3" />}
+              </button>
+              <span className={cn('min-w-0 flex-1', t.completed && 'text-fg-subtle line-through')}>
+                {t.title}
+              </span>
+              <span className="text-xs text-fg-subtle">{t.creator.name}</span>
+              <button
+                type="button"
+                className="shrink-0 rounded p-1 text-fg-subtle opacity-0 hover:text-danger transition-opacity group-hover:opacity-100"
+                onClick={() => void deleteTask.mutateAsync(t.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupPollsTab({ groupId, currentUserId }: { groupId: string; currentUserId: string }) {
+  const { data: polls, isLoading } = useGroupPolls(groupId);
+  const createPoll = useCreatePoll(groupId);
+  const votePoll = useVotePoll(groupId);
+  const closePollMut = useClosePoll(groupId);
+  const [showForm, setShowForm] = useState(false);
+  const [question, setQuestion] = useState('');
+  const [options, setOptions] = useState(['', '']);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    const validOptions = options.filter((o) => o.trim());
+    if (!question.trim() || validOptions.length < 2) return;
+    try {
+      await createPoll.mutateAsync({ question: question.trim(), options: validOptions });
+      setQuestion('');
+      setOptions(['', '']);
+      setShowForm(false);
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-fg-subtle">Polls</p>
+        <Button variant="outline" size="sm" onClick={() => setShowForm(!showForm)}>
+          {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+          {showForm ? 'Cancel' : 'Create Poll'}
+        </Button>
+      </div>
+
+      {showForm && (
+        <Card className="p-4">
+          <form onSubmit={handleCreate} className="space-y-3">
+            <input
+              className="h-9 w-full rounded-lg border border-border bg-surface-raised px-3 text-sm"
+              placeholder="Poll question"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+            />
+            {options.map((opt, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  className="h-9 flex-1 rounded-lg border border-border bg-surface-raised px-3 text-sm"
+                  placeholder={`Option ${i + 1}`}
+                  value={opt}
+                  onChange={(e) => {
+                    const next = [...options];
+                    next[i] = e.target.value;
+                    setOptions(next);
+                  }}
+                />
+                {options.length > 2 && (
+                  <button type="button" onClick={() => setOptions(options.filter((_, j) => j !== i))} className="text-fg-subtle hover:text-danger">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {options.length < 6 && (
+              <button type="button" onClick={() => setOptions([...options, ''])} className="text-xs text-brand-bright hover:underline">
+                + Add option
+              </button>
+            )}
+            <Button type="submit" size="sm" disabled={createPoll.isPending}>
+              Create
+            </Button>
+          </form>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 2 }, (_, i) => <Skeleton key={i} className="h-32 w-full" />)}
+        </div>
+      ) : !polls || polls.length === 0 ? (
+        <Card className="p-6 text-center text-sm text-fg-muted">
+          No polls yet.
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {polls.map((poll) => {
+            const totalVotes = poll.options.reduce((sum, o) => sum + o.votes.length, 0);
+            const isClosed = !!poll.closedAt;
+            const myVote = poll.options.findIndex((o) => o.votes.includes(currentUserId));
+
+            return (
+              <Card key={poll.id} className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold">{poll.question}</p>
+                    <p className="text-xs text-fg-subtle">
+                      by {poll.user.name} · {totalVotes} vote{totalVotes !== 1 ? 's' : ''}
+                      {isClosed && ' · Closed'}
+                    </p>
+                  </div>
+                  {!isClosed && poll.user.id === currentUserId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void closePollMut.mutateAsync(poll.id)}
+                    >
+                      Close
+                    </Button>
+                  )}
+                </div>
+                <div className="mt-3 space-y-2">
+                  {poll.options.map((opt, i) => {
+                    const pct = totalVotes > 0 ? Math.round((opt.votes.length / totalVotes) * 100) : 0;
+                    const isMyVote = i === myVote;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        disabled={isClosed}
+                        onClick={() => void votePoll.mutateAsync({ pollId: poll.id, optionIndex: i })}
+                        className={cn(
+                          'relative flex w-full items-center justify-between rounded-lg border p-2.5 text-sm transition-colors',
+                          isMyVote ? 'border-brand bg-brand/8' : 'border-border hover:border-brand/40',
+                          isClosed && 'cursor-default',
+                        )}
+                      >
+                        <span className={cn('relative z-10', isMyVote && 'font-medium')}>{opt.text}</span>
+                        <span className="relative z-10 text-xs text-fg-subtle">{pct}%</span>
+                        <span
+                          className="absolute inset-y-0 left-0 rounded-lg bg-brand/10"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

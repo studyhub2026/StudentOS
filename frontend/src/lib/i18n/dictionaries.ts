@@ -510,8 +510,9 @@ export const en = {
   'settings.language.saving': 'Saving…',
   'settings.language.saved': 'Language saved',
 
-  // Navigation — University
+  // Navigation — University & Courses
   'nav.university': 'University',
+  'nav.courses': 'Courses',
 
   // University Integration
   'uni.title': 'University Sync',
@@ -1032,8 +1033,9 @@ export const ar: Partial<Record<TranslationKey, string>> = {
   'settings.language.saving': 'جارٍ الحفظ…',
   'settings.language.saved': 'تم حفظ اللغة',
 
-  // Navigation — University
+  // Navigation — University & Courses
   'nav.university': 'الجامعة',
+  'nav.courses': 'المقررات',
 
   // University Integration
   'uni.title': 'مزامنة الجامعة',

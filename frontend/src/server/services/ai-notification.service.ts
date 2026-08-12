@@ -1,8 +1,15 @@
 import 'server-only';
 import { prisma } from '@/server/db';
 
+type NotificationPrefs = Record<string, boolean>;
+
+function isTypeEnabled(prefs: NotificationPrefs | null, type: string): boolean {
+  if (!prefs) return true;
+  return prefs[type] !== false;
+}
+
 export async function generateSmartNotifications(userId: string) {
-  const [assignments, studySessions, user] = await Promise.all([
+  const [assignments, studySessions, user, settings] = await Promise.all([
     prisma.assignment.findMany({
       where: { userId, deletedAt: null, status: { notIn: ['COMPLETED', 'ARCHIVED'] } },
       select: { id: true, title: true, dueAt: true, status: true, priority: true, estimatedMinutes: true },
@@ -18,7 +25,13 @@ export async function generateSmartNotifications(userId: string) {
       where: { id: userId },
       select: { name: true, currentStreak: true, totalXp: true },
     }),
+    prisma.userSettings.findUnique({
+      where: { userId },
+      select: { notificationPrefs: true },
+    }),
   ]);
+
+  const prefs = (settings?.notificationPrefs as NotificationPrefs | null) ?? null;
 
   const now = new Date();
   const notifications: { type: string; title: string; body: string; link: string; priority: string }[] = [];
@@ -89,18 +102,18 @@ export async function generateSmartNotifications(userId: string) {
     });
   }
 
-  // Notification has no natural unique key, so dedupe in application code:
-  // fetch the titles this user already has and only create the genuinely new
-  // ones (updating the body of any that already exist). This keeps repeated
-  // generation idempotent instead of piling up duplicates.
+  const filtered = notifications.filter((n) => isTypeEnabled(prefs, n.type));
+
+  if (filtered.length === 0) return [];
+
   const existing = await prisma.notification.findMany({
-    where: { userId, title: { in: notifications.map((n) => n.title) } },
+    where: { userId, title: { in: filtered.map((n) => n.title) } },
     select: { id: true, title: true },
   });
   const existingByTitle = new Map(existing.map((e) => [e.title, e.id]));
 
   await prisma.$transaction(
-    notifications.map((n) => {
+    filtered.map((n) => {
       const id = existingByTitle.get(n.title);
       return id
         ? prisma.notification.update({ where: { id }, data: { body: n.body, link: n.link } })
@@ -116,7 +129,7 @@ export async function generateSmartNotifications(userId: string) {
     }),
   );
 
-  return notifications;
+  return filtered;
 }
 
 export async function getNotifications(userId: string, unreadOnly = false) {

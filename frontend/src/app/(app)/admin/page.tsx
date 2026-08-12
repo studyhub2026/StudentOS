@@ -7,6 +7,7 @@ import {
   Ban,
   ChevronLeft,
   ChevronRight,
+  Cloud,
   Database,
   MessageSquare,
   RotateCcw,
@@ -32,12 +33,13 @@ import {
   useRevokeUserSessions,
   useSuspendUser,
   useSystemHealth,
+  useUniversityOverview,
 } from '@/hooks/use-admin';
 import { useAuthStore } from '@/stores/auth-store';
 import { cn, initialsOf } from '@/lib/utils';
 import type { Role } from '@/types/api';
 
-type Tab = 'overview' | 'users' | 'moderation' | 'logs' | 'system';
+type Tab = 'overview' | 'users' | 'moderation' | 'logs' | 'system' | 'university';
 
 const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'overview', label: 'Overview', icon: Activity },
@@ -45,6 +47,7 @@ const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
   { key: 'moderation', label: 'Moderation', icon: MessageSquare },
   { key: 'logs', label: 'Audit log', icon: Shield },
   { key: 'system', label: 'System', icon: Database },
+  { key: 'university', label: 'University', icon: Cloud },
 ];
 
 const ROLE_TONE = { ADMIN: 'danger', TEACHER: 'warning', STUDENT: 'neutral' } as const;
@@ -111,6 +114,7 @@ export default function AdminPage() {
       {tab === 'moderation' ? <ModerationTab /> : null}
       {tab === 'logs' ? <LogsTab /> : null}
       {tab === 'system' ? <SystemTab /> : null}
+      {tab === 'university' ? <UniversityTab /> : null}
     </div>
   );
 }
@@ -592,6 +596,96 @@ function SystemTab() {
             </span>
           </li>
         </ul>
+      </Card>
+    </div>
+  );
+}
+
+const SYNC_TONE: Record<string, string> = {
+  COMPLETED: 'success',
+  ERROR: 'danger',
+  PENDING: 'warning',
+  IN_PROGRESS: 'brand',
+};
+
+function UniversityTab() {
+  const { data, isLoading } = useUniversityOverview();
+
+  if (isLoading || !data) {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="LMS Connections"
+          value={data.totalConnections}
+          icon={Cloud}
+          tone="brand"
+          hint={`${data.activeConnections} connected`}
+        />
+        <StatCard
+          label="Failed Syncs (7d)"
+          value={data.failedSyncs7d}
+          icon={AlertTriangle}
+          tone={data.failedSyncs7d > 0 ? 'danger' : 'success'}
+          hint={data.failedSyncs7d === 0 ? 'All clear' : 'Check logs below'}
+        />
+      </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Sync Jobs</CardTitle>
+        </CardHeader>
+        {data.recentSyncs.length === 0 ? (
+          <p className="p-4 text-sm text-fg-muted">No sync jobs found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs text-fg-subtle">
+                  <th className="px-3 py-2 font-medium">User</th>
+                  <th className="px-3 py-2 font-medium">Provider</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Started</th>
+                  <th className="px-3 py-2 font-medium">Items</th>
+                  <th className="px-3 py-2 font-medium">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentSyncs.map((sync) => (
+                  <tr key={sync.id} className="border-b border-border/50 last:border-0">
+                    <td className="px-3 py-2 font-medium">{sync.connection.user.name}</td>
+                    <td className="px-3 py-2 capitalize text-fg-muted">{sync.connection.provider.toLowerCase()}</td>
+                    <td className="px-3 py-2">
+                      <Badge tone={(SYNC_TONE[sync.status] ?? 'neutral') as 'success' | 'danger' | 'warning' | 'neutral'}>
+                        {sync.status.toLowerCase().replace('_', ' ')}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 text-fg-muted">
+                      {new Date(sync.startedAt).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-fg-muted">
+                      {sync.assignmentsCreated + sync.gradesCreated > 0
+                        ? `${sync.assignmentsCreated}a / ${sync.gradesCreated}g`
+                        : '—'}
+                    </td>
+                    <td className="max-w-[200px] truncate px-3 py-2 text-xs text-danger">
+                      {sync.errors ?? '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );

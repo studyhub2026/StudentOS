@@ -69,6 +69,26 @@ const schema = z.object({
   CANVAS_CLIENT_ID: z.string().optional().or(z.literal('')),
   CANVAS_CLIENT_SECRET: z.string().optional().or(z.literal('')),
 
+  // Blackboard Learn OAuth2. Register at developer.blackboard.com; a single
+  // application key/secret pair works across every Learn deployment.
+  BLACKBOARD_CLIENT_ID: z.string().optional().or(z.literal('')),
+  BLACKBOARD_CLIENT_SECRET: z.string().optional().or(z.literal('')),
+
+  // Brightspace (D2L) OAuth2. Auth server is auth.brightspace.com; the app
+  // has to be approved once per school tenant.
+  BRIGHTSPACE_CLIENT_ID: z.string().optional().or(z.literal('')),
+  BRIGHTSPACE_CLIENT_SECRET: z.string().optional().or(z.literal('')),
+
+  // Microsoft Graph OAuth2 (Teams for Education). Uses the multi-tenant
+  // `common` authority so every school AAD works with one app registration.
+  MS_CLIENT_ID: z.string().optional().or(z.literal('')),
+  MS_CLIENT_SECRET: z.string().optional().or(z.literal('')),
+
+  // Sakai OAuth2. Sakai's OAuth server bundle has to be enabled by the
+  // institution's admin; not all Sakai installs expose it.
+  SAKAI_CLIENT_ID: z.string().optional().or(z.literal('')),
+  SAKAI_CLIENT_SECRET: z.string().optional().or(z.literal('')),
+
   // Moodle Web Services service shortname used for username/password token
   // exchange (POST {portal}/login/token.php?service=…). `moodle_mobile_app`
   // is enabled by default on virtually every Moodle install; institutions
@@ -159,6 +179,10 @@ export const env = {
   hasSupabaseRealtime: Boolean(raw.SUPABASE_URL && raw.SUPABASE_SERVICE_ROLE_KEY),
   hasRedis: Boolean(raw.REDIS_URL),
   hasCanvasOAuth: Boolean(raw.CANVAS_CLIENT_ID && raw.CANVAS_CLIENT_SECRET),
+  hasBlackboardOAuth: Boolean(raw.BLACKBOARD_CLIENT_ID && raw.BLACKBOARD_CLIENT_SECRET),
+  hasBrightspaceOAuth: Boolean(raw.BRIGHTSPACE_CLIENT_ID && raw.BRIGHTSPACE_CLIENT_SECRET),
+  hasMsOAuth: Boolean(raw.MS_CLIENT_ID && raw.MS_CLIENT_SECRET),
+  hasSakaiOAuth: Boolean(raw.SAKAI_CLIENT_ID && raw.SAKAI_CLIENT_SECRET),
 } as const;
 
 export type Env = typeof env;

@@ -231,3 +231,36 @@ export function useModerateMessage() {
     onError: (error) => toast.error(apiErrorMessage(error)),
   });
 }
+
+interface SyncLogEntry {
+  id: string;
+  status: string;
+  startedAt: string;
+  endedAt: string | null;
+  assignmentsCreated: number;
+  gradesCreated: number;
+  errors: string | null;
+  connection: {
+    id: string;
+    provider: string;
+    user: { id: string; name: string; username: string };
+  };
+}
+
+interface UniversityOverview {
+  totalConnections: number;
+  activeConnections: number;
+  recentSyncs: SyncLogEntry[];
+  failedSyncs7d: number;
+}
+
+export function useUniversityOverview() {
+  return useQuery({
+    queryKey: ['admin', 'university'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ApiEnvelope<UniversityOverview>>('/admin/university');
+      return data.data;
+    },
+    staleTime: 30_000,
+  });
+}
