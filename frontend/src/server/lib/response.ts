@@ -24,6 +24,29 @@ export function created<T>(data: T): NextResponse {
   return ok(data, 201);
 }
 
+/**
+ * `ok()` with a CDN + browser cache header attached. Use only for responses
+ * whose body is identical for every user (registries, static config,
+ * capability metadata) — anything user-scoped must stay on the uncached path
+ * or User A will receive User B's response.
+ *
+ *   maxAge:  browser cache (per user)
+ *   sMaxAge: shared/CDN cache (Vercel edge)
+ *   swr:     stale-while-revalidate window
+ */
+export function cachedOk<T>(
+  data: T,
+  cache: { maxAge?: number; sMaxAge?: number; swr?: number } = {},
+): NextResponse {
+  const res = NextResponse.json({ success: true, data });
+  const parts = [`public`];
+  if (cache.maxAge !== undefined) parts.push(`max-age=${cache.maxAge}`);
+  if (cache.sMaxAge !== undefined) parts.push(`s-maxage=${cache.sMaxAge}`);
+  if (cache.swr !== undefined) parts.push(`stale-while-revalidate=${cache.swr}`);
+  res.headers.set('Cache-Control', parts.join(', '));
+  return res;
+}
+
 export function paginated<T>(items: T[], pagination: Pagination): NextResponse {
   return NextResponse.json({ success: true, data: items, pagination });
 }
