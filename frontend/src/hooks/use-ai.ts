@@ -159,11 +159,15 @@ export function useSendChat() {
  * Aborting: `stop()` cancels the in-flight fetch; the server-side generator
  * observes `req.signal.aborted` and persists whatever accumulated so far.
  */
+export type AiProviderChoice = 'gemini' | 'deepseek';
+
 export interface StreamChatInput {
   conversationId?: string;
   content: string;
   tier?: AiTier;
   fileIds?: string[];
+  /** Which provider to try first. Server falls back to Gemini on failure. */
+  provider?: AiProviderChoice;
 }
 
 export function useSendChatStream() {
@@ -250,6 +254,7 @@ export function useSendChatStream() {
             ...(input.conversationId ? { conversationId: input.conversationId } : {}),
             ...(input.tier ? { tier: input.tier } : {}),
             ...(input.fileIds && input.fileIds.length > 0 ? { fileIds: input.fileIds } : {}),
+            ...(input.provider ? { provider: input.provider } : {}),
           },
           controller.signal,
         );

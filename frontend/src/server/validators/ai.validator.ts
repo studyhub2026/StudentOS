@@ -31,10 +31,12 @@ export const sendMessageSchema = z.object({
   conversationId: cuid.optional(),
   feature: z.enum(AI_FEATURE).default('CHAT'),
   content: z.string().trim().min(1, 'Message cannot be empty').max(20_000),
-  /** "pro" routes to Gemini 2.5 Pro for harder reasoning. */
+  /** "pro" routes to the higher-tier model on the chosen provider. */
   tier: z.enum(['flash', 'pro']).optional(),
   /** Files already uploaded to the conversation to reference in this turn. */
   fileIds: z.array(cuid).max(20).optional(),
+  /** Client-picked provider (Gemini | DeepSeek). Blank => env-configured default. */
+  provider: z.enum(['gemini', 'deepseek']).optional(),
 });
 
 export const renameConversationSchema = z.object({

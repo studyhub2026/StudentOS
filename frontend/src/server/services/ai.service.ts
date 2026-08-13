@@ -3,6 +3,7 @@ import { AiFeature, AiRole, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/server/db';
 import { NotFoundError } from '@/server/lib/errors';
+import { logger } from '@/server/lib/logger';
 import {
   EXAM_SCHEMA,
   EXPLANATION_SCHEMA,
@@ -324,6 +325,8 @@ export async function* streamMessage(
     tier?: 'flash' | 'pro';
     fileIds?: string[];
     signal?: AbortSignal;
+    /** Client-picked provider. Blank = env default. */
+    preferredProvider?: 'gemini' | 'deepseek';
   },
 ): AsyncGenerator<{ type: 'meta' | 'delta' | 'done'; data: unknown }, void, undefined> {
   const conversation = input.conversationId
@@ -378,12 +381,14 @@ export async function* streamMessage(
     .filter(Boolean)
     .join('\n\n');
 
-  // Route through the resolver — chat picks up AI_CHAT_PROVIDER if set,
-  // otherwise falls back to Gemini so existing deployments keep identical
-  // behavior. The provider adapter maps our AiMessage shape to whatever the
-  // underlying SDK/API expects, so no branching per provider here.
-  const provider = resolveProvider({ task: 'chat' });
-  const stream = provider.streamText({
+  // Route through the resolver — client's preferredProvider wins if set and
+  // configured, otherwise env's AI_CHAT_PROVIDER, otherwise Gemini fallback.
+  const primary = resolveProvider({
+    task: 'chat',
+    ...(input.preferredProvider ? { preferredProvider: input.preferredProvider } : {}),
+  });
+
+  const streamOptions = {
     messages: toProviderMessages(transcript),
     systemInstruction,
     ...(input.tier ? { tier: input.tier } : {}),
@@ -396,19 +401,58 @@ export async function* streamMessage(
         }
       : {}),
     ...(input.signal ? { signal: input.signal } : {}),
-  });
+  };
 
+  // Runtime fallback: if the primary provider throws BEFORE emitting any
+  // tokens (network error, auth, empty response, etc.) and it's not Gemini,
+  // retry once against Gemini. We only do this when nothing has been sent
+  // to the client yet — once we start streaming, we're committed to that
+  // provider, otherwise the user would see two prefixes concatenated.
+  let stream = primary.streamText(streamOptions);
   let accumulated = '';
-  let final: Awaited<ReturnType<typeof provider.generateText>> | null = null;
+  let final: Awaited<ReturnType<typeof primary.generateText>> | null = null;
+  let usedFallback = false;
 
-  try {
-    let next = await stream.next();
+  // NB: async generator (function*) so `yield` inside actually produces
+  // frames the outer `yield*` can consume. Plain async function would just
+  // discard the yields.
+  async function* readStream(gen: typeof stream) {
+    let next = await gen.next();
     while (!next.done) {
       accumulated += next.value;
-      yield { type: 'delta', data: next.value };
-      next = await stream.next();
+      yield { type: 'delta' as const, data: next.value };
+      next = await gen.next();
     }
     final = next.value;
+  }
+
+  try {
+    let started = false;
+    try {
+      let next = await stream.next();
+      // First .next() is the risky one — auth, base URL, config issues throw
+      // here before any token is emitted. If it errors before any delta is
+      // sent, we can safely swap providers without corrupting the visible
+      // stream.
+      while (!next.done) {
+        started = true;
+        accumulated += next.value;
+        yield { type: 'delta', data: next.value };
+        next = await stream.next();
+      }
+      final = next.value;
+    } catch (err) {
+      if (started || primary.id === 'gemini' || accumulated.length > 0) {
+        // Mid-stream failure or we're already on Gemini — no safe retry path.
+        throw err;
+      }
+      logger.warn({ err, primary: primary.id }, 'ai chat: primary failed pre-stream, falling back to gemini');
+      usedFallback = true;
+      const fallback = resolveProvider({ task: 'chat', preferredProvider: 'gemini' });
+      if (fallback.id === primary.id) throw err; // nothing else to try
+      stream = fallback.streamText(streamOptions);
+      yield* readStream(stream);
+    }
   } finally {
     // Persist whatever arrived, even on an aborted stream.
     if (accumulated.trim()) {
@@ -443,6 +487,10 @@ export async function* streamMessage(
       totalTokens: final?.usage.totalTokens ?? 0,
       provider: final?.provider,
       model: final?.model,
+      // Signal to the client that we retried on the fallback — the UI can
+      // show a small chip so the user knows their preferred provider didn't
+      // handle this turn.
+      fallback: usedFallback ? { from: primary.id, to: final?.provider } : undefined,
     },
   };
 }
