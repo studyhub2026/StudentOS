@@ -362,4 +362,56 @@ export async function retrieveAcademicContext(
   return `The following is the student's real academic data from OmnelOS. Use it to answer their question accurately. Do not invent data beyond what is shown.\n\n${context}`;
 }
 
-export const aiContextService = { retrieveAcademicContext } as const;
+/**
+ * Explicit context the user attached via the composer's context selector.
+ * Unlike retrieveAcademicContext (which guesses from the message), this pulls
+ * exactly the notes/subjects/documents the user pointed at. Everything is
+ * ownership-checked and bounded so we never ship a whole note body or the
+ * entire DB to the model.
+ */
+export async function buildExplicitContext(
+  userId: string,
+  refs: { type: 'note' | 'subject' | 'document'; id: string }[],
+): Promise<string> {
+  if (refs.length === 0) return '';
+  const noteIds = refs.filter((r) => r.type === 'note').map((r) => r.id).slice(0, 5);
+  const subjectIds = refs.filter((r) => r.type === 'subject').map((r) => r.id).slice(0, 3);
+  const docIds = refs.filter((r) => r.type === 'document').map((r) => r.id).slice(0, 3);
+
+  const [notes, subjects, docs] = await Promise.all([
+    noteIds.length
+      ? prisma.note.findMany({
+          where: { id: { in: noteIds }, userId, deletedAt: null },
+          select: { title: true, excerpt: true, content: true },
+        })
+      : Promise.resolve([]),
+    subjectIds.length
+      ? prisma.subject.findMany({
+          where: { id: { in: subjectIds }, userId },
+          select: { name: true, code: true },
+        })
+      : Promise.resolve([]),
+    docIds.length
+      ? prisma.knowledgeDocument.findMany({
+          where: { id: { in: docIds }, userId },
+          select: { filename: true, extractedText: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const parts: string[] = [];
+  for (const s of subjects) parts.push(`Subject: ${s.name}${s.code ? ` (${s.code})` : ''}`);
+  for (const n of notes) {
+    const body = (n.excerpt ?? n.content ?? '').slice(0, 800);
+    parts.push(`Note "${n.title}":\n${body}`);
+  }
+  for (const d of docs) {
+    const body = (d.extractedText ?? '').slice(0, 1500);
+    parts.push(`Document "${d.filename}":\n${body}`);
+  }
+
+  if (parts.length === 0) return '';
+  return `The student attached the following material as context for this question. Ground your answer in it.\n\n${parts.join('\n\n')}`;
+}
+
+export const aiContextService = { retrieveAcademicContext, buildExplicitContext } as const;

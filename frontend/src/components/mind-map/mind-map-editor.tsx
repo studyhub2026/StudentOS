@@ -692,7 +692,7 @@ interface ToolbarProps {
 function Toolbar({ mapId, title, saveStatus, lastSavedAt, onAdd, onAutoLayout, onAiExpand, onLibrary, onAiPanel, onUndo, onRedo, onSearch, onImport, onExport }: ToolbarProps) {
   const [exportOpen, setExportOpen] = useState(false);
   return (
-    <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center gap-2 border-b border-border bg-[var(--color-surface)] px-3">
+    <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center gap-2 overflow-x-auto border-b border-border bg-[var(--color-surface)] px-3">
       <Link href="/mind-map" className="rounded p-1.5 text-fg-muted hover:bg-surface-raised hover:text-fg">
         <ArrowLeft className="h-4 w-4" />
       </Link>

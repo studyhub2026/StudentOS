@@ -12,6 +12,7 @@ import {
   SYSTEM_PROMPTS,
   clampSource,
   withTone,
+  withProvider,
   type AiFeatureKey,
 } from '@/server/services/ai-prompts';
 import { geminiService, type GeminiMessage } from '@/server/services/gemini.service';
@@ -327,6 +328,8 @@ export async function* streamMessage(
     signal?: AbortSignal;
     /** Client-picked provider. Blank = env default. */
     preferredProvider?: 'gemini' | 'deepseek';
+    /** Explicit context attached via the composer's context selector. */
+    contextRefs?: { type: 'note' | 'subject' | 'document'; id: string }[];
   },
 ): AsyncGenerator<{ type: 'meta' | 'delta' | 'done'; data: unknown }, void, undefined> {
   const conversation = input.conversationId
@@ -359,6 +362,13 @@ export async function* streamMessage(
     aiContextService.retrieveAcademicContext(userId, input.content),
   ]);
 
+  // Explicit context the user attached via the composer's context selector.
+  // Kept separate so it costs nothing when no refs are attached.
+  const explicitContext =
+    input.contextRefs && input.contextRefs.length > 0
+      ? await aiContextService.buildExplicitContext(userId, input.contextRefs)
+      : '';
+
   if (input.fileIds && input.fileIds.length > 0) {
     void aiFileService.attachFilesToMessage(input.fileIds, userMessage.id);
   }
@@ -377,9 +387,6 @@ export async function* streamMessage(
     SYSTEM_PROMPTS[featureKey] ?? SYSTEM_PROMPTS.CHAT,
     settings?.aiTone ?? 'encouraging',
   );
-  const systemInstruction = [baseInstruction, memoryContext, academicContext, fileContext.textPreamble]
-    .filter(Boolean)
-    .join('\n\n');
 
   // Route through the resolver — client's preferredProvider wins if set and
   // configured, otherwise env's AI_CHAT_PROVIDER, otherwise Gemini fallback.
@@ -388,9 +395,22 @@ export async function* streamMessage(
     ...(input.preferredProvider ? { preferredProvider: input.preferredProvider } : {}),
   });
 
-  const streamOptions = {
+  // Build the system instruction per provider so each model gets its
+  // formatting/reasoning tuning. The fallback path rebuilds this for Gemini.
+  const buildInstruction = (providerId: 'gemini' | 'deepseek') =>
+    [
+      withProvider(baseInstruction, providerId),
+      memoryContext,
+      academicContext,
+      explicitContext,
+      fileContext.textPreamble,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+  const buildStreamOptions = (providerId: 'gemini' | 'deepseek') => ({
     messages: toProviderMessages(transcript),
-    systemInstruction,
+    systemInstruction: buildInstruction(providerId),
     ...(input.tier ? { tier: input.tier } : {}),
     ...(fileContext.inlineParts.length > 0
       ? {
@@ -401,7 +421,9 @@ export async function* streamMessage(
         }
       : {}),
     ...(input.signal ? { signal: input.signal } : {}),
-  };
+  });
+
+  const streamOptions = buildStreamOptions(primary.id);
 
   // Runtime fallback: if the primary provider throws BEFORE emitting any
   // tokens (network error, auth, empty response, etc.) and it's not Gemini,
@@ -450,7 +472,8 @@ export async function* streamMessage(
       usedFallback = true;
       const fallback = resolveProvider({ task: 'chat', preferredProvider: 'gemini' });
       if (fallback.id === primary.id) throw err; // nothing else to try
-      stream = fallback.streamText(streamOptions);
+      // Rebuild options with Gemini's own prompt tuning.
+      stream = fallback.streamText(buildStreamOptions(fallback.id));
       yield* readStream(stream);
     }
   } finally {

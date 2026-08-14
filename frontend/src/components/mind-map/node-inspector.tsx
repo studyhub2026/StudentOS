@@ -51,8 +51,10 @@ export function NodeInspector({ mapId }: { mapId?: string }) {
   }
 
   if (!node) {
+    // Hidden entirely on mobile (no node selected = no need for the column);
+    // shows the hint only on wide screens where the space exists.
     return (
-      <aside className="w-80 shrink-0 border-l border-border bg-[var(--color-surface)] p-4">
+      <aside className="hidden w-80 shrink-0 border-l border-border bg-[var(--color-surface)] p-4 lg:block">
         <p className="text-sm text-fg-muted">Select a node to edit its details.</p>
       </aside>
     );
@@ -101,7 +103,7 @@ export function NodeInspector({ mapId }: { mapId?: string }) {
         : null;
 
   return (
-    <aside className="w-80 shrink-0 border-l border-border bg-[var(--color-surface)] p-4 overflow-y-auto">
+    <aside className="fixed inset-x-0 bottom-0 z-30 max-h-[70vh] w-full overflow-y-auto border-t border-border bg-[var(--color-surface)] p-4 lg:static lg:z-auto lg:max-h-none lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Node details</h3>
         <button

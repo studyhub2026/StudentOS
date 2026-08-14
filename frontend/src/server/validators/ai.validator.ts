@@ -37,6 +37,16 @@ export const sendMessageSchema = z.object({
   fileIds: z.array(cuid).max(20).optional(),
   /** Client-picked provider (Gemini | DeepSeek). Blank => env-configured default. */
   provider: z.enum(['gemini', 'deepseek']).optional(),
+  /** Explicit academic context the user attached via the context selector. */
+  contextRefs: z
+    .array(
+      z.object({
+        type: z.enum(['note', 'subject', 'document']),
+        id: cuid,
+      }),
+    )
+    .max(10)
+    .optional(),
 });
 
 export const renameConversationSchema = z.object({

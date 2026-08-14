@@ -55,6 +55,7 @@ import {
   uploadAiFile,
   validateAiFile,
 } from '@/hooks/use-ai-files';
+import { ContextPicker, type ContextRef } from '@/components/ai/context-picker';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n/provider';
 
@@ -68,6 +69,13 @@ interface PendingFile {
   fileId?: string;
   error?: string;
 }
+
+/**
+ * A piece of academic context the user attached to the next message. We keep
+ * only the id + a display label client-side; the actual content is fetched
+ * and bounded server-side by the existing ai-context service, so we never
+ * ship note/course bodies through the browser.
+ */
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -115,8 +123,21 @@ export default function AiChatPage() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [dragging, setDragging] = useState(false);
+  // Academic context the user chose to attach to the next message.
+  const [contextRefs, setContextRefs] = useState<ContextRef[]>([]);
+  const [contextPickerOpen, setContextPickerOpen] = useState(false);
+
+  // Auto-grow the composer as the user types, capped by max-h in CSS. Runs on
+  // every draft change — cheap because it only touches one element's style.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [draft]);
 
   const uploading = pendingFiles.some((f) => f.status === 'uploading');
   const readyFileIds = pendingFiles.filter((f) => f.status === 'ready' && f.fileId).map((f) => f.fileId!);
@@ -185,6 +206,18 @@ export default function AiChatPage() {
     [selectedId, conversation?.messages],
   );
 
+  // Virtualisation: very long threads render only the most recent window so
+  // the DOM (and each MessageContent Markdown render) stays cheap. The user
+  // can reveal older messages in chunks. Reset the window when switching
+  // conversations.
+  const WINDOW = 40;
+  const [visibleCount, setVisibleCount] = useState(WINDOW);
+  useEffect(() => {
+    setVisibleCount(WINDOW);
+  }, [selectedId]);
+  const hiddenCount = Math.max(0, messages.length - visibleCount);
+  const visibleMessages = hiddenCount > 0 ? messages.slice(hiddenCount) : messages;
+
   // "Thinking…" is only shown while the streaming placeholder is still
   // empty. As soon as the first delta arrives the assistant bubble fills
   // in and the indicator disappears.
@@ -213,6 +246,8 @@ export default function AiChatPage() {
     setDraft('');
     const fileIds = readyFileIds;
     setPendingFiles([]);
+    const refs = contextRefs.map((r) => ({ type: r.type, id: r.id }));
+    setContextRefs([]);
 
     const result = await send.send({
       content,
@@ -220,6 +255,7 @@ export default function AiChatPage() {
       ...(fileIds.length > 0 ? { fileIds } : {}),
       tier,
       ...(provider ? { provider } : {}),
+      ...(refs.length > 0 ? { contextRefs: refs } : {}),
     });
     // A brand-new thread: adopt the id the server just created (arrives in
     // the meta frame, so it's already in the result by the time we get here).
@@ -404,7 +440,20 @@ export default function AiChatPage() {
                 </div>
               </div>
             ) : (
-              messages.map((m) => <MessageBubble key={m.id} message={m} />)
+              <>
+                {hiddenCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((c) => c + WINDOW)}
+                    className="mx-auto block rounded-lg border border-border px-3 py-1.5 text-xs text-fg-muted hover:border-brand/40 hover:text-fg"
+                  >
+                    Show {Math.min(WINDOW, hiddenCount)} earlier message{hiddenCount === 1 ? '' : 's'}
+                  </button>
+                ) : null}
+                {visibleMessages.map((m) => (
+                  <MessageBubble key={m.id} message={m} />
+                ))}
+              </>
             )}
 
             {showThinking ? (
@@ -434,6 +483,29 @@ export default function AiChatPage() {
               ) : null}
             </AnimatePresence>
 
+            {/* Attached academic-context chips */}
+            {contextRefs.length > 0 ? (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {contextRefs.map((r) => (
+                  <span
+                    key={`${r.type}-${r.id}`}
+                    className="flex items-center gap-1 rounded-md border border-brand/30 bg-brand/10 px-2 py-0.5 text-xs text-brand-bright"
+                  >
+                    <span className="text-[10px] uppercase text-fg-subtle">{r.type}</span>
+                    <span className="max-w-[140px] truncate">{r.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => setContextRefs((prev) => prev.filter((x) => !(x.type === r.type && x.id === r.id)))}
+                      className="text-fg-subtle hover:text-danger"
+                      aria-label={`Remove ${r.label}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
             <div className="flex items-end gap-2">
               <input
                 ref={fileInputRef}
@@ -457,10 +529,39 @@ export default function AiChatPage() {
               >
                 <Paperclip className="h-4 w-4" aria-hidden />
               </Button>
+              {/* Context selector */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Attach context"
+                  title="Attach a note, subject or document as context"
+                  disabled={disabled}
+                  onClick={() => setContextPickerOpen((v) => !v)}
+                  className={cn(contextRefs.length > 0 && 'text-brand-bright')}
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                </Button>
+                {contextPickerOpen ? (
+                  <ContextPicker
+                    selected={contextRefs}
+                    onToggle={(ref) =>
+                      setContextRefs((prev) =>
+                        prev.some((x) => x.type === ref.type && x.id === ref.id)
+                          ? prev.filter((x) => !(x.type === ref.type && x.id === ref.id))
+                          : [...prev, ref],
+                      )
+                    }
+                    onClose={() => setContextPickerOpen(false)}
+                  />
+                ) : null}
+              </div>
               <textarea
+                ref={textareaRef}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
+                  // Enter or Ctrl/Cmd+Enter sends; Shift+Enter inserts a newline.
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     void handleSend();

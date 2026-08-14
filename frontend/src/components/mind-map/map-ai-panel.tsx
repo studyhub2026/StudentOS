@@ -134,7 +134,7 @@ export function MapAiPanel({
   }
 
   return (
-    <aside className="fixed right-0 top-14 z-20 flex h-[calc(100vh-3.5rem)] w-96 flex-col border-l border-border bg-[var(--color-surface)]">
+    <aside className="fixed right-0 top-14 z-20 flex h-[calc(100vh-3.5rem)] w-full max-w-[24rem] flex-col border-l border-border bg-[var(--color-surface)] sm:w-96">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <p className="flex items-center gap-1.5 text-sm font-semibold">
           <Sparkles className="h-4 w-4 text-brand-bright" /> Mind Map AI

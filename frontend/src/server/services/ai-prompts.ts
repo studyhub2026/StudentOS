@@ -68,6 +68,34 @@ export const SYSTEM_PROMPTS: Record<AiFeatureKey, string> = {
 };
 
 /**
+ * Provider-specific tuning appended after the persona + tone. Kept small and
+ * additive so the persona always dominates — this only nudges formatting and
+ * reasoning style to each model's strengths.
+ *
+ * - Gemini: already well-tuned by BASE_RULES; a light nudge to keep Markdown
+ *   clean (its default tends to over-nest lists).
+ * - DeepSeek: benefits from an explicit "reason first, then answer" framing
+ *   and a reminder to emit GitHub-flavoured Markdown, which the chat renderer
+ *   supports (tables, fenced code). Without this it sometimes returns plain
+ *   prose where a table/code block would read better.
+ */
+const PROVIDER_TUNING: Record<'gemini' | 'deepseek', string> = {
+  gemini:
+    'Format with clean GitHub-flavoured Markdown: use tables for comparisons, ' +
+    'fenced code blocks with a language tag for any code, and short bullet lists. ' +
+    'Do not nest lists more than two levels deep.',
+  deepseek:
+    'Reason through the problem before answering, then give the answer clearly. ' +
+    'Use GitHub-flavoured Markdown the renderer supports: fenced code blocks with a ' +
+    'language tag, tables for structured comparisons, bold for key terms. ' +
+    'Prefer a short answer up front, then the supporting detail.',
+};
+
+export function withProvider(basePrompt: string, provider: 'gemini' | 'deepseek'): string {
+  return `${basePrompt}\n\n${PROVIDER_TUNING[provider]}`;
+}
+
+/**
  * Applies the user's tone preference. Kept additive so the persona and
  * guardrails above always take precedence.
  */

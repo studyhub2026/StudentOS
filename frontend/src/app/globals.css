@@ -145,3 +145,18 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Mobile: honour iOS/Android safe-area insets so fixed bottom bars (chat
+   composer, mind-map node inspector overlay) don't sit under the home
+   indicator, and let React Flow / whiteboard own their touch gestures
+   instead of the browser hijacking them for scroll/zoom. */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  }
+}
+
+.react-flow,
+.omnel-canvas {
+  touch-action: none;
+}
