@@ -381,6 +381,32 @@ export function usePinConversation() {
   });
 }
 
+export function useEditMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      conversationId,
+      messageId,
+      content,
+    }: {
+      conversationId: string;
+      messageId: string;
+      content: string;
+    }) => {
+      const { data } = await apiClient.patch<ApiEnvelope<AiMessage>>(
+        `/ai/conversations/${conversationId}/messages/${messageId}`,
+        { content },
+      );
+      return data.data;
+    },
+    onSuccess: (_, { conversationId }) => {
+      void queryClient.invalidateQueries({ queryKey: aiKeys.conversation(conversationId) });
+    },
+    onError: (error) => toast.error(apiErrorMessage(error)),
+  });
+}
+
 export function useDeleteConversation() {
   const queryClient = useQueryClient();
 

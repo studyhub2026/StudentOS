@@ -157,6 +157,45 @@ export async function setPinned(userId: string, id: string, pinned: boolean): Pr
   if (result.count === 0) throw new NotFoundError('Conversation');
 }
 
+/**
+ * Edit a user message and delete all subsequent assistant replies so the AI
+ * can regenerate from this new context. Returns the updated message (Prisma type).
+ */
+export async function editMessage(
+  userId: string,
+  conversationId: string,
+  messageId: string,
+  newContent: string,
+): Promise<Prisma.AiMessageGetPayload<{}>> {
+  const conversation = await prisma.aiConversation.findFirst({
+    where: { id: conversationId, userId, deletedAt: null },
+    include: { messages: { orderBy: { createdAt: 'asc' } } },
+  });
+  if (!conversation) throw new NotFoundError('Conversation');
+
+  const message = conversation.messages.find((m) => m.id === messageId);
+  if (!message) throw new NotFoundError('Message');
+  if (message.role !== AiRole.USER) throw new Error('Only user messages can be edited');
+
+  const messageIndex = conversation.messages.indexOf(message);
+  const messagesToDelete = conversation.messages
+    .slice(messageIndex + 1)
+    .filter((m) => m.role === AiRole.MODEL)
+    .map((m) => m.id);
+
+  const updated = await prisma.$transaction([
+    prisma.aiMessage.update({
+      where: { id: messageId },
+      data: { content: newContent, editedAt: new Date() },
+    }),
+    ...(messagesToDelete.length > 0
+      ? [prisma.aiMessage.deleteMany({ where: { id: { in: messagesToDelete } } })]
+      : []),
+  ]);
+
+  return updated[0]!;
+}
+
 /** Derives a thread title from the opening question. */
 function deriveTitle(prompt: string): string {
   const firstLine = prompt.split('\n')[0]?.trim() ?? 'New conversation';
@@ -741,6 +780,7 @@ export const aiService = {
   deleteConversation,
   renameConversation,
   setPinned,
+  editMessage,
   sendMessage,
   streamMessage,
   generateExam,

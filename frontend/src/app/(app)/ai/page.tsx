@@ -16,6 +16,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Paperclip,
+  Pencil,
   Plus,
   RefreshCw,
   SendHorizonal,
@@ -48,6 +49,7 @@ import {
   useConversation,
   useConversations,
   useDeleteConversation,
+  useEditMessage,
   useSendChatStream,
   type AiMessage,
   type AiTier,
@@ -307,6 +309,28 @@ export default function AiChatPage() {
     if (result?.meta) setLastTurnMeta({ conversationId: result.conversationId, meta: result.meta });
   }
 
+  async function handleEditResend(messageId: string, newContent: string) {
+    if (send.isStreaming || !selectedId) return;
+    setLastTurnMeta(null);
+    try {
+      await fetch(`/api/v1/ai/conversations/${selectedId}/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent }),
+      });
+      const result = await send.send({
+        conversationId: selectedId,
+        content: '',
+        regenerateMessageId: messageId,
+        tier,
+        ...(provider ? { provider } : {}),
+      });
+      if (result?.meta) setLastTurnMeta({ conversationId: result.conversationId, meta: result.meta });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to edit message');
+    }
+  }
+
   const disabled = status && !status.configured;
 
   return (
@@ -468,12 +492,16 @@ export default function AiChatPage() {
                 {visibleMessages.map((m, i) => {
                   const isLast = i === visibleMessages.length - 1;
                   const isLastAssistant = isLast && m.role === 'MODEL';
+                  const isUser = m.role === 'USER';
                   return (
                     <MessageBubble
                       key={m.id}
                       message={m}
+                      conversationId={selectedId}
                       canRegenerate={isLastAssistant && !send.isStreaming && !!m.content}
                       onRegenerate={() => handleRegenerate(m.id)}
+                      canEdit={isUser && !send.isStreaming}
+                      onEditResend={(newContent) => handleEditResend(m.id, newContent)}
                       fallbackNotice={
                         isLastAssistant && lastTurnMeta?.conversationId === selectedId
                           ? lastTurnMeta.meta.fallback
@@ -654,23 +682,39 @@ export default function AiChatPage() {
 
 function MessageBubble({
   message,
+  conversationId,
   canRegenerate,
   onRegenerate,
+  canEdit,
+  onEditResend,
   fallbackNotice,
 }: {
   message: AiMessage;
+  conversationId: string | null;
   canRegenerate?: boolean;
   onRegenerate?: () => void;
+  canEdit?: boolean;
+  onEditResend?: (content: string) => void;
   fallbackNotice?: { from: string; to?: string };
 }) {
   const isUser = message.role === 'USER';
   const [copied, setCopied] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editDraft, setEditDraft] = useState(message.content);
 
   function copy() {
     void navigator.clipboard.writeText(message.content).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1400);
     });
+  }
+
+  function saveEdit() {
+    const content = editDraft.trim();
+    if (content && content !== message.content) {
+      onEditResend?.(content);
+    }
+    setEditMode(false);
   }
 
   return (
@@ -688,52 +732,95 @@ function MessageBubble({
         )}
       </span>
       <div className={cn('min-w-0', isUser ? 'max-w-[80%]' : 'max-w-[calc(100%-2.5rem)] flex-1')}>
-        <div
-          className={cn(
-            'rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
-            isUser ? 'whitespace-pre-wrap bg-brand text-white' : 'text-fg',
-          )}
-        >
-          {isUser ? message.content : <MessageContent content={message.content} />}
-        </div>
-
-        {fallbackNotice ? (
-          <p className="mt-1 flex items-center gap-1 px-1 text-[10px] text-warning">
-            <AlertTriangle className="h-3 w-3" aria-hidden />
-            {fallbackNotice.from === 'deepseek' ? 'DeepSeek' : 'Preferred model'} was unavailable —
-            answered by Gemini instead.
-          </p>
-        ) : null}
-
-        {message.content && !message.id.startsWith('optimistic-') && !message.id.startsWith('streaming-') ? (
-          <div
-            className={cn(
-              'mt-1 flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100',
-              isUser && 'justify-end',
-            )}
-          >
-            <button
-              type="button"
-              onClick={copy}
-              aria-label="Copy message"
-              title="Copy"
-              className="rounded p-1 text-fg-subtle hover:text-fg"
-            >
-              {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
-            </button>
-            {canRegenerate ? (
+        {editMode ? (
+          <div className="space-y-1">
+            <textarea
+              autoFocus
+              value={editDraft}
+              onChange={(e) => setEditDraft(e.target.value)}
+              className="w-full rounded-xl border border-brand bg-surface px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-brand/40"
+            />
+            <div className="flex gap-1">
               <button
                 type="button"
-                onClick={onRegenerate}
-                aria-label="Regenerate response"
-                title="Regenerate"
-                className="rounded p-1 text-fg-subtle hover:text-fg"
+                onClick={saveEdit}
+                className="rounded px-2 py-1 text-xs font-medium text-success hover:bg-success/10"
               >
-                <RefreshCw className="h-3 w-3" />
+                Save & Resend
               </button>
-            ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditMode(false);
+                  setEditDraft(message.content);
+                }}
+                className="rounded px-2 py-1 text-xs font-medium text-fg-muted hover:text-fg"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-        ) : null}
+        ) : (
+          <>
+            <div
+              className={cn(
+                'rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
+                isUser ? 'whitespace-pre-wrap bg-brand text-white' : 'text-fg',
+              )}
+            >
+              {isUser ? message.content : <MessageContent content={message.content} />}
+            </div>
+
+            {fallbackNotice ? (
+              <p className="mt-1 flex items-center gap-1 px-1 text-[10px] text-warning">
+                <AlertTriangle className="h-3 w-3" aria-hidden />
+                {fallbackNotice.from === 'deepseek' ? 'DeepSeek' : 'Preferred model'} was unavailable —
+                answered by Gemini instead.
+              </p>
+            ) : null}
+
+            {message.content && !message.id.startsWith('optimistic-') && !message.id.startsWith('streaming-') ? (
+              <div
+                className={cn(
+                  'mt-1 flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100',
+                  isUser && 'justify-end',
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={copy}
+                  aria-label="Copy message"
+                  title="Copy"
+                  className="rounded p-1 text-fg-subtle hover:text-fg"
+                >
+                  {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                </button>
+                {canEdit ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditMode(true)}
+                    aria-label="Edit message"
+                    title="Edit"
+                    className="rounded p-1 text-fg-subtle hover:text-fg"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                ) : null}
+                {canRegenerate ? (
+                  <button
+                    type="button"
+                    onClick={onRegenerate}
+                    aria-label="Regenerate response"
+                    title="Regenerate"
+                    className="rounded p-1 text-fg-subtle hover:text-fg"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );
