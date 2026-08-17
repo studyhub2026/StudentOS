@@ -27,7 +27,7 @@ import type {
   LmsAdapter,
   LmsTokens,
 } from './lms';
-import { LmsProviderError } from './lms';
+import { emit } from './event-bus';
 import {
   emptySyncPlan,
   estimatePlanCost,
@@ -794,6 +794,10 @@ export async function runSyncJob(
           `Imported ${totalNew} new item${totalNew === 1 ? '' : 's'}`,
           '/university',
         );
+        // Fire the sync-completed event so downstream handlers (currently:
+        // mind-map proposal generator) can react without coupling the sync
+        // engine to their code. Fire-and-forget — never blocks this path.
+        emit({ type: 'lms.sync.completed', userId, connectionId, newItems: totalNew });
       }
 
       await prisma.activityLog.create({

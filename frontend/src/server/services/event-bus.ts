@@ -127,4 +127,22 @@ on('streak.updated', async (event) => {
   }
 });
 
+/**
+ * When an LMS sync brings in new material for a subject that has an
+ * attached mind map, ask the AI to propose additions the student may want
+ * to add. Proposals are queued to `mind_map_sync_proposals`; they never
+ * modify the map — the student reviews and clicks Apply.
+ * Guarded by `newItems > 0` so silent no-op syncs don't spend tokens.
+ */
+on('lms.sync.completed', async (event) => {
+  if (event.type !== 'lms.sync.completed') return;
+  if (event.newItems <= 0) return;
+  try {
+    const { handleSyncCompleted } = await import('./mind-map-sync-proposal.service');
+    await handleSyncCompleted(event.userId, event.connectionId);
+  } catch {
+    // best-effort
+  }
+});
+
 export const eventBus = { on, emit } as const;

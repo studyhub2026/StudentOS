@@ -53,6 +53,7 @@ import { newMindId } from './ids';
 import { radialLayout } from './layout';
 import { LibraryPicker } from './library-picker';
 import { MapAiPanel } from './map-ai-panel';
+import { ProposalBadge, ProposalDrawer } from './proposal-drawer';
 import { downloadFile, exportSvg, fromJson, fromMarkdown, toJson, toMarkdown } from './import-export';
 
 const NODE_TYPES = { mind: MindNodeView } as const;
@@ -127,6 +128,7 @@ function EditorCanvas({ mapId }: { mapId: string }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  const [proposalDrawerOpen, setProposalDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -553,6 +555,7 @@ function EditorCanvas({ mapId }: { mapId: string }) {
           onAiExpand={handleAiExpand}
           onLibrary={() => setLibraryOpen((v) => !v)}
           onAiPanel={() => setAiPanelOpen((v) => !v)}
+          onProposals={() => setProposalDrawerOpen((v) => !v)}
           onUndo={undo}
           onRedo={redo}
           onSearch={() => setSearchOpen((v) => !v)}
@@ -561,6 +564,11 @@ function EditorCanvas({ mapId }: { mapId: string }) {
         />
         <LibraryPicker open={libraryOpen} onClose={() => setLibraryOpen(false)} />
         <MapAiPanel mapId={mapId} open={aiPanelOpen} onClose={() => setAiPanelOpen(false)} />
+        <ProposalDrawer
+          mapId={mapId}
+          open={proposalDrawerOpen}
+          onClose={() => setProposalDrawerOpen(false)}
+        />
 
         {searchOpen ? (
           <div className="absolute left-1/2 top-16 z-20 w-80 -translate-x-1/2 rounded-xl border border-border bg-[var(--color-surface)] p-2 shadow-lg">
@@ -682,6 +690,7 @@ interface ToolbarProps {
   onAiExpand: () => void;
   onLibrary: () => void;
   onAiPanel: () => void;
+  onProposals: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onSearch: () => void;
@@ -689,7 +698,7 @@ interface ToolbarProps {
   onExport: (kind: 'json' | 'markdown' | 'svg' | 'png') => void;
 }
 
-function Toolbar({ mapId, title, saveStatus, lastSavedAt, onAdd, onAutoLayout, onAiExpand, onLibrary, onAiPanel, onUndo, onRedo, onSearch, onImport, onExport }: ToolbarProps) {
+function Toolbar({ mapId, title, saveStatus, lastSavedAt, onAdd, onAutoLayout, onAiExpand, onLibrary, onAiPanel, onProposals, onUndo, onRedo, onSearch, onImport, onExport }: ToolbarProps) {
   const [exportOpen, setExportOpen] = useState(false);
   return (
     <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center gap-2 overflow-x-auto border-b border-border bg-[var(--color-surface)] px-3">
@@ -737,6 +746,7 @@ function Toolbar({ mapId, title, saveStatus, lastSavedAt, onAdd, onAutoLayout, o
         <Button variant="outline" size="sm" onClick={onAiExpand}>
           <Sparkles className="h-3.5 w-3.5" /> Expand
         </Button>
+        <ProposalBadge mapId={mapId} onOpen={onProposals} />
         <Button variant="outline" size="sm" onClick={onAiPanel} title="Mind Map AI">
           <Sparkles className="h-3.5 w-3.5" /> Map AI
         </Button>

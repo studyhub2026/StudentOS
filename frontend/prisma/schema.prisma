@@ -2001,8 +2001,9 @@ model MindMap {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  nodes MindMapNode[]
-  edges MindMapEdge[]
+  nodes     MindMapNode[]
+  edges     MindMapEdge[]
+  proposals MindMapSyncProposal[]
 
   @@index([userId, updatedAt])
   @@index([userId, favorite])
@@ -2078,4 +2079,37 @@ model MindMapEdge {
   @@index([mindMapId, sourceId])
   @@index([mindMapId, targetId])
   @@map("mind_map_edges")
+}
+
+/// AI-generated proposal of what should change in a mind map after new LMS
+/// material appears (a fresh Moodle assignment, a new lecture file, etc.).
+/// Proposals are never applied automatically — the student reviews the
+/// suggested nodes/edges in a drawer and clicks Apply or Dismiss. This
+/// preserves manually-edited content and puts the user firmly in control.
+///
+/// `changes` shape: { nodes: [ {id, type, title, content?, parentId?} ], edges: [ {source, target} ], rationale: string }
+model MindMapSyncProposal {
+  id        String  @id @default(cuid())
+  mindMapId String
+  mindMap   MindMap @relation(fields: [mindMapId], references: [id], onDelete: Cascade)
+  userId    String
+
+  /// The LMS connection that produced the source material, so the UI can
+  /// show "from your Moodle Cybersecurity course" etc.
+  connectionId String?
+
+  /// PENDING → APPLIED (nodes/edges materialised into the map) or DISMISSED.
+  status String @default("PENDING")
+
+  changes Json
+
+  /// Small summary shown in the badge list before the user expands.
+  summary String?
+
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+
+  @@index([mindMapId, status])
+  @@index([userId, status, createdAt])
+  @@map("mind_map_sync_proposals")
 }
