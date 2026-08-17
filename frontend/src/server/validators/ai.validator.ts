@@ -19,6 +19,7 @@ const AI_FEATURE = [
 
 export const listConversationsSchema = z.object({
   feature: z.enum(AI_FEATURE).optional(),
+  archived: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
 });
 
 export const createConversationSchema = z.object({
@@ -69,8 +70,9 @@ export const updateConversationSchema = z
   .object({
     title: z.string().trim().min(1, 'Title is required').max(120).optional(),
     pinned: z.boolean().optional(),
+    archived: z.boolean().optional(),
   })
-  .refine((v) => v.title !== undefined || v.pinned !== undefined, {
+  .refine((v) => v.title !== undefined || v.pinned !== undefined || v.archived !== undefined, {
     message: 'Nothing to update',
   });
 

@@ -8,8 +8,8 @@ import { createConversationSchema, listConversationsSchema } from '@/server/vali
 
 export const GET = route(async (req: NextRequest) => {
   const user = await requireAuth(req);
-  const { feature } = readQuery(req, listConversationsSchema);
-  return ok(await aiService.listConversations(user.id, feature as AiFeature | undefined));
+  const { feature, archived } = readQuery(req, listConversationsSchema);
+  return ok(await aiService.listConversations(user.id, feature as AiFeature | undefined, archived));
 });
 
 export const POST = route(async (req: NextRequest) => {

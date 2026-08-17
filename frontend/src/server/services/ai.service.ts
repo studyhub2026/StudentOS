@@ -79,11 +79,17 @@ async function loadConversationTail(
 export async function listConversations(
   userId: string,
   feature?: AiFeature,
+  archived?: boolean,
 ): Promise<
-  { id: string; title: string; feature: AiFeature; pinned: boolean; updatedAt: Date; messageCount: number }[]
+  { id: string; title: string; feature: AiFeature; pinned: boolean; archived: boolean; updatedAt: Date; messageCount: number }[]
 > {
   const conversations = await prisma.aiConversation.findMany({
-    where: { userId, deletedAt: null, ...(feature ? { feature } : {}) },
+    where: {
+      userId,
+      deletedAt: null,
+      ...(feature ? { feature } : {}),
+      ...(archived !== undefined ? { archived } : {}),
+    },
     orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }],
     take: 100,
     select: {
@@ -91,6 +97,7 @@ export async function listConversations(
       title: true,
       feature: true,
       pinned: true,
+      archived: true,
       updatedAt: true,
       _count: { select: { messages: true } },
     },
@@ -161,6 +168,21 @@ export async function setPinned(userId: string, id: string, pinned: boolean): Pr
  * Edit a user message and delete all subsequent assistant replies so the AI
  * can regenerate from this new context. Returns the updated message (Prisma type).
  */
+export async function setArchived(userId: string, id: string, archived: boolean): Promise<void> {
+  const result = await prisma.aiConversation.updateMany({
+    where: { id, userId, deletedAt: null },
+    data: { archived },
+  });
+  if (result.count === 0) throw new NotFoundError('Conversation');
+}
+
+export async function permanentlyDeleteArchived(userId: string, id: string): Promise<void> {
+  const result = await prisma.aiConversation.deleteMany({
+    where: { id, userId, archived: true },
+  });
+  if (result.count === 0) throw new NotFoundError('Conversation not found or not archived');
+}
+
 export async function editMessage(
   userId: string,
   conversationId: string,
@@ -780,6 +802,8 @@ export const aiService = {
   deleteConversation,
   renameConversation,
   setPinned,
+  setArchived,
+  permanentlyDeleteArchived,
   editMessage,
   sendMessage,
   streamMessage,

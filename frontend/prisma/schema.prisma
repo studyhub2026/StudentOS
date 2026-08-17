@@ -958,6 +958,7 @@ model AiConversation {
   // Feature-specific context, e.g. { "noteId": "...", "subjectId": "..." }
   context Json?
   pinned  Boolean   @default(false)
+  archived Boolean  @default(false)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

@@ -12,9 +12,10 @@ export const GET = route<{ id: string }>(async (req: NextRequest, { params }) =>
 
 export const PATCH = route<{ id: string }>(async (req: NextRequest, { params }) => {
   const user = await requireAuth(req);
-  const { title, pinned } = await readJson(req, updateConversationSchema);
+  const { title, pinned, archived } = await readJson(req, updateConversationSchema);
   if (title !== undefined) await aiService.renameConversation(user.id, params.id, title);
   if (pinned !== undefined) await aiService.setPinned(user.id, params.id, pinned);
+  if (archived !== undefined) await aiService.setArchived(user.id, params.id, archived);
   return ok({ message: 'Updated' });
 });
 
