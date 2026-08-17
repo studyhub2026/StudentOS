@@ -161,6 +161,12 @@ export function useSendChat() {
  */
 export type AiProviderChoice = 'gemini' | 'deepseek';
 
+export interface StreamDoneMeta {
+  provider?: string;
+  model?: string;
+  fallback?: { from: string; to?: string };
+}
+
 export interface StreamChatInput {
   conversationId?: string;
   content: string;
@@ -170,6 +176,11 @@ export interface StreamChatInput {
   provider?: AiProviderChoice;
   /** Explicit academic context attached via the composer's context selector. */
   contextRefs?: { type: 'note' | 'subject' | 'document'; id: string }[];
+  /**
+   * Regenerate this existing (trailing) assistant message instead of sending
+   * new content. `content` is ignored server-side when this is set.
+   */
+  regenerateMessageId?: string;
 }
 
 export function useSendChatStream() {
@@ -184,16 +195,21 @@ export function useSendChatStream() {
   }, []);
 
   const send = useCallback(
-    async (input: StreamChatInput): Promise<{ conversationId: string } | null> => {
+    async (
+      input: StreamChatInput,
+    ): Promise<{ conversationId: string; meta?: StreamDoneMeta } | null> => {
       // Cancel any prior in-flight turn before starting the next one.
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       setIsStreaming(true);
 
+      const isRegenerate = !!input.regenerateMessageId;
       // Stable ids so React keys the same bubbles across delta patches.
+      // Regenerating reuses the target message's own id so the patch below
+      // updates it in place instead of appending a new bubble.
       const userMessageId = `optimistic-user-${Date.now()}`;
-      const assistantMessageId = `streaming-${Date.now()}`;
+      const assistantMessageId = isRegenerate ? input.regenerateMessageId! : `streaming-${Date.now()}`;
       const nowIso = new Date().toISOString();
 
       // The first meta frame carries the real conversationId (matters when we
@@ -202,28 +218,34 @@ export function useSendChatStream() {
 
       // Append the optimistic user turn + empty assistant placeholder to the
       // conversation cache immediately, so the UI updates before the network.
+      // Regenerate instead blanks the target assistant message in place.
       const seedConversation = (cid: string) => {
-        queryClient.setQueryData<ConversationDetail>(
-          aiKeys.conversation(cid),
-          (current) => {
-            const base: ConversationDetail = current ?? {
-              id: cid,
-              title: input.content.slice(0, 60),
-              feature: 'CHAT',
-              messages: [],
-            };
-            // Avoid double-appending if this render already ran.
-            if (base.messages.some((m) => m.id === userMessageId)) return base;
+        queryClient.setQueryData<ConversationDetail>(aiKeys.conversation(cid), (current) => {
+          const base: ConversationDetail = current ?? {
+            id: cid,
+            title: input.content.slice(0, 60),
+            feature: 'CHAT',
+            messages: [],
+          };
+          if (isRegenerate) {
             return {
               ...base,
-              messages: [
-                ...base.messages,
-                { id: userMessageId, role: 'USER', content: input.content, createdAt: nowIso },
-                { id: assistantMessageId, role: 'MODEL', content: '', createdAt: nowIso },
-              ],
+              messages: base.messages.map((m) =>
+                m.id === assistantMessageId ? { ...m, content: '' } : m,
+              ),
             };
-          },
-        );
+          }
+          // Avoid double-appending if this render already ran.
+          if (base.messages.some((m) => m.id === userMessageId)) return base;
+          return {
+            ...base,
+            messages: [
+              ...base.messages,
+              { id: userMessageId, role: 'USER', content: input.content, createdAt: nowIso },
+              { id: assistantMessageId, role: 'MODEL', content: '', createdAt: nowIso },
+            ],
+          };
+        });
       };
 
       if (conversationId) seedConversation(conversationId);
@@ -247,6 +269,7 @@ export function useSendChatStream() {
       };
 
       let accumulated = '';
+      let doneMeta: StreamDoneMeta | undefined;
       try {
         const generator = postSse(
           '/api/v1/ai/chat/stream',
@@ -258,6 +281,7 @@ export function useSendChatStream() {
             ...(input.fileIds && input.fileIds.length > 0 ? { fileIds: input.fileIds } : {}),
             ...(input.provider ? { provider: input.provider } : {}),
             ...(input.contextRefs && input.contextRefs.length > 0 ? { contextRefs: input.contextRefs } : {}),
+            ...(input.regenerateMessageId ? { regenerateMessageId: input.regenerateMessageId } : {}),
           },
           controller.signal,
         );
@@ -271,6 +295,13 @@ export function useSendChatStream() {
             const delta = JSON.parse(frame.data) as string;
             accumulated += delta;
             patchAssistant(accumulated);
+          } else if (frame.event === 'done') {
+            const meta = JSON.parse(frame.data) as {
+              provider?: string;
+              model?: string;
+              fallback?: { from: string; to?: string };
+            };
+            doneMeta = { provider: meta.provider, model: meta.model, fallback: meta.fallback };
           } else if (frame.event === 'error') {
             const err = JSON.parse(frame.data) as { message?: string };
             throw new Error(err.message ?? 'Streaming failed');
@@ -280,7 +311,8 @@ export function useSendChatStream() {
         // Once the stream closes we refresh the sidebar so a fresh conversation
         // shows up and its title/updated-at is authoritative.
         void queryClient.invalidateQueries({ queryKey: aiKeys.conversations() });
-        return conversationId ? { conversationId } : null;
+        if (conversationId) void queryClient.invalidateQueries({ queryKey: aiKeys.conversation(conversationId) });
+        return conversationId ? { conversationId, ...(doneMeta ? { meta: doneMeta } : {}) } : null;
       } catch (error) {
         // Abort is a user action, not an error to toast.
         const wasAborted = controller.signal.aborted;
@@ -289,7 +321,9 @@ export function useSendChatStream() {
           toast.error(message);
           // Roll back the empty assistant placeholder if we never got any
           // content, so the user isn't left staring at a blank bubble.
-          if (!accumulated && conversationId) {
+          // Skip for regenerate — the placeholder IS the real (soon
+          // re-fetched) message, removing it would just blank the thread.
+          if (!accumulated && conversationId && !isRegenerate) {
             queryClient.setQueryData<ConversationDetail>(
               aiKeys.conversation(conversationId),
               (current) =>
@@ -300,6 +334,9 @@ export function useSendChatStream() {
                     }
                   : current,
             );
+          }
+          if (!accumulated && conversationId) {
+            void queryClient.invalidateQueries({ queryKey: aiKeys.conversation(conversationId) });
           }
         }
         return null;
@@ -312,6 +349,36 @@ export function useSendChatStream() {
   );
 
   return { send, stop, isStreaming };
+}
+
+export function useRenameConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      await apiClient.patch(`/ai/conversations/${id}`, { title });
+      return { id, title };
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: aiKeys.conversations() });
+    },
+    onError: (error) => toast.error(apiErrorMessage(error)),
+  });
+}
+
+export function usePinConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, pinned }: { id: string; pinned: boolean }) => {
+      await apiClient.patch(`/ai/conversations/${id}`, { pinned });
+      return { id, pinned };
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: aiKeys.conversations() });
+    },
+    onError: (error) => toast.error(apiErrorMessage(error)),
+  });
 }
 
 export function useDeleteConversation() {

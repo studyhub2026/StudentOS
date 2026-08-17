@@ -149,6 +149,14 @@ export async function renameConversation(
   if (result.count === 0) throw new NotFoundError('Conversation');
 }
 
+export async function setPinned(userId: string, id: string, pinned: boolean): Promise<void> {
+  const result = await prisma.aiConversation.updateMany({
+    where: { id, userId, deletedAt: null },
+    data: { pinned },
+  });
+  if (result.count === 0) throw new NotFoundError('Conversation');
+}
+
 /** Derives a thread title from the opening question. */
 function deriveTitle(prompt: string): string {
   const firstLine = prompt.split('\n')[0]?.trim() ?? 'New conversation';
@@ -330,8 +338,18 @@ export async function* streamMessage(
     preferredProvider?: 'gemini' | 'deepseek';
     /** Explicit context attached via the composer's context selector. */
     contextRefs?: { type: 'note' | 'subject' | 'document'; id: string }[];
+    /**
+     * Regenerate an existing assistant reply instead of sending a new user
+     * turn. Must be the last message in the conversation and MODEL-authored —
+     * it's deleted and re-generated from the transcript that already ends in
+     * the preceding user turn, so no duplicate user message is created.
+     */
+    regenerateMessageId?: string;
   },
 ): AsyncGenerator<{ type: 'meta' | 'delta' | 'done'; data: unknown }, void, undefined> {
+  const isRegenerate = !!input.regenerateMessageId;
+  if (isRegenerate && !input.conversationId) throw new NotFoundError('Conversation');
+
   const conversation = input.conversationId
     ? await loadConversationTail(userId, input.conversationId)
     : await createConversation(userId, {
@@ -343,13 +361,29 @@ export async function* streamMessage(
   // fetch reader immediately and the UI can render an in-flight bubble.
   yield { type: 'meta', data: { conversationId: conversation.id } };
 
+  // Regenerate: verify the target is the trailing assistant turn, delete it,
+  // and use the user turn it replied to as the context-retrieval query.
+  let regenerateQuery = input.content;
+  if (isRegenerate) {
+    const target = conversation.messages[conversation.messages.length - 1];
+    if (!target || target.id !== input.regenerateMessageId || target.role !== AiRole.MODEL) {
+      throw new NotFoundError('Message');
+    }
+    await prisma.aiMessage.delete({ where: { id: target.id } });
+    conversation.messages = conversation.messages.slice(0, -1);
+    regenerateQuery = conversation.messages[conversation.messages.length - 1]?.content ?? '';
+  }
+
   // Persist the user turn + gather context in parallel. Same shape as
   // sendMessage so streaming replies get memory + files + tone that
-  // non-streaming replies have always had.
+  // non-streaming replies have always had. Regenerate skips the user-turn
+  // write — it's already the last message in the transcript.
   const [userMessage, settings, files, memoryContext, academicContext] = await Promise.all([
-    prisma.aiMessage.create({
-      data: { conversationId: conversation.id, role: AiRole.USER, content: input.content },
-    }),
+    isRegenerate
+      ? Promise.resolve(null)
+      : prisma.aiMessage.create({
+          data: { conversationId: conversation.id, role: AiRole.USER, content: input.content },
+        }),
     prisma.userSettings.findUnique({
       where: { userId },
       select: { aiTone: true },
@@ -359,7 +393,7 @@ export async function* streamMessage(
       orderBy: { createdAt: 'asc' },
     }),
     aiMemoryService.getMemoryContext(userId),
-    aiContextService.retrieveAcademicContext(userId, input.content),
+    aiContextService.retrieveAcademicContext(userId, regenerateQuery),
   ]);
 
   // Explicit context the user attached via the composer's context selector.
@@ -369,18 +403,17 @@ export async function* streamMessage(
       ? await aiContextService.buildExplicitContext(userId, input.contextRefs)
       : '';
 
-  if (input.fileIds && input.fileIds.length > 0) {
+  if (userMessage && input.fileIds && input.fileIds.length > 0) {
     void aiFileService.attachFilesToMessage(input.fileIds, userMessage.id);
   }
 
   const fileContext = await aiFileService.buildFileContext(files);
 
-  // Fresh transcript = tail we loaded + the turn we just wrote. Skips the
-  // second getConversation round-trip that used to happen here.
-  const transcript = [
-    ...conversation.messages,
-    { role: AiRole.USER, content: input.content },
-  ];
+  // Fresh transcript = tail we loaded + the turn we just wrote (skipped when
+  // regenerating — the tail already ends in the user turn to reply to).
+  const transcript = isRegenerate
+    ? conversation.messages
+    : [...conversation.messages, { role: AiRole.USER, content: input.content }];
 
   const featureKey = conversation.feature as AiFeatureKey;
   const baseInstruction = withTone(
@@ -707,6 +740,7 @@ export const aiService = {
   createConversation,
   deleteConversation,
   renameConversation,
+  setPinned,
   sendMessage,
   streamMessage,
   generateExam,

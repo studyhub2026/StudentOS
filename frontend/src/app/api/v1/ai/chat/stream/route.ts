@@ -44,6 +44,7 @@ export const POST = route(async (req: NextRequest) => {
             ...(input.fileIds && input.fileIds.length > 0 ? { fileIds: input.fileIds } : {}),
             ...(input.provider ? { preferredProvider: input.provider } : {}),
             ...(input.contextRefs && input.contextRefs.length > 0 ? { contextRefs: input.contextRefs } : {}),
+            ...(input.regenerateMessageId ? { regenerateMessageId: input.regenerateMessageId } : {}),
             signal: req.signal,
           });
           for await (const frame of generator) {

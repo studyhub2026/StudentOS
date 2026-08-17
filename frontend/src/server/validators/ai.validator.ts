@@ -27,31 +27,52 @@ export const createConversationSchema = z.object({
   context: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const sendMessageSchema = z.object({
-  conversationId: cuid.optional(),
-  feature: z.enum(AI_FEATURE).default('CHAT'),
-  content: z.string().trim().min(1, 'Message cannot be empty').max(20_000),
-  /** "pro" routes to the higher-tier model on the chosen provider. */
-  tier: z.enum(['flash', 'pro']).optional(),
-  /** Files already uploaded to the conversation to reference in this turn. */
-  fileIds: z.array(cuid).max(20).optional(),
-  /** Client-picked provider (Gemini | DeepSeek). Blank => env-configured default. */
-  provider: z.enum(['gemini', 'deepseek']).optional(),
-  /** Explicit academic context the user attached via the context selector. */
-  contextRefs: z
-    .array(
-      z.object({
-        type: z.enum(['note', 'subject', 'document']),
-        id: cuid,
-      }),
-    )
-    .max(10)
-    .optional(),
-});
+export const sendMessageSchema = z
+  .object({
+    conversationId: cuid.optional(),
+    feature: z.enum(AI_FEATURE).default('CHAT'),
+    // Empty when regenerating an existing reply — the prior user turn is reused.
+    content: z.string().trim().max(20_000).default(''),
+    /** "pro" routes to the higher-tier model on the chosen provider. */
+    tier: z.enum(['flash', 'pro']).optional(),
+    /** Files already uploaded to the conversation to reference in this turn. */
+    fileIds: z.array(cuid).max(20).optional(),
+    /** Client-picked provider (Gemini | DeepSeek). Blank => env-configured default. */
+    provider: z.enum(['gemini', 'deepseek']).optional(),
+    /** Explicit academic context the user attached via the context selector. */
+    contextRefs: z
+      .array(
+        z.object({
+          type: z.enum(['note', 'subject', 'document']),
+          id: cuid,
+        }),
+      )
+      .max(10)
+      .optional(),
+    /** Regenerate this existing assistant reply instead of sending new content. */
+    regenerateMessageId: cuid.optional(),
+  })
+  .refine((v) => v.content.length > 0 || !!v.regenerateMessageId, {
+    message: 'Message cannot be empty',
+    path: ['content'],
+  })
+  .refine((v) => !v.regenerateMessageId || !!v.conversationId, {
+    message: 'conversationId is required to regenerate a reply',
+    path: ['conversationId'],
+  });
 
 export const renameConversationSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(120),
 });
+
+export const updateConversationSchema = z
+  .object({
+    title: z.string().trim().min(1, 'Title is required').max(120).optional(),
+    pinned: z.boolean().optional(),
+  })
+  .refine((v) => v.title !== undefined || v.pinned !== undefined, {
+    message: 'Nothing to update',
+  });
 
 export const conversationIdSchema = z.object({ id: cuid });
 

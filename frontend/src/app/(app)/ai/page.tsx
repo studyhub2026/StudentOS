@@ -6,17 +6,20 @@ import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
+  ArrowDown,
   Bot,
+  Check,
   CheckCircle2,
+  Copy,
   FileSpreadsheet,
   FileText,
   Image as ImageIcon,
   Loader2,
   Paperclip,
   Plus,
+  RefreshCw,
   SendHorizonal,
   Sparkles,
-  Trash2,
   User,
   Wrench,
   X,
@@ -48,7 +51,9 @@ import {
   useSendChatStream,
   type AiMessage,
   type AiTier,
+  type StreamDoneMeta,
 } from '@/hooks/use-ai';
+import { ConversationSidebar, MobileSidebarToggle } from '@/components/ai/conversation-sidebar';
 import {
   AI_FILE_ACCEPT,
   deleteAiFile,
@@ -102,6 +107,7 @@ export default function AiChatPage() {
   const { data: status } = useAiStatus();
   const { data: conversations, isLoading: loadingList } = useConversations();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [tier, setTier] = useState<AiTier>('flash');
   // Persist across reloads — students usually want the same provider next
@@ -225,9 +231,33 @@ export default function AiChatPage() {
   const showThinking =
     send.isStreaming && lastMessage?.role === 'MODEL' && !lastMessage.content;
 
+  // Auto-scroll follows new content only while the user is already near the
+  // bottom. If they've scrolled up to read earlier turns, streaming text
+  // shouldn't yank them back down — instead a "Jump to latest" pill appears.
+  const [autoStick, setAutoStick] = useState(true);
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setAutoStick(distanceFromBottom < 80);
+  }, []);
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+    setAutoStick(true);
+  }, []);
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages.length, lastMessage?.content, send.isStreaming]);
+    setAutoStick(true);
+  }, [selectedId]);
+  useEffect(() => {
+    if (autoStick) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages.length, lastMessage?.content, send.isStreaming, autoStick]);
+
+  // Provider info for the most recent turn — only surfaced when the server
+  // fell back to Gemini so the student knows why the reply came from a
+  // different model than they picked.
+  const [lastTurnMeta, setLastTurnMeta] = useState<{ conversationId: string; meta: StreamDoneMeta } | null>(null);
 
   // Once a reply lands (the message list grows), the staged files have been
   // sent and persisted to the conversation — clear the composer tray.
@@ -248,6 +278,7 @@ export default function AiChatPage() {
     setPendingFiles([]);
     const refs = contextRefs.map((r) => ({ type: r.type, id: r.id }));
     setContextRefs([]);
+    setLastTurnMeta(null);
 
     const result = await send.send({
       content,
@@ -260,6 +291,20 @@ export default function AiChatPage() {
     // A brand-new thread: adopt the id the server just created (arrives in
     // the meta frame, so it's already in the result by the time we get here).
     if (!selectedId && result?.conversationId) setSelectedId(result.conversationId);
+    if (result?.meta) setLastTurnMeta({ conversationId: result.conversationId, meta: result.meta });
+  }
+
+  async function handleRegenerate(messageId: string) {
+    if (send.isStreaming || !selectedId) return;
+    setLastTurnMeta(null);
+    const result = await send.send({
+      conversationId: selectedId,
+      content: '',
+      regenerateMessageId: messageId,
+      tier,
+      ...(provider ? { provider } : {}),
+    });
+    if (result?.meta) setLastTurnMeta({ conversationId: result.conversationId, meta: result.meta });
   }
 
   const disabled = status && !status.configured;
@@ -267,52 +312,19 @@ export default function AiChatPage() {
   return (
     <div className="mx-auto flex h-[calc(100vh-6rem)] max-w-6xl gap-4">
       {/* Conversations */}
-      <aside className="hidden w-64 shrink-0 flex-col md:flex">
-        <Button className="w-full" onClick={() => { setSelectedId(null); setDraft(''); setPendingFiles([]); }}>
-          <Plus className="h-4 w-4" aria-hidden />
-          {t('ai.newChat')}
-        </Button>
-
-        <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto">
-          {loadingList ? (
-            Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-11 w-full rounded-xl" />)
-          ) : conversations && conversations.length > 0 ? (
-            conversations.map((c) => (
-              <div
-                key={c.id}
-                className={cn(
-                  'group flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors',
-                  c.id === selectedId
-                    ? 'border-brand bg-brand/10 text-brand-bright'
-                    : 'border-transparent hover:bg-surface-raised',
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => { setSelectedId(c.id); setPendingFiles([]); }}
-                  className="min-w-0 flex-1 truncate text-left"
-                  title={c.title}
-                >
-                  {c.title}
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Delete ${c.title}`}
-                  onClick={() => {
-                    remove.mutate(c.id);
-                    if (c.id === selectedId) setSelectedId(null);
-                  }}
-                  className="shrink-0 text-fg-subtle opacity-0 transition-opacity hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                </button>
-              </div>
-            ))
-          ) : (
-            <p className="px-3 py-6 text-center text-xs text-fg-subtle">No conversations yet.</p>
-          )}
-        </div>
-      </aside>
+      <ConversationSidebar
+        conversations={conversations}
+        loadingList={loadingList}
+        selectedId={selectedId}
+        onSelect={(id) => { setSelectedId(id); setPendingFiles([]); }}
+        onNew={() => { setSelectedId(null); setDraft(''); setPendingFiles([]); setMobileSidebarOpen(false); }}
+        onDelete={(id) => {
+          remove.mutate(id);
+          if (id === selectedId) setSelectedId(null);
+        }}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
 
       {/* Thread */}
       <div
@@ -351,10 +363,13 @@ export default function AiChatPage() {
           ) : null}
         </AnimatePresence>
         <header className="mb-3 flex items-center justify-between gap-2">
-          <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
-            <Sparkles className="h-5 w-5 text-brand-bright" aria-hidden />
-            {t('ai.title')}
-          </h1>
+          <div className="flex items-center gap-1.5">
+            <MobileSidebarToggle onClick={() => setMobileSidebarOpen(true)} />
+            <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+              <Sparkles className="h-5 w-5 text-brand-bright" aria-hidden />
+              {t('ai.title')}
+            </h1>
+          </div>
           <div className="flex items-center gap-2">
             <Link
               href="/ai/tools"
@@ -411,8 +426,8 @@ export default function AiChatPage() {
           </div>
         ) : null}
 
-        <Card className="flex min-h-0 flex-1 flex-col p-0">
-          <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        <Card className="relative flex min-h-0 flex-1 flex-col p-0">
+          <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
             {messages.length === 0 ? (
               <div className="grid h-full place-items-center text-center">
                 <div className="w-full max-w-md">
@@ -450,9 +465,23 @@ export default function AiChatPage() {
                     Show {Math.min(WINDOW, hiddenCount)} earlier message{hiddenCount === 1 ? '' : 's'}
                   </button>
                 ) : null}
-                {visibleMessages.map((m) => (
-                  <MessageBubble key={m.id} message={m} />
-                ))}
+                {visibleMessages.map((m, i) => {
+                  const isLast = i === visibleMessages.length - 1;
+                  const isLastAssistant = isLast && m.role === 'MODEL';
+                  return (
+                    <MessageBubble
+                      key={m.id}
+                      message={m}
+                      canRegenerate={isLastAssistant && !send.isStreaming && !!m.content}
+                      onRegenerate={() => handleRegenerate(m.id)}
+                      fallbackNotice={
+                        isLastAssistant && lastTurnMeta?.conversationId === selectedId
+                          ? lastTurnMeta.meta.fallback
+                          : undefined
+                      }
+                    />
+                  );
+                })}
               </>
             )}
 
@@ -466,6 +495,17 @@ export default function AiChatPage() {
               </div>
             ) : null}
           </div>
+
+          {!autoStick && messages.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => scrollToBottom()}
+              className="absolute bottom-24 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium shadow-lg transition-colors hover:border-brand/40"
+            >
+              <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+              Jump to latest
+            </button>
+          ) : null}
 
           <div className="border-t border-border p-3">
             <AnimatePresence initial={false}>
@@ -612,10 +652,29 @@ export default function AiChatPage() {
   );
 }
 
-function MessageBubble({ message }: { message: AiMessage }) {
+function MessageBubble({
+  message,
+  canRegenerate,
+  onRegenerate,
+  fallbackNotice,
+}: {
+  message: AiMessage;
+  canRegenerate?: boolean;
+  onRegenerate?: () => void;
+  fallbackNotice?: { from: string; to?: string };
+}) {
   const isUser = message.role === 'USER';
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    void navigator.clipboard.writeText(message.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    });
+  }
+
   return (
-    <div className={cn('flex gap-2.5', isUser && 'flex-row-reverse')}>
+    <div className={cn('group flex gap-2.5', isUser && 'flex-row-reverse')}>
       <span
         className={cn(
           'grid h-7 w-7 shrink-0 place-items-center rounded-full',
@@ -628,17 +687,53 @@ function MessageBubble({ message }: { message: AiMessage }) {
           <Bot className="h-4 w-4 text-brand-bright" aria-hidden />
         )}
       </span>
-      <div
-        className={cn(
-          'max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
-          isUser ? 'whitespace-pre-wrap bg-brand text-white' : 'bg-surface-raised text-fg',
-        )}
-      >
-        {isUser ? (
-          message.content
-        ) : (
-          <MessageContent content={message.content} />
-        )}
+      <div className={cn('min-w-0', isUser ? 'max-w-[80%]' : 'max-w-[calc(100%-2.5rem)] flex-1')}>
+        <div
+          className={cn(
+            'rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
+            isUser ? 'whitespace-pre-wrap bg-brand text-white' : 'text-fg',
+          )}
+        >
+          {isUser ? message.content : <MessageContent content={message.content} />}
+        </div>
+
+        {fallbackNotice ? (
+          <p className="mt-1 flex items-center gap-1 px-1 text-[10px] text-warning">
+            <AlertTriangle className="h-3 w-3" aria-hidden />
+            {fallbackNotice.from === 'deepseek' ? 'DeepSeek' : 'Preferred model'} was unavailable —
+            answered by Gemini instead.
+          </p>
+        ) : null}
+
+        {message.content && !message.id.startsWith('optimistic-') && !message.id.startsWith('streaming-') ? (
+          <div
+            className={cn(
+              'mt-1 flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100',
+              isUser && 'justify-end',
+            )}
+          >
+            <button
+              type="button"
+              onClick={copy}
+              aria-label="Copy message"
+              title="Copy"
+              className="rounded p-1 text-fg-subtle hover:text-fg"
+            >
+              {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+            </button>
+            {canRegenerate ? (
+              <button
+                type="button"
+                onClick={onRegenerate}
+                aria-label="Regenerate response"
+                title="Regenerate"
+                className="rounded p-1 text-fg-subtle hover:text-fg"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
