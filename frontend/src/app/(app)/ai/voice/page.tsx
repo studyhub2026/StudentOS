@@ -5,10 +5,9 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, Loader2, Mic, MicOff, Square, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { apiClient, apiErrorMessage } from '@/lib/api-client';
-import type { ApiEnvelope } from '@/types/api';
+import { apiErrorMessage } from '@/lib/api-client';
+import { postSse } from '@/lib/sse';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n/provider';
 
@@ -51,9 +50,27 @@ interface Turn {
   text: string;
 }
 
-interface ChatMessageResult {
-  conversationId: string;
-  message: { id: string; role: 'USER' | 'ASSISTANT'; content: string };
+/**
+ * Splits an accumulating stream into speakable sentence chunks. Returns the
+ * complete sentences ready to speak now, plus the remaining tail buffer that
+ * hasn't reached a boundary yet. Boundaries: . ! ? ؟ ۔ and Arabic full stop.
+ * Kept tiny + regex-free so it runs cheaply on every token.
+ */
+function extractSentences(buffer: string): { spoken: string[]; rest: string } {
+  const spoken: string[] = [];
+  let start = 0;
+  for (let i = 0; i < buffer.length; i++) {
+    const ch = buffer[i];
+    if (ch === '.' || ch === '!' || ch === '?' || ch === '؟' || ch === '۔' || ch === '\n') {
+      // Require at least ~12 chars in the sentence so "Dr." / "e.g." don't
+      // chop mid-word. Small enough to still feel live.
+      if (i - start >= 12) {
+        spoken.push(buffer.slice(start, i + 1).trim());
+        start = i + 1;
+      }
+    }
+  }
+  return { spoken, rest: buffer.slice(start) };
 }
 
 export default function AiVoicePage() {
@@ -135,20 +152,86 @@ export default function AiVoicePage() {
     [availableVoices, muted, voiceName],
   );
 
-  const sendToGemini = useCallback(
+  // Cancels the current stream — user can barge in mid-reply.
+  const streamAbortRef = useRef<AbortController | null>(null);
+
+  /**
+   * Streams the reply through the same SSE endpoint the /ai page uses, so it
+   * benefits from every existing improvement (provider abstraction, runtime
+   * fallback, AI context injection, memory, files). Speaks sentence-by-
+   * sentence as they arrive — feels like a real conversation instead of
+   * a monologue after a long pause.
+   *
+   * Honours the same `omnel:ai-provider` localStorage key set by the /ai
+   * page's Model dropdown, so switching the model there also switches it
+   * here.
+   */
+  const sendToAi = useCallback(
     async (content: string) => {
       setThinking(true);
-      try {
-        const { data } = await apiClient.post<ApiEnvelope<ChatMessageResult>>('/ai/chat', {
-          content,
-          feature: 'CHAT',
-          ...(conversationId.current ? { conversationId: conversationId.current } : {}),
+      // Cancel any prior in-flight stream (defensive; barge-in also cancels).
+      streamAbortRef.current?.abort();
+      const controller = new AbortController();
+      streamAbortRef.current = controller;
+
+      // Read the persisted provider from the chat page — falls back to Auto.
+      const savedProvider =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('omnel:ai-provider')
+          : null;
+      const provider =
+        savedProvider === 'gemini' || savedProvider === 'deepseek' ? savedProvider : undefined;
+
+      let accumulated = '';
+      let pendingTail = '';
+      // Placeholder assistant turn so the transcript shows something growing.
+      setTurns((prev) => [...prev, { role: 'assistant', text: '' }]);
+
+      const patchLast = (text: string) => {
+        setTurns((prev) => {
+          if (prev.length === 0) return prev;
+          const last = prev[prev.length - 1];
+          if (!last || last.role !== 'assistant') return prev;
+          return [...prev.slice(0, -1), { ...last, text }];
         });
-        conversationId.current = data.data.conversationId;
-        const reply = data.data.message.content;
-        setTurns((prev) => [...prev, { role: 'assistant', text: reply }]);
-        speak(reply);
+      };
+
+      try {
+        const generator = postSse(
+          '/api/v1/ai/chat/stream',
+          {
+            feature: 'CHAT',
+            content,
+            ...(conversationId.current ? { conversationId: conversationId.current } : {}),
+            ...(provider ? { provider } : {}),
+          },
+          controller.signal,
+        );
+
+        for await (const frame of generator) {
+          if (frame.event === 'meta') {
+            const meta = JSON.parse(frame.data) as { conversationId: string };
+            conversationId.current = meta.conversationId;
+          } else if (frame.event === 'delta') {
+            const delta = JSON.parse(frame.data) as string;
+            accumulated += delta;
+            pendingTail += delta;
+            patchLast(accumulated);
+            // Flush any complete sentences into the TTS queue.
+            const { spoken, rest } = extractSentences(pendingTail);
+            pendingTail = rest;
+            for (const sentence of spoken) speak(sentence);
+          } else if (frame.event === 'error') {
+            const err = JSON.parse(frame.data) as { message: string };
+            throw new Error(err.message);
+          }
+        }
+        // Speak whatever tail is left (short trailing fragment or reply
+        // without a terminating punctuation).
+        const tail = pendingTail.trim();
+        if (tail.length > 0) speak(tail);
       } catch (error) {
+        if ((error as Error).name === 'AbortError') return;
         toast.error(apiErrorMessage(error));
       } finally {
         setThinking(false);
@@ -197,10 +280,15 @@ export default function AiVoicePage() {
 
   const start = useCallback(() => {
     if (!supported || listening) return;
-    // If Gemini is mid-reply, interrupt cleanly so the user can barge in.
+    // If the AI is mid-reply, interrupt cleanly so the user can barge in:
+    // cancel the queued TTS AND abort the in-flight stream so tokens stop
+    // arriving. Otherwise the user's new question would collide with the
+    // tail of the previous answer.
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
     const ctor =
       (window as unknown as { SpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition ??
       (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionCtor })
@@ -235,7 +323,7 @@ export default function AiVoicePage() {
       if (text) {
         setTurns((prev) => [...prev, { role: 'user', text }]);
         setTranscript('');
-        void sendToGemini(text);
+        void sendToAi(text);
       }
     };
     recognitionRef.current = rec;
@@ -246,7 +334,7 @@ export default function AiVoicePage() {
     } catch {
       setListening(false);
     }
-  }, [listening, sendToGemini, startLevelMeter, stopLevelMeter, supported]);
+  }, [listening, sendToAi, startLevelMeter, stopLevelMeter, supported]);
 
   const stop = useCallback(() => {
     recognitionRef.current?.stop();
