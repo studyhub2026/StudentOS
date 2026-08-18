@@ -301,9 +301,14 @@ export async function* streamText(
       },
     });
   } catch (error) {
-    logger.error({ err: error, model }, 'gemini stream failed to start');
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error({ err: error, model, message: msg }, 'gemini stream failed to start');
+    const status = extractStatus(error);
+    if (status === 401 || status === 403) {
+      throw new AppError('The configured Gemini API key was rejected.', 502, 'AI_AUTH_FAILED');
+    }
     throw new AppError(
-      'The AI service is temporarily unavailable. Please try again.',
+      `The AI service is temporarily unavailable. Please try again. (${msg.slice(0, 80)})`,
       503,
       'AI_UNAVAILABLE',
     );
