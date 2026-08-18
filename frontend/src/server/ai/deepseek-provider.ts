@@ -227,7 +227,15 @@ export const deepseekProvider: AiProvider = {
     try {
       parsedRaw = JSON.parse(r.text);
     } catch {
-      throw new AppError('DeepSeek returned malformed JSON.', 502, 'AI_INVALID_RESPONSE');
+      const stripped = r.text
+        .replace(/^```(?:json)?\s*\n?/i, '')
+        .replace(/\n?```\s*$/i, '')
+        .trim();
+      try {
+        parsedRaw = JSON.parse(stripped);
+      } catch {
+        throw new AppError('DeepSeek returned malformed JSON.', 502, 'AI_INVALID_RESPONSE');
+      }
     }
     const data = request.parse(parsedRaw); // Zod validates downstream
     return { provider: 'deepseek', ...r, data, raw: r.text };

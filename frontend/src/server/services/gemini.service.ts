@@ -263,12 +263,20 @@ export async function generateJson<T>(
   try {
     parsed = JSON.parse(result.text);
   } catch {
-    logger.error({ raw: result.text.slice(0, 500) }, 'gemini returned malformed JSON');
-    throw new AppError(
-      'The AI returned a malformed response. Please try again.',
-      502,
-      'AI_INVALID_JSON',
-    );
+    const stripped = result.text
+      .replace(/^```(?:json)?\s*\n?/i, '')
+      .replace(/\n?```\s*$/i, '')
+      .trim();
+    try {
+      parsed = JSON.parse(stripped);
+    } catch {
+      logger.error({ raw: result.text.slice(0, 500) }, 'gemini returned malformed JSON');
+      throw new AppError(
+        'The AI returned a malformed response. Please try again.',
+        502,
+        'AI_INVALID_JSON',
+      );
+    }
   }
 
   const { text, ...metadata } = result;
