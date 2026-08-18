@@ -188,7 +188,7 @@ export async function editMessage(
   conversationId: string,
   messageId: string,
   newContent: string,
-): Promise<Prisma.AiMessageGetPayload<{}>> {
+): Promise<AiMessage> {
   const conversation = await prisma.aiConversation.findFirst({
     where: { id: conversationId, userId, deletedAt: null },
     include: { messages: { orderBy: { createdAt: 'asc' } } },
@@ -215,7 +215,7 @@ export async function editMessage(
       : []),
   ]);
 
-  return updated[0]!;
+  return updated[0]! as unknown as AiMessage;
 }
 
 /** Derives a thread title from the opening question. */
