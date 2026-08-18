@@ -286,29 +286,46 @@ export async function* streamText(
   const model = resolveModel(request.tier);
   const startedAt = Date.now();
 
-  let stream: AsyncGenerator<GenerateContentResponse>;
-  try {
-    stream = await ai.models.generateContentStream({
-      model,
-      contents: toContents(request.messages, request.attachments),
-      config: {
-        ...(request.systemInstruction
-          ? { systemInstruction: request.systemInstruction }
-          : {}),
-        temperature: request.temperature ?? 0.7,
-        maxOutputTokens: request.maxOutputTokens ?? 4096,
-        ...(request.signal ? { abortSignal: request.signal } : {}),
-      },
-    });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    logger.error({ err: error, model, message: msg }, 'gemini stream failed to start');
-    const status = extractStatus(error);
+  let stream!: AsyncGenerator<GenerateContentResponse>;
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      stream = await ai.models.generateContentStream({
+        model,
+        contents: toContents(request.messages, request.attachments),
+        config: {
+          ...(request.systemInstruction
+            ? { systemInstruction: request.systemInstruction }
+            : {}),
+          temperature: request.temperature ?? 0.7,
+          maxOutputTokens: request.maxOutputTokens ?? 4096,
+          ...(request.signal ? { abortSignal: request.signal } : {}),
+        },
+      });
+      lastError = null;
+      break;
+    } catch (error) {
+      lastError = error;
+      if (!isRetryable(error) || attempt === MAX_ATTEMPTS - 1) break;
+      const delay = BASE_BACKOFF_MS * 2 ** attempt + Math.random() * 200;
+      logger.warn(
+        { attempt, model, delayMs: Math.round(delay), err: error },
+        'gemini stream request failed, retrying',
+      );
+      await sleep(delay);
+    }
+  }
+
+  if (lastError) {
+    const msg = lastError instanceof Error ? lastError.message : String(lastError);
+    logger.error({ err: lastError, model, message: msg }, 'gemini stream failed after retries');
+    const status = extractStatus(lastError);
     if (status === 401 || status === 403) {
       throw new AppError('The configured Gemini API key was rejected.', 502, 'AI_AUTH_FAILED');
     }
     throw new AppError(
-      `The AI service is temporarily unavailable. Please try again. (${msg.slice(0, 80)})`,
+      'The AI service is temporarily unavailable. Please try again.',
       503,
       'AI_UNAVAILABLE',
     );
