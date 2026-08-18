@@ -27,12 +27,17 @@ export const POST = route(async (req: NextRequest) => {
     if (!m) throw new NotFoundError('Message');
     if (m.channel.groupId) await groupService.requireMembership(user.id, m.channel.groupId);
   }
+  if (input.subjectId) {
+    const s = await prisma.subject.findFirst({ where: { id: input.subjectId, userId: user.id }, select: { id: true } });
+    if (!s) throw new NotFoundError('Subject');
+  }
 
   const asset = await prisma.fileAsset.create({
     data: {
       userId: user.id, filename: input.filename, mimeType: input.mimeType, sizeBytes: input.sizeBytes,
       url: input.url, publicId: input.publicId, width: input.width ?? null, height: input.height ?? null,
       assignmentId: input.assignmentId ?? null, noteId: input.noteId ?? null, messageId: input.messageId ?? null,
+      subjectId: input.subjectId ?? null,
     },
   });
   return created(asset);

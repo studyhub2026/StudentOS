@@ -9,10 +9,11 @@ export const GET = route(async (req: NextRequest) => {
   const user = await requireAuth(req);
   const assignmentId = req.nextUrl.searchParams.get('assignmentId') ?? undefined;
   const noteId = req.nextUrl.searchParams.get('noteId') ?? undefined;
-  if (!assignmentId && !noteId) throw new BadRequestError('Specify assignmentId or noteId');
+  const subjectId = req.nextUrl.searchParams.get('subjectId') ?? undefined;
+  if (!assignmentId && !noteId && !subjectId) throw new BadRequestError('Specify assignmentId, noteId, or subjectId');
 
   const assets = await prisma.fileAsset.findMany({
-    where: { userId: user.id, ...(assignmentId ? { assignmentId } : {}), ...(noteId ? { noteId } : {}) },
+    where: { userId: user.id, ...(assignmentId ? { assignmentId } : {}), ...(noteId ? { noteId } : {}), ...(subjectId ? { subjectId } : {}) },
     orderBy: { createdAt: 'desc' },
   });
   return ok(assets);

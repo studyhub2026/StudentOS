@@ -14,7 +14,7 @@ import { AppError, BadRequestError } from '@/server/lib/errors';
  * every signed parameter is covered by the signature.
  */
 
-export type UploadFolder = 'avatars' | 'assignments' | 'notes' | 'messages' | 'ai';
+export type UploadFolder = 'avatars' | 'assignments' | 'notes' | 'messages' | 'ai' | 'courses';
 
 export interface SignedUpload {
   signature: string;
@@ -61,6 +61,17 @@ const POLICIES: Record<
       'pdf', 'png', 'jpg', 'jpeg', 'webp',
       'txt', 'md', 'csv', 'docx', 'xlsx', 'pptx',
       'mp3', 'm4a', 'wav', 'ogg', 'weba',
+      'mp4', 'webm', 'mov',
+    ],
+    resourceType: 'auto',
+  },
+  courses: {
+    maxBytes: 50 * 1024 * 1024,
+    formats: [
+      'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'csv',
+      'txt', 'md', 'zip', 'rar',
+      'jpg', 'jpeg', 'png', 'webp', 'gif',
+      'mp3', 'm4a', 'wav',
       'mp4', 'webm', 'mov',
     ],
     resourceType: 'auto',

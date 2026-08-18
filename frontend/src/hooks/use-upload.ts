@@ -94,6 +94,7 @@ export interface UploadTarget {
   assignmentId?: string;
   noteId?: string;
   messageId?: string;
+  subjectId?: string;
 }
 
 export function useFileUpload(folder: UploadFolder, target: UploadTarget = {}) {
@@ -150,6 +151,7 @@ export function useFileUpload(folder: UploadFolder, target: UploadTarget = {}) {
       setProgress(null);
       void queryClient.invalidateQueries({ queryKey: ['assignments'] });
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
+      void queryClient.invalidateQueries({ queryKey: ['course-files'] });
       toast.success('File uploaded');
     },
 
@@ -226,6 +228,7 @@ export function useDeleteFile() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['assignments'] });
       void queryClient.invalidateQueries({ queryKey: ['notes'] });
+      void queryClient.invalidateQueries({ queryKey: ['course-files'] });
       toast.success('File removed');
     },
     onError: (error) => toast.error(apiErrorMessage(error)),

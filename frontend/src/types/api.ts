@@ -757,7 +757,7 @@ export interface PublicGroup {
 
 // --- Uploads ----------------------------------------------------------------
 
-export type UploadFolder = 'avatars' | 'assignments' | 'notes' | 'messages';
+export type UploadFolder = 'avatars' | 'assignments' | 'notes' | 'messages' | 'courses';
 
 export interface SignedUpload {
   signature: string;

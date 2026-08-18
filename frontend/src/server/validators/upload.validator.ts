@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 const cuid = z.string().min(1);
 
-const FOLDERS = ['avatars', 'assignments', 'notes', 'messages', 'ai'] as const;
+const FOLDERS = ['avatars', 'assignments', 'notes', 'messages', 'ai', 'courses'] as const;
 
 export const signUploadSchema = z.object({
   folder: z.enum(FOLDERS),
@@ -24,12 +24,11 @@ export const registerUploadSchema = z
     assignmentId: cuid.optional(),
     noteId: cuid.optional(),
     messageId: cuid.optional(),
+    subjectId: cuid.optional(),
   })
   .refine(
     (value) =>
-      // An attachment may belong to at most one parent; more than one would
-      // make ownership and cascade behaviour ambiguous.
-      [value.assignmentId, value.noteId, value.messageId].filter(Boolean).length <= 1,
+      [value.assignmentId, value.noteId, value.messageId, value.subjectId].filter(Boolean).length <= 1,
     'An upload can be attached to only one item',
   );
 

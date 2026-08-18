@@ -431,6 +431,7 @@ model Subject {
   questionBanks  QuestionBank[]
   examAttempts   ExamAttempt[]
   mindMaps       MindMap[]
+  files          FileAsset[]
 
   @@unique([userId, name])
   @@index([userId, archived])
@@ -1102,6 +1103,8 @@ model FileAsset {
   note         Note?       @relation(fields: [noteId], references: [id], onDelete: Cascade)
   messageId    String?
   message      Message?    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  subjectId    String?
+  subject      Subject?    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   filename  String
   mimeType  String
@@ -1117,6 +1120,7 @@ model FileAsset {
   @@index([userId])
   @@index([assignmentId])
   @@index([noteId])
+  @@index([subjectId])
   @@map("file_assets")
 }
 

@@ -1,13 +1,17 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, ChevronRight, MapPin, Plus, X, Loader2 } from 'lucide-react';
+import {
+  BookOpen, ChevronDown, ChevronRight, FileText, Image as ImageIcon,
+  Loader2, MapPin, Paperclip, Plus, Trash2, Upload, X,
+} from 'lucide-react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, apiErrorMessage } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
+import { useFileUpload, useDeleteFile, useDropzone } from '@/hooks/use-upload';
+import type { Attachment } from '@/types/api';
 
 interface SubjectSummary {
   id: string;
@@ -33,6 +37,18 @@ function useSubjects() {
   });
 }
 
+function useCourseFiles(subjectId: string | null) {
+  return useQuery<Attachment[]>({
+    queryKey: ['course-files', subjectId],
+    queryFn: async () => {
+      const { data } = await apiClient.get(`/uploads?subjectId=${subjectId}`);
+      return data.data;
+    },
+    enabled: Boolean(subjectId),
+    staleTime: 60_000,
+  });
+}
+
 const PRESET_COLORS = [
   '#8b5cf6', '#6366f1', '#3b82f6', '#06b6d4',
   '#10b981', '#eab308', '#f97316', '#ef4444',
@@ -48,6 +64,165 @@ const item = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0 },
 };
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/* ── Delete Confirm Dialog ─────────────────────────────── */
+
+function DeleteConfirmDialog({
+  open,
+  name,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  open: boolean;
+  name: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
+      <div className="relative w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[var(--bg-surface,#1a1a2e)] p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Delete Course</h2>
+            <p className="mt-2 text-sm text-[var(--text-muted)]">
+              Are you sure you want to delete <strong className="text-[var(--text-primary)]">{name}</strong>?
+              This will remove all associated assignments, notes, flashcards, and files.
+            </p>
+            <div className="flex justify-end gap-2 mt-5">
+              <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={onConfirm}
+                disabled={isPending}
+                className="gap-1.5 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isPending && <Loader2 size={14} className="animate-spin" />}
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+  );
+}
+
+/* ── Course Files Panel ────────────────────────────────── */
+
+function CourseFilesPanel({ subjectId }: { subjectId: string }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { data: files, isLoading } = useCourseFiles(subjectId);
+  const upload = useFileUpload('courses', { subjectId });
+  const remove = useDeleteFile();
+
+  const { dragging, onDragOver, onDragLeave, onDrop } = useDropzone((file) =>
+    upload.mutate(file),
+  );
+
+  return (
+    <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+      {/* Drop zone */}
+      <div
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        className={`rounded-lg border-2 border-dashed p-4 text-center transition-colors ${
+          dragging ? 'border-[var(--brand)] bg-[var(--brand)]/10' : 'border-white/[0.08]'
+        }`}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) upload.mutate(file);
+            e.target.value = '';
+          }}
+        />
+
+        {upload.progress ? (
+          <div>
+            <p className="text-xs text-[var(--text-muted)]">Uploading... {upload.progress.percent}%</p>
+            <div className="mx-auto mt-1.5 h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-white/[0.06]">
+              <div
+                className="h-full rounded-full bg-[var(--brand)] transition-all"
+                style={{ width: `${upload.progress.percent}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="flex items-center gap-2 mx-auto text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            <Upload size={14} />
+            Drop files here or click to upload
+          </button>
+        )}
+      </div>
+
+      {/* File list */}
+      {isLoading ? (
+        <div className="flex justify-center py-2">
+          <Loader2 size={16} className="animate-spin text-[var(--text-muted)]" />
+        </div>
+      ) : files && files.length > 0 ? (
+        <ul className="space-y-1">
+          {files.map((file) => {
+            const isImage = file.mimeType.startsWith('image/');
+            return (
+              <li
+                key={file.id}
+                className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.04] transition-colors"
+              >
+                {isImage ? (
+                  <ImageIcon size={14} className="shrink-0 text-[var(--brand)]" />
+                ) : (
+                  <FileText size={14} className="shrink-0 text-[var(--text-muted)]" />
+                )}
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 flex-1 truncate text-xs text-[var(--text-primary)] hover:underline"
+                >
+                  {file.filename}
+                </a>
+                <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
+                  {formatBytes(file.sizeBytes)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => remove.mutate(file.id)}
+                  className="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-[var(--text-muted)] hover:text-red-400 transition-all"
+                  title="Remove file"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="text-center text-[10px] text-[var(--text-muted)] py-1">No files yet</p>
+      )}
+    </div>
+  );
+}
+
+/* ── Add Course Dialog ─────────────────────────────────── */
 
 function AddCourseDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
@@ -248,10 +423,117 @@ function AddCourseDialog({ open, onClose }: { open: boolean; onClose: () => void
   );
 }
 
+/* ── Course Card ───────────────────────────────────────── */
+
+function CourseCard({
+  s,
+  onDelete,
+}: {
+  s: SubjectSummary;
+  onDelete: (id: string, name: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <motion.div variants={item} className="rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+      <div className="p-5">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="h-10 w-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+              style={{ backgroundColor: s.color + '22', color: s.color }}
+            >
+              {s.icon ?? s.name.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{s.name}</p>
+              {s.code && (
+                <p className="text-xs text-[var(--text-muted)]">{s.code}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="p-1.5 rounded-lg hover:bg-white/[0.08] transition-colors"
+              title="Files"
+            >
+              <Paperclip size={14} className="text-[var(--text-muted)]" />
+            </button>
+            <button
+              onClick={() => onDelete(s.id, s.name)}
+              className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors"
+              title="Delete course"
+            >
+              <Trash2 size={14} className="text-[var(--text-muted)] hover:text-red-400" />
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-3 text-xs text-[var(--text-muted)]">
+          {(s._count?.assignments ?? 0) > 0 && <span>{s._count.assignments} assignments</span>}
+          {s.openCount != null && s.openCount > 0 && <span>{s.openCount} open</span>}
+          {s.credits != null && <span>{s.credits} credits</span>}
+        </div>
+
+        {(s.teacherName || s.room) && (
+          <div className="mt-3 flex items-center gap-3 text-xs text-[var(--text-muted)]">
+            {s.teacherName && <span>{s.teacherName}</span>}
+            {s.room && (
+              <span className="flex items-center gap-1">
+                <MapPin size={10} /> {s.room}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Expandable files panel */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden border-t border-white/[0.06]"
+          >
+            <div className="px-5 pb-4 pt-2">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Paperclip size={12} className="text-[var(--text-muted)]" />
+                <span className="text-xs font-medium text-[var(--text-muted)]">Course Files</span>
+              </div>
+              <CourseFilesPanel subjectId={s.id} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+/* ── Main Page ─────────────────────────────────────────── */
+
 export default function CoursesPage() {
-  const router = useRouter();
+  const qc = useQueryClient();
   const { data: subjects, isLoading } = useSubjects();
   const [showAdd, setShowAdd] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/subjects/${id}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['subjects-full'] });
+      qc.invalidateQueries({ queryKey: ['subjects'] });
+      toast.success(`"${deleteTarget?.name}" deleted`);
+      setDeleteTarget(null);
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error));
+      setDeleteTarget(null);
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -293,55 +575,24 @@ export default function CoursesPage() {
           animate="show"
         >
           {subjects.map((s) => (
-            <motion.button
+            <CourseCard
               key={s.id}
-              variants={item}
-              onClick={() => router.push(`/courses/${s.id}`)}
-              className="text-left p-5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors group"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-10 w-10 rounded-xl flex items-center justify-center text-lg shrink-0"
-                    style={{ backgroundColor: s.color + '22', color: s.color }}
-                  >
-                    {s.icon ?? s.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">{s.name}</p>
-                    {s.code && (
-                      <p className="text-xs text-[var(--text-muted)]">{s.code}</p>
-                    )}
-                  </div>
-                </div>
-                <ChevronRight
-                  size={16}
-                  className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity mt-1"
-                />
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-3 text-xs text-[var(--text-muted)]">
-                {(s._count?.assignments ?? 0) > 0 && <span>{s._count.assignments} assignments</span>}
-                {s.openCount != null && s.openCount > 0 && <span>{s.openCount} open</span>}
-                {s.credits != null && <span>{s.credits} credits</span>}
-              </div>
-
-              {(s.teacherName || s.room) && (
-                <div className="mt-3 flex items-center gap-3 text-xs text-[var(--text-muted)]">
-                  {s.teacherName && <span>{s.teacherName}</span>}
-                  {s.room && (
-                    <span className="flex items-center gap-1">
-                      <MapPin size={10} /> {s.room}
-                    </span>
-                  )}
-                </div>
-              )}
-            </motion.button>
+              s={s}
+              onDelete={(id, name) => setDeleteTarget({ id, name })}
+            />
           ))}
         </motion.div>
       )}
 
       <AddCourseDialog open={showAdd} onClose={() => setShowAdd(false)} />
+
+      <DeleteConfirmDialog
+        open={Boolean(deleteTarget)}
+        name={deleteTarget?.name ?? ''}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        onCancel={() => setDeleteTarget(null)}
+        isPending={deleteMutation.isPending}
+      />
     </div>
   );
 }
