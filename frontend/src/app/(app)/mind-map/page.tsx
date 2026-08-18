@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -32,11 +31,13 @@ import {
 import { cn } from '@/lib/utils';
 import type { ApiEnvelope } from '@/types/api';
 
+type GenerateSource = 'topic' | 'notes' | 'subject' | 'document' | 'lms_course';
+
 export default function MindMapListPage() {
   const t = useT();
   const router = useRouter();
   const [search, setSearch] = useState('');
-  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [showAiPrompt, setShowAiPrompt] = useState<false | GenerateSource>(false);
   const [aiBusy, setAiBusy] = useState(false);
 
   const { data: maps, isLoading } = useMindMaps({ search: search || undefined });
@@ -82,7 +83,7 @@ export default function MindMapListPage() {
           <p className="mt-1 text-sm text-fg-muted">{t('mindMap.subtitle')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setShowAiPrompt(true)}>
+          <Button variant="outline" onClick={() => setShowAiPrompt('topic')}>
             <Sparkles className="h-4 w-4" /> {t('mindMap.aiGenerate')}
           </Button>
           <Button onClick={handleNew} disabled={create.isPending}>
@@ -104,7 +105,7 @@ export default function MindMapListPage() {
       </div>
 
       {showAiPrompt ? (
-        <AiPromptCard busy={aiBusy} onSubmit={handleAiGenerate} onCancel={() => setShowAiPrompt(false)} />
+        <AiPromptCard busy={aiBusy} onSubmit={handleAiGenerate} onCancel={() => setShowAiPrompt(false)} initialSource={showAiPrompt} />
       ) : null}
 
       {isLoading ? (
@@ -114,7 +115,7 @@ export default function MindMapListPage() {
           ))}
         </div>
       ) : !hasMaps ? (
-        <EmptyState onCreate={handleNew} onAi={() => setShowAiPrompt(true)} />
+        <EmptyState onCreate={handleNew} onAi={() => setShowAiPrompt('topic')} onFromCourse={() => setShowAiPrompt('subject')} />
       ) : (
         <motion.div
           className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
@@ -236,7 +237,7 @@ function MapCard({
   );
 }
 
-function EmptyState({ onCreate, onAi }: { onCreate: () => void; onAi: () => void }) {
+function EmptyState({ onCreate, onAi, onFromCourse }: { onCreate: () => void; onAi: () => void; onFromCourse: () => void }) {
   const t = useT();
   return (
     <Card className="p-8 text-center">
@@ -252,15 +253,11 @@ function EmptyState({ onCreate, onAi }: { onCreate: () => void; onAi: () => void
         <Button variant="outline" onClick={onAi}>
           <Sparkles className="h-4 w-4" /> {t('mindMap.generateWithAi')}
         </Button>
-        <Link href="/courses">
-          <Button variant="ghost">{t('mindMap.startFromCourse')}</Button>
-        </Link>
+        <Button variant="ghost" onClick={onFromCourse}>{t('mindMap.startFromCourse')}</Button>
       </div>
     </Card>
   );
 }
-
-type GenerateSource = 'topic' | 'notes' | 'subject' | 'document' | 'lms_course';
 
 interface GenerateBody {
   prompt: string;
@@ -283,15 +280,17 @@ function AiPromptCard({
   onSubmit,
   onCancel,
   busy,
+  initialSource = 'topic',
 }: {
   onSubmit: (payload: GenerateBody) => void;
   onCancel: () => void;
   busy: boolean;
+  initialSource?: GenerateSource;
 }) {
   const t = useT();
   const [prompt, setPrompt] = useState('');
   const [depth, setDepth] = useState<'shallow' | 'normal' | 'deep'>('normal');
-  const [source, setSource] = useState<GenerateSource>('topic');
+  const [source, setSource] = useState<GenerateSource>(initialSource);
   const [pickedIds, setPickedIds] = useState<string[]>([]);
 
   const [libraryQuery, setLibraryQuery] = useState('');
