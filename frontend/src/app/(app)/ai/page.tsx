@@ -112,18 +112,8 @@ export default function AiChatPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [tier, setTier] = useState<AiTier>('flash');
-  // Persist across reloads — students usually want the same provider next
-  // time. Falls back to '' = server default (env AI_CHAT_PROVIDER).
-  const [provider, setProvider] = useState<'' | 'gemini' | 'deepseek'>(() => {
-    if (typeof window === 'undefined') return '';
-    const saved = window.localStorage.getItem('omnel:ai-provider');
-    return saved === 'gemini' || saved === 'deepseek' ? saved : '';
-  });
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (provider) window.localStorage.setItem('omnel:ai-provider', provider);
-    else window.localStorage.removeItem('omnel:ai-provider');
-  }, [provider]);
+  // Gemini only (DeepSeek disabled)
+  const provider = 'gemini';
 
   const { data: conversation } = useConversation(selectedId);
   const send = useSendChatStream();
@@ -287,7 +277,6 @@ export default function AiChatPage() {
       ...(selectedId ? { conversationId: selectedId } : {}),
       ...(fileIds.length > 0 ? { fileIds } : {}),
       tier,
-      ...(provider ? { provider } : {}),
       ...(refs.length > 0 ? { contextRefs: refs } : {}),
     });
     // A brand-new thread: adopt the id the server just created (arrives in
@@ -304,7 +293,6 @@ export default function AiChatPage() {
       content: '',
       regenerateMessageId: messageId,
       tier,
-      ...(provider ? { provider } : {}),
     });
     if (result?.meta) setLastTurnMeta({ conversationId: result.conversationId, meta: result.meta });
   }
@@ -417,24 +405,6 @@ export default function AiChatPage() {
               </button>
             ))}
             </div>
-            {/* Provider picker — 'Auto' respects AI_CHAT_PROVIDER on the
-                server; the two explicit options let the student force a
-                specific brain. If the chosen provider isn't configured on
-                this deployment the server falls back to Gemini and the UI
-                stays working (a small chip on the assistant bubble notes
-                the fallback). */}
-            <label className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs">
-              <span className="text-fg-subtle">Model:</span>
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as '' | 'gemini' | 'deepseek')}
-                className="cursor-pointer bg-transparent text-fg-muted outline-none hover:text-fg"
-              >
-                <option value="">Auto</option>
-                <option value="gemini">Gemini</option>
-                <option value="deepseek">DeepSeek</option>
-              </select>
-            </label>
           </div>
         </header>
 

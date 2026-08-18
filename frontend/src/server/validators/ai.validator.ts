@@ -38,8 +38,6 @@ export const sendMessageSchema = z
     tier: z.enum(['flash', 'pro']).optional(),
     /** Files already uploaded to the conversation to reference in this turn. */
     fileIds: z.array(cuid).max(20).optional(),
-    /** Client-picked provider (Gemini | DeepSeek). Blank => env-configured default. */
-    provider: z.enum(['gemini', 'deepseek']).optional(),
     /** Explicit academic context the user attached via the context selector. */
     contextRefs: z
       .array(

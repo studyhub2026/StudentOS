@@ -395,8 +395,6 @@ export async function* streamMessage(
     tier?: 'flash' | 'pro';
     fileIds?: string[];
     signal?: AbortSignal;
-    /** Client-picked provider. Blank = env default. */
-    preferredProvider?: 'gemini' | 'deepseek';
     /** Explicit context attached via the composer's context selector. */
     contextRefs?: { type: 'note' | 'subject' | 'document'; id: string }[];
     /**
@@ -482,16 +480,15 @@ export async function* streamMessage(
     settings?.aiTone ?? 'encouraging',
   );
 
-  // Route through the resolver — client's preferredProvider wins if set and
-  // configured, otherwise env's AI_CHAT_PROVIDER, otherwise Gemini fallback.
+  // Always use Gemini (DeepSeek disabled)
   const primary = resolveProvider({
     task: 'chat',
-    ...(input.preferredProvider ? { preferredProvider: input.preferredProvider } : {}),
+    preferredProvider: 'gemini',
   });
 
   // Build the system instruction per provider so each model gets its
-  // formatting/reasoning tuning. The fallback path rebuilds this for Gemini.
-  const buildInstruction = (providerId: 'gemini' | 'deepseek') =>
+  // formatting/reasoning tuning.
+  const buildInstruction = (providerId: 'gemini') =>
     [
       withProvider(baseInstruction, providerId),
       memoryContext,
@@ -502,7 +499,7 @@ export async function* streamMessage(
       .filter(Boolean)
       .join('\n\n');
 
-  const buildStreamOptions = (providerId: 'gemini' | 'deepseek') => ({
+  const buildStreamOptions = (providerId: 'gemini') => ({
     messages: toProviderMessages(transcript),
     systemInstruction: buildInstruction(providerId),
     ...(input.tier ? { tier: input.tier } : {}),
@@ -517,7 +514,7 @@ export async function* streamMessage(
     ...(input.signal ? { signal: input.signal } : {}),
   });
 
-  const streamOptions = buildStreamOptions(primary.id);
+  const streamOptions = buildStreamOptions(primary.id as 'gemini');
 
   // Runtime fallback: if the primary provider throws BEFORE emitting any
   // tokens (network error, auth, empty response, etc.) and it's not Gemini,

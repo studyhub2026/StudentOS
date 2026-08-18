@@ -159,8 +159,6 @@ export function useSendChat() {
  * Aborting: `stop()` cancels the in-flight fetch; the server-side generator
  * observes `req.signal.aborted` and persists whatever accumulated so far.
  */
-export type AiProviderChoice = 'gemini' | 'deepseek';
-
 export interface StreamDoneMeta {
   provider?: string;
   model?: string;
@@ -172,8 +170,6 @@ export interface StreamChatInput {
   content: string;
   tier?: AiTier;
   fileIds?: string[];
-  /** Which provider to try first. Server falls back to Gemini on failure. */
-  provider?: AiProviderChoice;
   /** Explicit academic context attached via the composer's context selector. */
   contextRefs?: { type: 'note' | 'subject' | 'document'; id: string }[];
   /**
@@ -279,7 +275,6 @@ export function useSendChatStream() {
             ...(input.conversationId ? { conversationId: input.conversationId } : {}),
             ...(input.tier ? { tier: input.tier } : {}),
             ...(input.fileIds && input.fileIds.length > 0 ? { fileIds: input.fileIds } : {}),
-            ...(input.provider ? { provider: input.provider } : {}),
             ...(input.contextRefs && input.contextRefs.length > 0 ? { contextRefs: input.contextRefs } : {}),
             ...(input.regenerateMessageId ? { regenerateMessageId: input.regenerateMessageId } : {}),
           },
