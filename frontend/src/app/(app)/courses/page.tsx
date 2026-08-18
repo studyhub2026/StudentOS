@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, ChevronDown, ChevronRight, FileText, Image as ImageIcon,
@@ -446,10 +447,12 @@ function CourseCard({
               {s.icon ?? s.name.charAt(0)}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{s.name}</p>
-              {s.code && (
-                <p className="text-xs text-[var(--text-muted)]">{s.code}</p>
-              )}
+              <Link href={`/courses/${s.id}`} className="block group/link">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate group-hover/link:text-[var(--brand)] transition-colors">{s.name}</p>
+                {s.code && (
+                  <p className="text-xs text-[var(--text-muted)]">{s.code}</p>
+                )}
+              </Link>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
