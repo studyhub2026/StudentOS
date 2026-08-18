@@ -27,9 +27,7 @@ const schema = z.object({
   COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
 
   GEMINI_API_KEY: z.string().optional().or(z.literal('')),
-  // "latest" aliases track the current stable model and avoid the new-user
-  // restriction that now 404s pinned older versions like gemini-2.5-flash.
-  GEMINI_DEFAULT_MODEL: z.string().default('gemini-flash-latest'),
+  GEMINI_DEFAULT_MODEL: z.string().default('gemini-3.6-flash'),
   GEMINI_PRO_MODEL: z.string().default('gemini-pro-latest'),
 
   // DeepSeek — OpenAI-compatible chat completions API. Optional; if unset,
