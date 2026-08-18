@@ -83,7 +83,7 @@ export function useCourseWorkspace(courseId: string | undefined) {
   return useQuery<CourseWorkspace>({
     queryKey: ['course-workspace', courseId],
     queryFn: async () => {
-      const { data } = await apiClient.get(`/api/v1/courses/${courseId}`);
+      const { data } = await apiClient.get(`/courses/${courseId}`);
       return data.data;
     },
     enabled: Boolean(courseId),
