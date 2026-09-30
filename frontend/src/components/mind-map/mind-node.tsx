@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { ExternalLink, Sparkles } from 'lucide-react';
+import { ExternalLink, Minus, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { metaFor } from './node-icons';
 import { useMindMapEditor } from '@/stores/mind-map-editor-store';
@@ -22,7 +22,35 @@ function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-m
   const [draft, setDraft] = useState(data.title);
   const updateNode = useMindMapEditor((s) => s.updateNode);
   const pushHistory = useMindMapEditor((s) => s.pushHistory);
+  const toggleCollapse = useMindMapEditor((s) => s.toggleCollapse);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const collapsed = !!(data.metadata as Record<string, unknown> | null)?.collapsed;
+  const hasChildren = useMindMapEditor(useCallback((s) => s.edges.some((e) => e.source === id), [id]));
+  const hiddenCount = useMindMapEditor(
+    useCallback(
+      (s) => {
+        if (!collapsed) return 0;
+        const adj = new Map<string, string[]>();
+        for (const e of s.edges) {
+          if (!adj.has(e.source)) adj.set(e.source, []);
+          adj.get(e.source)!.push(e.target);
+        }
+        let count = 0;
+        const queue = [...(adj.get(id) || [])];
+        const seen = new Set<string>();
+        while (queue.length > 0) {
+          const nid = queue.shift()!;
+          if (seen.has(nid)) continue;
+          seen.add(nid);
+          count++;
+          queue.push(...(adj.get(nid) || []));
+        }
+        return count;
+      },
+      [collapsed, id],
+    ),
+  );
 
   useEffect(() => {
     if (editing) {
@@ -136,6 +164,30 @@ function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-m
           </div>
         ) : null}
       </div>
+
+      {hasChildren && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleCollapse(id);
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+          className={cn(
+            'absolute -bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-colors',
+            collapsed
+              ? 'h-5 min-w-[1.25rem] border-brand/50 bg-[var(--color-surface)] px-1.5 text-brand hover:bg-brand/10'
+              : 'h-5 w-5 border-border bg-[var(--color-surface)] text-fg-subtle opacity-0 group-hover:opacity-100 hover:border-brand hover:text-brand',
+          )}
+          aria-label={collapsed ? `Expand branch (${hiddenCount} hidden)` : 'Collapse branch'}
+        >
+          {collapsed ? (
+            <span className="text-[9px] font-bold leading-none">+{hiddenCount}</span>
+          ) : (
+            <Minus className="h-2.5 w-2.5" />
+          )}
+        </button>
+      )}
     </div>
   );
 }

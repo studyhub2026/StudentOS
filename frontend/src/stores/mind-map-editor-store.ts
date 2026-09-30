@@ -117,6 +117,8 @@ interface MindMapEditorState {
   removeEdges(ids: string[]): void;
 
   setSelectedNode(id: string | null): void;
+  toggleCollapse(nodeId: string): void;
+  expandAncestors(nodeId: string): void;
 
   updateMeta(patch: Partial<MindMapEditorState['meta']>): void;
 
@@ -327,6 +329,49 @@ export const useMindMapEditor = create<MindMapEditorState>((set, get) => ({
 
   setSelectedNode(id) {
     set({ selectedNodeId: id });
+  },
+
+  toggleCollapse(nodeId) {
+    const node = get().nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    get().pushHistory();
+    const meta = (node.data.metadata ?? {}) as Record<string, unknown>;
+    get().updateNode(nodeId, {
+      metadata: { ...meta, collapsed: !meta.collapsed },
+    });
+  },
+
+  expandAncestors(nodeId) {
+    const { nodes: allNodes } = get();
+    const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
+    let current = nodeMap.get(nodeId);
+    const toExpand = new Set<string>();
+    while (current) {
+      const pid = current.data.parentId;
+      if (!pid) break;
+      const parent = nodeMap.get(pid);
+      if (parent) {
+        const pm = parent.data.metadata as Record<string, unknown> | null;
+        if (pm?.collapsed) toExpand.add(pid);
+      }
+      current = parent;
+    }
+    if (toExpand.size === 0) return;
+    get().pushHistory();
+    set((s) => {
+      const changedNodeIds = new Set(s.dirty.changedNodeIds);
+      const updated = s.nodes.map((n) => {
+        if (!toExpand.has(n.id)) return n;
+        changedNodeIds.add(n.id);
+        const m = (n.data.metadata ?? {}) as Record<string, unknown>;
+        return { ...n, data: { ...n.data, metadata: { ...m, collapsed: false } } };
+      });
+      return {
+        nodes: updated,
+        dirty: { ...s.dirty, changedNodeIds },
+        saveStatus: 'unsaved' as const,
+      };
+    });
   },
 
   updateMeta(patch) {

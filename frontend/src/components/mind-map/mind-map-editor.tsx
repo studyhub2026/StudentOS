@@ -123,6 +123,8 @@ function EditorCanvas({ mapId }: { mapId: string }) {
   const pushHistory = useMindMapEditor((s) => s.pushHistory);
   const undo = useMindMapEditor((s) => s.undo);
   const redo = useMindMapEditor((s) => s.redo);
+  const toggleCollapse = useMindMapEditor((s) => s.toggleCollapse);
+  const expandAncestors = useMindMapEditor((s) => s.expandAncestors);
 
   const rf = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -146,6 +148,33 @@ function EditorCanvas({ mapId }: { mapId: string }) {
       rf.fitView({ padding: 0.2 });
     }
   }, [nodesInitialized, nodes.length, rf]);
+
+  // --- Collapse visibility ---------------------------------------------------
+
+  const { visibleNodes, visibleEdges } = useMemo(() => {
+    const childrenMap = new Map<string, string[]>();
+    for (const e of edges) {
+      if (!childrenMap.has(e.source)) childrenMap.set(e.source, []);
+      childrenMap.get(e.source)!.push(e.target);
+    }
+    const hiddenIds = new Set<string>();
+    for (const n of nodes) {
+      const m = n.data.metadata as Record<string, unknown> | null;
+      if (!m?.collapsed) continue;
+      const queue = [...(childrenMap.get(n.id) || [])];
+      while (queue.length > 0) {
+        const nid = queue.shift()!;
+        if (hiddenIds.has(nid)) continue;
+        hiddenIds.add(nid);
+        queue.push(...(childrenMap.get(nid) || []));
+      }
+    }
+    if (hiddenIds.size === 0) return { visibleNodes: nodes, visibleEdges: edges };
+    return {
+      visibleNodes: nodes.filter((n) => !hiddenIds.has(n.id)),
+      visibleEdges: edges.filter((e) => !hiddenIds.has(e.source) && !hiddenIds.has(e.target)),
+    };
+  }, [nodes, edges]);
 
   // --- Node/edge event handlers ---------------------------------------------
 
@@ -224,10 +253,16 @@ function EditorCanvas({ mapId }: { mapId: string }) {
 
   const handleAutoLayout = useCallback(async () => {
     pushHistory();
-    const laidOut = radialLayout(nodes, edges);
-    setNodes(laidOut);
+    const laidOut = radialLayout(visibleNodes, visibleEdges);
+    const posById = new Map(laidOut.map((n) => [n.id, n.position]));
+    setNodes((prev) =>
+      prev.map((n) => {
+        const pos = posById.get(n.id);
+        return pos ? { ...n, position: pos } : n;
+      }),
+    );
     setTimeout(() => rf.fitView({ padding: 0.2 }), 100);
-  }, [nodes, edges, setNodes, rf, pushHistory]);
+  }, [visibleNodes, visibleEdges, setNodes, rf, pushHistory]);
 
   const handleAiExpand = useCallback(async () => {
     const selectedNodes = nodes.filter((n) => n.selected);
@@ -390,10 +425,17 @@ function EditorCanvas({ mapId }: { mapId: string }) {
           setSelectedNode(id);
         }
       }
+      if (e.key === ' ') {
+        const selected = useMindMapEditor.getState().nodes.find((n) => n.selected);
+        if (selected && useMindMapEditor.getState().edges.some((edge) => edge.source === selected.id)) {
+          e.preventDefault();
+          toggleCollapse(selected.id);
+        }
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mapId, undo, redo, pushHistory, removeNodes, addNode, addEdgeStore, setSelectedNode]);
+  }, [mapId, undo, redo, pushHistory, removeNodes, addNode, addEdgeStore, setSelectedNode, toggleCollapse]);
 
   const searchMatches = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -409,7 +451,8 @@ function EditorCanvas({ mapId }: { mapId: string }) {
   }, [nodes, searchTerm]);
 
   function focusMatch(nodeId: string) {
-    const n = nodes.find((x) => x.id === nodeId);
+    expandAncestors(nodeId);
+    const n = useMindMapEditor.getState().nodes.find((x) => x.id === nodeId);
     if (!n) return;
     rf.setCenter(n.position.x + 120, n.position.y + 50, { zoom: 1.25, duration: 400 });
     setSelectedNode(nodeId);
@@ -635,8 +678,8 @@ function EditorCanvas({ mapId }: { mapId: string }) {
         />
         <div className="absolute inset-0 top-14">
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={visibleNodes}
+            edges={visibleEdges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
