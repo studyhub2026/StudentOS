@@ -2,20 +2,27 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { ChevronDown, ChevronRight, ExternalLink, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { metaFor } from './node-icons';
 import { useMindMapEditor } from '@/stores/mind-map-editor-store';
 
 /**
- * React Flow node renderer. Handles inline title edit on double-click and
- * exposes 4-sided connection handles so users can wire nodes in any
- * direction. Selected state uses OmnelOS brand tokens so it matches the
- * rest of the app.
+ * React Flow node renderer — a minimal outline-tree node modelled after
+ * Google NotebookLM / classic mind-mapping tools. Each node is a tinted
+ * rounded card showing only its title; the type, description, tags and
+ * other metadata still live in the data model and surface in the
+ * NodeInspector panel on selection.
+ *
+ * Handles are on the LEFT (target) and RIGHT (source) because the layout
+ * is horizontal — children fan out to the right of their parent.
+ *
+ * The branch collapse control sits on the node's right edge, right where
+ * the connectors to the children emerge, so one click folds the whole
+ * subtree back into the parent.
  */
 function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-map-editor-store').MindNode>) {
   const meta = metaFor(data.type);
-  const Icon = meta.icon;
   const color = data.color ?? meta.color;
 
   const [editing, setEditing] = useState(false);
@@ -76,86 +83,36 @@ function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-m
     }
   }
 
-  const isRefNode = data.refType && data.refId;
+  const isRefNode = Boolean(data.refType && data.refId);
+  const aiGenerated = !!(data.metadata as Record<string, unknown> | null)?.aiGenerated;
+  const isRoot = data.type === 'root';
 
   return (
-    <div
-      onDoubleClick={() => setEditing(true)}
-      className={cn(
-        'group relative min-w-[160px] max-w-[280px] rounded-2xl border bg-[var(--color-surface)] text-[var(--color-fg)] shadow-sm transition-shadow',
-        selected
-          ? 'ring-2 ring-brand shadow-md border-brand/60'
-          : 'border-border hover:shadow-md',
-      )}
-      style={{ borderTopColor: color, borderTopWidth: 3 }}
-    >
-      {/* Connection handles on all four sides so students can wire in any
-          direction without dragging out of a single handle. */}
-      {/* Single unambiguous handle pair — React Flow v12 struggles to route
-          edges when a node exposes multiple handles of the same type without
-          the edge explicitly picking one. Handles are visually centred on
-          the node with `!left-1/2 !top-1/2` and hidden except when hovering
-          via CSS below, so the connection UX still feels 360°. */}
+    <div className="group relative">
       <Handle
         type="target"
-        position={Position.Top}
-        className="!left-1/2 !top-0 !-translate-x-1/2 !bg-brand !w-2 !h-2 !opacity-0 group-hover:!opacity-100"
+        position={Position.Left}
+        className="!left-0 !top-1/2 !-translate-y-1/2 !bg-brand !w-2 !h-2 !opacity-0 group-hover:!opacity-100 !border-0"
       />
       <Handle
         type="source"
-        position={Position.Bottom}
-        className="!left-1/2 !bottom-0 !-translate-x-1/2 !bg-brand !w-2 !h-2 !opacity-0 group-hover:!opacity-100"
+        position={Position.Right}
+        className="!right-0 !top-1/2 !-translate-y-1/2 !bg-brand !w-2 !h-2 !opacity-0 group-hover:!opacity-100 !border-0"
       />
 
-      <div className="flex items-center gap-2 px-3 pt-2">
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
-          style={{ backgroundColor: `${color}22`, color }}
-          aria-hidden
-        >
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-        <span className="text-[10px] font-medium uppercase tracking-widest text-fg-subtle">
-          {meta.label}
-        </span>
-        <div className="ml-auto flex items-center gap-1.5">
-          {isRefNode ? (
-            <ExternalLink className="h-3 w-3 text-fg-subtle" aria-label="Linked" />
-          ) : null}
-          {data.metadata && (data.metadata as Record<string, unknown>).aiGenerated ? (
-            <Sparkles className="h-3 w-3 text-brand-bright" aria-label="AI generated" />
-          ) : null}
-          {hasChildren ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleCollapse(id);
-              }}
-              onDoubleClick={(e) => e.stopPropagation()}
-              className={cn(
-                'flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none transition-colors',
-                collapsed
-                  ? 'bg-brand/15 text-brand hover:bg-brand/25'
-                  : 'text-fg-subtle hover:bg-surface-raised hover:text-fg',
-              )}
-              aria-label={collapsed ? `Expand branch (${hiddenCount} hidden)` : 'Collapse branch'}
-              title={collapsed ? `Expand · ${hiddenCount} hidden` : 'Collapse branch'}
-            >
-              {collapsed ? (
-                <>
-                  <ChevronRight className="h-3 w-3" />
-                  <span>{hiddenCount}</span>
-                </>
-              ) : (
-                <ChevronDown className="h-3 w-3" />
-              )}
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="px-3 pb-3 pt-1">
+      <div
+        onDoubleClick={() => setEditing(true)}
+        className={cn(
+          'relative min-w-[160px] max-w-[260px] rounded-lg border px-3.5 py-2 shadow-sm transition-all',
+          selected
+            ? 'ring-2 ring-brand/50 shadow-md'
+            : 'hover:shadow-md',
+        )}
+        style={{
+          backgroundColor: isRoot ? `${color}26` : `${color}12`,
+          borderColor: selected ? undefined : `${color}66`,
+        }}
+      >
         {editing ? (
           <input
             ref={inputRef}
@@ -172,27 +129,62 @@ function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-m
               }
               e.stopPropagation();
             }}
-            className="w-full rounded-md border border-brand/30 bg-transparent px-1.5 py-0.5 text-sm font-semibold outline-none"
+            className="w-full rounded border border-brand/40 bg-transparent px-1 py-0.5 text-sm font-medium outline-none"
           />
         ) : (
-          <p className="break-words text-sm font-semibold leading-tight">{data.title}</p>
+          <p
+            className={cn(
+              'break-words text-sm leading-snug',
+              isRoot ? 'font-semibold' : 'font-medium',
+            )}
+            style={{ color: isRoot ? color : 'var(--color-fg)' }}
+          >
+            {data.title}
+          </p>
         )}
-        {data.content && !editing ? (
-          <p className="mt-1 line-clamp-3 text-xs text-fg-muted">{data.content}</p>
-        ) : null}
-        {data.tags && data.tags.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {data.tags.slice(0, 4).map((t) => (
-              <span
-                key={t}
-                className="rounded-md bg-surface-raised px-1.5 py-0.5 text-[10px] text-fg-muted"
-              >
-                {t}
-              </span>
-            ))}
+
+        {(aiGenerated || isRefNode) && !editing ? (
+          <div className="absolute right-1.5 top-1 flex items-center gap-0.5">
+            {isRefNode ? (
+              <ExternalLink className="h-2.5 w-2.5 text-fg-subtle" aria-label="Linked" />
+            ) : null}
+            {aiGenerated ? (
+              <Sparkles className="h-2.5 w-2.5 text-brand-bright" aria-label="AI generated" />
+            ) : null}
           </div>
         ) : null}
       </div>
+
+      {hasChildren ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleCollapse(id);
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+          className={cn(
+            'absolute top-1/2 -right-3 z-10 flex h-6 -translate-y-1/2 items-center justify-center rounded-full border bg-[var(--color-surface)] shadow-sm transition-colors',
+            collapsed
+              ? 'min-w-[1.5rem] gap-0.5 px-1.5 text-brand hover:bg-brand/10'
+              : 'w-6 text-fg-muted hover:bg-surface-raised hover:text-fg',
+          )}
+          style={{
+            borderColor: collapsed ? color : undefined,
+          }}
+          aria-label={collapsed ? `Expand branch (${hiddenCount} hidden)` : 'Collapse branch'}
+          title={collapsed ? `Expand · ${hiddenCount} hidden` : 'Collapse branch'}
+        >
+          {collapsed ? (
+            <>
+              <ChevronRight className="h-3 w-3" />
+              <span className="text-[10px] font-semibold leading-none">{hiddenCount}</span>
+            </>
+          ) : (
+            <ChevronLeft className="h-3.5 w-3.5" />
+          )}
+        </button>
+      ) : null}
     </div>
   );
 }

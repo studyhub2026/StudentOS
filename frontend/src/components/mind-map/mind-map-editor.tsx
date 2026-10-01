@@ -698,7 +698,7 @@ function EditorCanvas({ mapId }: { mapId: string }) {
             onSelectionChange={({ nodes: selectedNodes }) => {
               setSelectedNode(selectedNodes[0]?.id ?? null);
             }}
-            defaultEdgeOptions={{ type: 'default' }}
+            defaultEdgeOptions={{ type: 'smoothstep', style: { strokeWidth: 1.5, stroke: 'var(--color-border-strong, #ffffff33)' } }}
             fitView
             proOptions={{ hideAttribution: true }}
             deleteKeyCode={null}

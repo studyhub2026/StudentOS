@@ -65,7 +65,7 @@ export function dtoToEdge(e: MindMapEdgeDto): MindEdge {
     source: e.sourceId,
     target: e.targetId,
     ...(e.label ? { label: e.label } : {}),
-    type: e.type === 'animated' ? 'default' : e.type || 'default',
+    type: e.type === 'animated' ? 'smoothstep' : e.type || 'smoothstep',
     animated: e.type === 'animated',
     data: { label: e.label },
   };
