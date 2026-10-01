@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { ExternalLink, Minus, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { metaFor } from './node-icons';
 import { useMindMapEditor } from '@/stores/mind-map-editor-store';
@@ -174,17 +174,21 @@ function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-m
           }}
           onDoubleClick={(e) => e.stopPropagation()}
           className={cn(
-            'absolute -bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center justify-center rounded-full border shadow-sm transition-colors',
+            'absolute -bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center justify-center gap-0.5 rounded-full border bg-[var(--color-surface)] shadow-sm transition-all',
             collapsed
-              ? 'h-5 min-w-[1.25rem] border-brand/50 bg-[var(--color-surface)] px-1.5 text-brand hover:bg-brand/10'
-              : 'h-5 w-5 border-border bg-[var(--color-surface)] text-fg-subtle opacity-0 group-hover:opacity-100 hover:border-brand hover:text-brand',
+              ? 'h-6 min-w-[1.5rem] border-brand bg-brand/10 px-1.5 text-brand hover:bg-brand/20'
+              : 'h-6 w-6 border-border text-fg-muted hover:border-brand hover:text-brand hover:scale-110',
           )}
           aria-label={collapsed ? `Expand branch (${hiddenCount} hidden)` : 'Collapse branch'}
+          title={collapsed ? `Expand (${hiddenCount} hidden)` : 'Collapse branch'}
         >
           {collapsed ? (
-            <span className="text-[9px] font-bold leading-none">+{hiddenCount}</span>
+            <>
+              <ChevronRight className="h-3 w-3" />
+              <span className="text-[10px] font-bold leading-none">{hiddenCount}</span>
+            </>
           ) : (
-            <Minus className="h-2.5 w-2.5" />
+            <ChevronDown className="h-3.5 w-3.5" />
           )}
         </button>
       )}
