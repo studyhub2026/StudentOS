@@ -468,10 +468,14 @@ export class MoodleAdapter implements LmsAdapter {
     const newsForum = forums.find((f) => f.type === 'news') ?? forums[0];
     if (!newsForum) return [];
 
+    // `mod_forum_get_forum_discussions` only accepts an integer `sortorder`
+    // (0 = last post DESC, the default). The string `sortby`/`sortdirection`
+    // params belong to the deprecated `_paginated` variant and trigger
+    // `invalid_parameter_exception` on current Moodle, so omit them.
     const disc = await this.call<{ discussions?: MoodleDiscussion[] }>(
       tokens,
       'mod_forum_get_forum_discussions',
-      { forumid: newsForum.id, sortby: 'timemodified', sortdirection: 'DESC' },
+      { forumid: newsForum.id },
     );
     const items = disc.discussions ?? [];
     const since = opts?.since;
