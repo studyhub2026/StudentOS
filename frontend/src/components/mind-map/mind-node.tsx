@@ -103,14 +103,18 @@ function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-m
       <div
         onDoubleClick={() => setEditing(true)}
         className={cn(
-          'relative min-w-[160px] max-w-[260px] rounded-lg border px-3.5 py-2 shadow-sm transition-all',
+          'relative min-w-[160px] max-w-[260px] rounded-lg border px-3.5 py-2 transition-all',
           selected
-            ? 'ring-2 ring-brand/50 shadow-md'
-            : 'hover:shadow-md',
+            ? 'ring-2 ring-offset-2 ring-offset-black shadow-lg'
+            : 'hover:brightness-125',
         )}
         style={{
-          backgroundColor: isRoot ? `${color}26` : `${color}12`,
-          borderColor: selected ? undefined : `${color}66`,
+          // Deeper, more saturated tints read better against pure black than
+          // the near-transparent hex-alpha ones — the branch colour is still
+          // the hint, just visible without hunting for it.
+          backgroundColor: isRoot ? `${color}33` : '#0f0f11',
+          borderColor: isRoot ? color : `${color}80`,
+          boxShadow: selected ? `0 0 0 1px ${color}` : undefined,
         }}
       >
         {editing ? (
@@ -164,13 +168,14 @@ function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-m
           }}
           onDoubleClick={(e) => e.stopPropagation()}
           className={cn(
-            'absolute top-1/2 -right-3 z-10 flex h-6 -translate-y-1/2 items-center justify-center rounded-full border bg-[var(--color-surface)] shadow-sm transition-colors',
+            'absolute top-1/2 -right-3 z-10 flex h-6 -translate-y-1/2 items-center justify-center rounded-full border bg-black shadow transition-colors',
             collapsed
-              ? 'min-w-[1.5rem] gap-0.5 px-1.5 text-brand hover:bg-brand/10'
-              : 'w-6 text-fg-muted hover:bg-surface-raised hover:text-fg',
+              ? 'min-w-[1.5rem] gap-0.5 px-1.5'
+              : 'w-6 hover:brightness-125',
           )}
           style={{
-            borderColor: collapsed ? color : undefined,
+            borderColor: color,
+            color,
           }}
           aria-label={collapsed ? `Expand branch (${hiddenCount} hidden)` : 'Collapse branch'}
           title={collapsed ? `Expand · ${hiddenCount} hidden` : 'Collapse branch'}

@@ -22,6 +22,8 @@ import {
   CheckCircle,
   Download,
   Loader2,
+  Maximize2,
+  Minimize2,
   Plus,
   Redo2,
   Save,
@@ -127,12 +129,34 @@ function EditorCanvas({ mapId }: { mapId: string }) {
 
   const rf = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [proposalDrawerOpen, setProposalDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function onChange() {
+      setIsFullscreen(document.fullscreenElement === rootRef.current);
+    }
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else if (rootRef.current) {
+        await rootRef.current.requestFullscreen();
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Fullscreen is not available');
+    }
+  }, []);
 
   // React Flow v12 renders EdgeWrappers before handle bounds land in its
   // internal store — each wrapper resolves to null and the edge SVG never
@@ -613,13 +637,15 @@ function EditorCanvas({ mapId }: { mapId: string }) {
   const nodeTypes = useMemo(() => NODE_TYPES, []);
 
   return (
-    <div className="flex h-full min-h-0 flex-1">
+    <div ref={rootRef} className="flex h-full min-h-0 flex-1 bg-black">
       <div ref={wrapperRef} className="relative min-h-0 flex-1">
         <Toolbar
           mapId={mapId}
           title={meta.title}
           saveStatus={saveStatus}
           lastSavedAt={lastSavedAt}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
           onAdd={handleAddNode}
           onAutoLayout={handleAutoLayout}
           onAiExpand={handleAiExpand}
@@ -725,7 +751,7 @@ function EditorCanvas({ mapId }: { mapId: string }) {
             onSelectionChange={({ nodes: selectedNodes }) => {
               setSelectedNode(selectedNodes[0]?.id ?? null);
             }}
-            defaultEdgeOptions={{ type: 'smoothstep', style: { strokeWidth: 1.5, stroke: 'var(--color-border-strong, #ffffff33)' } }}
+            defaultEdgeOptions={{ type: 'smoothstep', style: { strokeWidth: 1.5, stroke: '#ffffff22' } }}
             fitView
             proOptions={{ hideAttribution: true }}
             deleteKeyCode={null}
@@ -733,10 +759,24 @@ function EditorCanvas({ mapId }: { mapId: string }) {
             zoomOnScroll
             panOnDrag
             zoomOnPinch
-            className="bg-[var(--color-surface)]"
+            nodeExtent={[
+              [-5000, -5000],
+              [15000, 15000],
+            ]}
+            translateExtent={[
+              [-6000, -6000],
+              [16000, 16000],
+            ]}
+            className="!bg-black"
           >
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-            <Controls className="!border-border" />
+            <Background
+              variant={BackgroundVariant.Lines}
+              gap={1}
+              size={0}
+              color="transparent"
+              style={{ backgroundColor: '#000' }}
+            />
+            <Controls className="!border-white/10 !bg-black/60 !backdrop-blur" />
           </ReactFlow>
         </div>
       </div>
@@ -750,6 +790,8 @@ interface ToolbarProps {
   title: string;
   saveStatus: 'idle' | 'saving' | 'saved' | 'unsaved' | 'error';
   lastSavedAt: Date | null;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
   onAdd: () => void;
   onAutoLayout: () => void;
   onAiExpand: () => void;
@@ -763,11 +805,11 @@ interface ToolbarProps {
   onExport: (kind: 'json' | 'markdown' | 'svg' | 'png') => void;
 }
 
-function Toolbar({ mapId, title, saveStatus, lastSavedAt, onAdd, onAutoLayout, onAiExpand, onLibrary, onAiPanel, onProposals, onUndo, onRedo, onSearch, onImport, onExport }: ToolbarProps) {
+function Toolbar({ mapId, title, saveStatus, lastSavedAt, isFullscreen, onToggleFullscreen, onAdd, onAutoLayout, onAiExpand, onLibrary, onAiPanel, onProposals, onUndo, onRedo, onSearch, onImport, onExport }: ToolbarProps) {
   const [exportOpen, setExportOpen] = useState(false);
   return (
-    <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center gap-2 overflow-x-auto border-b border-border bg-[var(--color-surface)] px-3">
-      <Link href="/mind-map" className="rounded p-1.5 text-fg-muted hover:bg-surface-raised hover:text-fg">
+    <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center gap-2 overflow-x-auto border-b border-white/10 bg-black/80 backdrop-blur px-3">
+      <Link href="/mind-map" className="rounded p-1.5 text-fg-muted hover:bg-white/5 hover:text-fg">
         <ArrowLeft className="h-4 w-4" />
       </Link>
       <span className="truncate text-sm font-semibold">{title || 'Untitled mind map'}</span>
@@ -843,6 +885,18 @@ function Toolbar({ mapId, title, saveStatus, lastSavedAt, onAdd, onAutoLayout, o
             </div>
           ) : null}
         </div>
+        <button
+          type="button"
+          onClick={onToggleFullscreen}
+          className="rounded p-1.5 text-fg-muted hover:bg-white/5 hover:text-fg"
+          title={isFullscreen ? 'Exit full screen (Esc)' : 'Full screen'}
+        >
+          {isFullscreen ? (
+            <Minimize2 className="h-4 w-4" />
+          ) : (
+            <Maximize2 className="h-4 w-4" />
+          )}
+        </button>
         <Button size="sm" onClick={() => void saveMindMapNow(mapId)}>
           <Save className="h-3.5 w-3.5" /> Save
         </Button>
