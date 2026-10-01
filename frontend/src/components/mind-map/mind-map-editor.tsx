@@ -149,6 +149,34 @@ function EditorCanvas({ mapId }: { mapId: string }) {
     }
   }, [nodesInitialized, nodes.length, rf]);
 
+  // Legacy maps were laid out with the old radial algorithm — nodes have
+  // negative-X positions and the result looks random under the new outline
+  // nodes. On the first open after the redesign we detect that signature
+  // (any node with x < -50) and auto-apply the horizontal tree layout once
+  // per session. The result saves through the normal dirty/autosave path, so
+  // next open the stored positions are already correct and this skips.
+  const autoLaidOutRef = useRef(false);
+  useEffect(() => {
+    if (autoLaidOutRef.current) return;
+    if (!nodesInitialized || nodes.length < 2) return;
+    const looksRadial = nodes.some((n) => n.position.x < -50);
+    if (!looksRadial) {
+      autoLaidOutRef.current = true;
+      return;
+    }
+    autoLaidOutRef.current = true;
+    pushHistory();
+    const laidOut = radialLayout(nodes, edges);
+    const byId = new Map(laidOut.map((n) => [n.id, n.position]));
+    setNodes((prev) =>
+      prev.map((n) => {
+        const p = byId.get(n.id);
+        return p ? { ...n, position: p } : n;
+      }),
+    );
+    setTimeout(() => rf.fitView({ padding: 0.2 }), 150);
+  }, [nodesInitialized, nodes, edges, setNodes, rf, pushHistory]);
+
   // --- Collapse visibility ---------------------------------------------------
 
   const { visibleNodes, visibleEdges } = useMemo(() => {
