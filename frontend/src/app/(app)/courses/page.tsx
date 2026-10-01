@@ -2,9 +2,10 @@
 
 import { useCallback, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BookOpen, ChevronDown, ChevronRight, FileText, Image as ImageIcon,
+  BookOpen, ChevronDown, ChevronRight, FileText, GitBranch, Image as ImageIcon,
   Loader2, MapPin, Paperclip, Plus, Trash2, Upload, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -121,10 +122,29 @@ function DeleteConfirmDialog({
 /* ── Course Files Panel ────────────────────────────────── */
 
 function CourseFilesPanel({ subjectId }: { subjectId: string }) {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const { data: files, isLoading } = useCourseFiles(subjectId);
   const upload = useFileUpload('courses', { subjectId });
   const remove = useDeleteFile();
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+
+  async function makeMindMapFromFile(fileId: string) {
+    setGeneratingId(fileId);
+    const toastId = `mm:${fileId}`;
+    toast.loading('Creating mind map…', { id: toastId });
+    try {
+      const { data } = await apiClient.post<{ data: { id: string } }>(
+        '/mind-maps/generate-from-file',
+        { fileId },
+      );
+      toast.success('Mind map ready', { id: toastId });
+      router.push(`/mind-map/${data.data.id}`);
+    } catch (err) {
+      toast.error(apiErrorMessage(err), { id: toastId });
+      setGeneratingId(null);
+    }
+  }
 
   const { dragging, onDragOver, onDragLeave, onDrop } = useDropzone((file) =>
     upload.mutate(file),
@@ -210,6 +230,19 @@ function CourseFilesPanel({ subjectId }: { subjectId: string }) {
                 <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
                   {formatBytes(file.sizeBytes)}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => makeMindMapFromFile(file.id)}
+                  disabled={generatingId !== null}
+                  className="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-[var(--brand)]/15 text-[var(--text-muted)] hover:text-[var(--brand)] transition-all disabled:opacity-50"
+                  title="Create mind map from this file"
+                >
+                  {generatingId === file.id ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <GitBranch size={12} />
+                  )}
+                </button>
                 {isLms ? null : (
                   <button
                     type="button"
