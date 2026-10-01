@@ -183,6 +183,7 @@ function CourseFilesPanel({ subjectId }: { subjectId: string }) {
         <ul className="space-y-1">
           {files.map((file) => {
             const isImage = file.mimeType.startsWith('image/');
+            const isLms = file.id.startsWith('lms:');
             return (
               <li
                 key={file.id}
@@ -201,17 +202,24 @@ function CourseFilesPanel({ subjectId }: { subjectId: string }) {
                 >
                   {file.filename}
                 </a>
+                {isLms ? (
+                  <span className="shrink-0 rounded bg-[var(--brand)]/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-[var(--brand)]">
+                    LMS
+                  </span>
+                ) : null}
                 <span className="shrink-0 text-[10px] text-[var(--text-muted)]">
                   {formatBytes(file.sizeBytes)}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => remove.mutate(file.id)}
-                  className="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-[var(--text-muted)] hover:text-red-400 transition-all"
-                  title="Remove file"
-                >
-                  <Trash2 size={12} />
-                </button>
+                {isLms ? null : (
+                  <button
+                    type="button"
+                    onClick={() => remove.mutate(file.id)}
+                    className="shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-[var(--text-muted)] hover:text-red-400 transition-all"
+                    title="Remove file"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
               </li>
             );
           })}

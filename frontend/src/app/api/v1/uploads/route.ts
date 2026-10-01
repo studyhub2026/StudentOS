@@ -16,5 +16,38 @@ export const GET = route(async (req: NextRequest) => {
     where: { userId: user.id, ...(assignmentId ? { assignmentId } : {}), ...(noteId ? { noteId } : {}), ...(subjectId ? { subjectId } : {}) },
     orderBy: { createdAt: 'desc' },
   });
+
+  // When browsing a subject's files, also surface anything the LMS sync
+  // mirrored into LmsFile for the course linked to this subject — otherwise
+  // the student sees "No files yet" even though their university's PDFs
+  // were fetched. Prefix the id with `lms:` so the client can distinguish
+  // read-only mirrored files from their own uploads.
+  if (subjectId) {
+    const lmsFiles = await prisma.lmsFile.findMany({
+      where: {
+        userId: user.id,
+        course: { localSubjectId: subjectId },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        filename: true,
+        mimeType: true,
+        sizeBytes: true,
+        externalUrl: true,
+      },
+    });
+    const projected = lmsFiles
+      .filter((f) => f.externalUrl)
+      .map((f) => ({
+        id: `lms:${f.id}`,
+        filename: f.filename,
+        mimeType: f.mimeType ?? 'application/octet-stream',
+        sizeBytes: f.sizeBytes ?? 0,
+        url: f.externalUrl!,
+      }));
+    return ok([...projected, ...assets]);
+  }
+
   return ok(assets);
 });
