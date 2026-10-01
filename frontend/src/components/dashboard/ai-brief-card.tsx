@@ -1,7 +1,8 @@
 'use client';
 
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Clock, ListChecks, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowRight, Clock, ListChecks, Pause, Sparkles, TrendingUp, Volume2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAiBrief } from '@/hooks/use-ai-brief';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +14,46 @@ import { Skeleton } from '@/components/ui/skeleton';
  */
 export function AiBriefCard() {
   const { data: brief, isLoading } = useAiBrief();
+  const [speaking, setSpeaking] = useState(false);
+  const [supported, setSupported] = useState(false);
+
+  useEffect(() => {
+    setSupported(typeof window !== 'undefined' && 'speechSynthesis' in window);
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const toggleSpeak = useCallback(() => {
+    if (!brief || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const synth = window.speechSynthesis;
+    if (speaking) {
+      synth.cancel();
+      setSpeaking(false);
+      return;
+    }
+    // Build a single utterance text from the brief so the voice flows the
+    // same way the student would read it. Keep it under ~1000 chars; most
+    // engines cap each utterance around there.
+    const parts: string[] = [brief.motivation];
+    if (brief.workload) parts.push(`Today's workload: ${brief.workload}`);
+    if (brief.outlook) parts.push(`Outlook: ${brief.outlook}`);
+    if (brief.priorities.length > 0) {
+      parts.push('Priorities:');
+      brief.priorities.slice(0, 5).forEach((p, i) => parts.push(`${i + 1}. ${p.title}. ${p.detail}`));
+    }
+    if (brief.suggestion) parts.push(`Start here: ${brief.suggestion}`);
+    const utter = new SpeechSynthesisUtterance(parts.join(' '));
+    utter.rate = 1.05;
+    utter.pitch = 1.0;
+    utter.onend = () => setSpeaking(false);
+    utter.onerror = () => setSpeaking(false);
+    synth.cancel();
+    synth.speak(utter);
+    setSpeaking(true);
+  }, [brief, speaking]);
 
   if (isLoading) {
     return (
@@ -48,10 +89,30 @@ export function AiBriefCard() {
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand/15">
             <Sparkles className="h-4 w-4 text-brand-bright" aria-hidden />
           </span>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold">Your morning brief</p>
             <p className="text-[11px] uppercase tracking-widest text-fg-subtle">AI command center</p>
           </div>
+          {supported ? (
+            <button
+              type="button"
+              onClick={toggleSpeak}
+              className="flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/10 px-2.5 py-1.5 text-xs font-medium text-brand-bright hover:bg-brand/20"
+              title={speaking ? 'Stop reading' : 'Read aloud'}
+            >
+              {speaking ? (
+                <>
+                  <Pause className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Stop</span>
+                </>
+              ) : (
+                <>
+                  <Volume2 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Listen</span>
+                </>
+              )}
+            </button>
+          ) : null}
         </div>
 
         <p className="mt-4 text-[15px] font-medium leading-relaxed">{brief.motivation}</p>
