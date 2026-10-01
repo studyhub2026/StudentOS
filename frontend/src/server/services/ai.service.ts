@@ -480,15 +480,14 @@ export async function* streamMessage(
     settings?.aiTone ?? 'encouraging',
   );
 
-  // Always use Gemini (DeepSeek disabled)
-  const primary = resolveProvider({
-    task: 'chat',
-    preferredProvider: 'gemini',
-  });
+  // Let the router pick the fastest configured provider for chat. When Groq
+  // is configured it wins for latency; otherwise DeepSeek / Gemini take over
+  // via the normal fallback chain in resolveProvider.
+  const primary = resolveProvider({ task: 'chat' });
 
   // Build the system instruction per provider so each model gets its
   // formatting/reasoning tuning.
-  const buildInstruction = (providerId: 'gemini') =>
+  const buildInstruction = (providerId: 'gemini' | 'deepseek' | 'groq') =>
     [
       withProvider(baseInstruction, providerId),
       memoryContext,
@@ -499,7 +498,7 @@ export async function* streamMessage(
       .filter(Boolean)
       .join('\n\n');
 
-  const buildStreamOptions = (providerId: 'gemini') => ({
+  const buildStreamOptions = (providerId: 'gemini' | 'deepseek' | 'groq') => ({
     messages: toProviderMessages(transcript),
     systemInstruction: buildInstruction(providerId),
     ...(input.tier ? { tier: input.tier } : {}),
@@ -514,7 +513,7 @@ export async function* streamMessage(
     ...(input.signal ? { signal: input.signal } : {}),
   });
 
-  const streamOptions = buildStreamOptions(primary.id as 'gemini');
+  const streamOptions = buildStreamOptions(primary.id);
 
   // Runtime fallback: if the primary provider throws BEFORE emitting any
   // tokens (network error, auth, empty response, etc.) and it's not Gemini,

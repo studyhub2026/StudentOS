@@ -744,8 +744,12 @@ function MessageBubble({
             {fallbackNotice ? (
               <p className="mt-1 flex items-center gap-1 px-1 text-[10px] text-warning">
                 <AlertTriangle className="h-3 w-3" aria-hidden />
-                {fallbackNotice.from === 'deepseek' ? 'DeepSeek' : 'Preferred model'} was unavailable —
-                answered by Gemini instead.
+                {fallbackNotice.from === 'deepseek'
+                  ? 'DeepSeek'
+                  : fallbackNotice.from === 'groq'
+                    ? 'Groq'
+                    : 'Preferred model'}{' '}
+                was unavailable — answered by Gemini instead.
               </p>
             ) : null}
 

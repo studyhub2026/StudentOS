@@ -38,6 +38,15 @@ const schema = z.object({
   DEEPSEEK_DEFAULT_MODEL: z.string().default('deepseek-chat'),
   DEEPSEEK_REASONING_MODEL: z.string().default('deepseek-reasoner'),
 
+  // Groq — OpenAI-compatible, free tier, extremely fast (sub-second). When
+  // configured, becomes the preferred provider for latency-sensitive tasks
+  // (chat + mind-map interactive) unless an env override points elsewhere.
+  // Signup: https://console.groq.com — paste the key as GROQ_API_KEY.
+  GROQ_API_KEY: z.string().optional().or(z.literal('')),
+  GROQ_BASE_URL: z.string().url().default('https://api.groq.com/openai/v1'),
+  GROQ_DEFAULT_MODEL: z.string().default('llama-3.1-8b-instant'),
+  GROQ_PRO_MODEL: z.string().default('llama-3.3-70b-versatile'),
+
   // Per-task provider routing. Blank => resolver default (Gemini everywhere).
   // Values are the provider id: 'gemini' or 'deepseek'.
   AI_CHAT_PROVIDER: z.string().optional().or(z.literal('')),
@@ -193,6 +202,7 @@ export const env = {
   hasRedis: Boolean(raw.REDIS_URL),
   hasCanvasOAuth: Boolean(raw.CANVAS_CLIENT_ID && raw.CANVAS_CLIENT_SECRET),
   hasDeepSeek: Boolean(raw.DEEPSEEK_API_KEY),
+  hasGroq: Boolean(raw.GROQ_API_KEY),
   hasBlackboardOAuth: Boolean(raw.BLACKBOARD_CLIENT_ID && raw.BLACKBOARD_CLIENT_SECRET),
   hasBrightspaceOAuth: Boolean(raw.BRIGHTSPACE_CLIENT_ID && raw.BRIGHTSPACE_CLIENT_SECRET),
   hasMsOAuth: Boolean(raw.MS_CLIENT_ID && raw.MS_CLIENT_SECRET),

@@ -4,6 +4,7 @@ import { logger } from '@/server/lib/logger';
 import { AppError } from '@/server/lib/errors';
 import { deepseekProvider } from './deepseek-provider';
 import { geminiProvider } from './gemini-provider';
+import { groqProvider } from './groq-provider';
 import type { AiProvider, AiProviderId, AiTaskKind } from './provider';
 
 /**
@@ -23,6 +24,7 @@ import type { AiProvider, AiProviderId, AiTaskKind } from './provider';
 const REGISTRY: Record<AiProviderId, AiProvider> = {
   gemini: geminiProvider,
   deepseek: deepseekProvider,
+  groq: groqProvider,
 };
 
 export function getProvider(id: AiProviderId): AiProvider {
@@ -32,7 +34,7 @@ export function getProvider(id: AiProviderId): AiProvider {
 }
 
 export function isProviderId(value: string): value is AiProviderId {
-  return value === 'gemini' || value === 'deepseek';
+  return value === 'gemini' || value === 'deepseek' || value === 'groq';
 }
 
 function envFor(task: AiTaskKind): string | undefined {
@@ -72,6 +74,15 @@ export function resolveProvider({ task, preferredProvider }: ResolveOptions): Ai
   const envHint = envFor(task);
   if (envHint && isProviderId(envHint)) candidates.push(envHint);
 
+  // Groq is roughly 10x faster than the alternatives for sub-second chat and
+  // interactive mind-map actions. When no env hint explicitly routes a task
+  // and Groq is configured, prefer it for latency-sensitive work — Gemini
+  // and DeepSeek still handle reasoning / JSON generation unless the operator
+  // routes those to Groq explicitly through an env var.
+  if (!envHint && env.hasGroq && (task === 'chat' || task === 'mindmap-node-action' || task === 'summary')) {
+    candidates.push('groq');
+  }
+
   // Gemini is always the ultimate fallback — it's the only provider guaranteed
   // to be configured across every prior deployment.
   candidates.push('gemini');
@@ -96,4 +107,4 @@ export function resolveProvider({ task, preferredProvider }: ResolveOptions): Ai
 }
 
 export type { AiProvider, AiProviderId, AiTaskKind } from './provider';
-export { deepseekProvider, geminiProvider };
+export { deepseekProvider, geminiProvider, groqProvider };

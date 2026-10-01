@@ -180,7 +180,9 @@ export default function AiVoicePage() {
           ? window.localStorage.getItem('omnel:ai-provider')
           : null;
       const provider =
-        savedProvider === 'gemini' || savedProvider === 'deepseek' ? savedProvider : undefined;
+        savedProvider === 'gemini' || savedProvider === 'deepseek' || savedProvider === 'groq'
+          ? savedProvider
+          : undefined;
 
       let accumulated = '';
       let pendingTail = '';

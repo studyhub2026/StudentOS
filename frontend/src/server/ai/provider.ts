@@ -21,7 +21,7 @@ export type AiTaskKind =
   | 'mindmap-generate' // whole-map generation
   | 'mindmap-node-action'; // per-node explain/quiz/flashcards
 
-export type AiProviderId = 'gemini' | 'deepseek';
+export type AiProviderId = 'gemini' | 'deepseek' | 'groq';
 
 export interface AiMessage {
   role: 'user' | 'assistant' | 'system';

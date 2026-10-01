@@ -79,7 +79,7 @@ export const SYSTEM_PROMPTS: Record<AiFeatureKey, string> = {
  *   supports (tables, fenced code). Without this it sometimes returns plain
  *   prose where a table/code block would read better.
  */
-const PROVIDER_TUNING: Record<'gemini' | 'deepseek', string> = {
+const PROVIDER_TUNING: Record<'gemini' | 'deepseek' | 'groq', string> = {
   gemini:
     'Format with clean GitHub-flavoured Markdown: use tables for comparisons, ' +
     'fenced code blocks with a language tag for any code, and short bullet lists. ' +
@@ -89,9 +89,14 @@ const PROVIDER_TUNING: Record<'gemini' | 'deepseek', string> = {
     'Use GitHub-flavoured Markdown the renderer supports: fenced code blocks with a ' +
     'language tag, tables for structured comparisons, bold for key terms. ' +
     'Prefer a short answer up front, then the supporting detail.',
+  groq:
+    'Lead with the direct answer in the first sentence, then expand briefly. ' +
+    'Use GitHub-flavoured Markdown: fenced code blocks with a language tag, ' +
+    'tables for comparisons, bold for key terms. Keep bullet lists short and ' +
+    'avoid preamble like "Sure" or "Great question" — just answer.',
 };
 
-export function withProvider(basePrompt: string, provider: 'gemini' | 'deepseek'): string {
+export function withProvider(basePrompt: string, provider: 'gemini' | 'deepseek' | 'groq'): string {
   return `${basePrompt}\n\n${PROVIDER_TUNING[provider]}`;
 }
 
