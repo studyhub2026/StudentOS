@@ -118,12 +118,41 @@ function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-m
         <span className="text-[10px] font-medium uppercase tracking-widest text-fg-subtle">
           {meta.label}
         </span>
-        {isRefNode ? (
-          <ExternalLink className="ml-auto h-3 w-3 text-fg-subtle" aria-label="Linked" />
-        ) : null}
-        {data.metadata && (data.metadata as Record<string, unknown>).aiGenerated ? (
-          <Sparkles className="ml-auto h-3 w-3 text-brand-bright" aria-label="AI generated" />
-        ) : null}
+        <div className="ml-auto flex items-center gap-1.5">
+          {isRefNode ? (
+            <ExternalLink className="h-3 w-3 text-fg-subtle" aria-label="Linked" />
+          ) : null}
+          {data.metadata && (data.metadata as Record<string, unknown>).aiGenerated ? (
+            <Sparkles className="h-3 w-3 text-brand-bright" aria-label="AI generated" />
+          ) : null}
+          {hasChildren ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleCollapse(id);
+              }}
+              onDoubleClick={(e) => e.stopPropagation()}
+              className={cn(
+                'flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none transition-colors',
+                collapsed
+                  ? 'bg-brand/15 text-brand hover:bg-brand/25'
+                  : 'text-fg-subtle hover:bg-surface-raised hover:text-fg',
+              )}
+              aria-label={collapsed ? `Expand branch (${hiddenCount} hidden)` : 'Collapse branch'}
+              title={collapsed ? `Expand · ${hiddenCount} hidden` : 'Collapse branch'}
+            >
+              {collapsed ? (
+                <>
+                  <ChevronRight className="h-3 w-3" />
+                  <span>{hiddenCount}</span>
+                </>
+              ) : (
+                <ChevronDown className="h-3 w-3" />
+              )}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="px-3 pb-3 pt-1">
@@ -164,34 +193,6 @@ function MindNodeInner({ id, data, selected }: NodeProps<import('@/stores/mind-m
           </div>
         ) : null}
       </div>
-
-      {hasChildren && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleCollapse(id);
-          }}
-          onDoubleClick={(e) => e.stopPropagation()}
-          className={cn(
-            'absolute -bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center justify-center gap-0.5 rounded-full border bg-[var(--color-surface)] shadow-sm transition-all',
-            collapsed
-              ? 'h-6 min-w-[1.5rem] border-brand bg-brand/10 px-1.5 text-brand hover:bg-brand/20'
-              : 'h-6 w-6 border-border text-fg-muted hover:border-brand hover:text-brand hover:scale-110',
-          )}
-          aria-label={collapsed ? `Expand branch (${hiddenCount} hidden)` : 'Collapse branch'}
-          title={collapsed ? `Expand (${hiddenCount} hidden)` : 'Collapse branch'}
-        >
-          {collapsed ? (
-            <>
-              <ChevronRight className="h-3 w-3" />
-              <span className="text-[10px] font-bold leading-none">{hiddenCount}</span>
-            </>
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
-          )}
-        </button>
-      )}
     </div>
   );
 }
