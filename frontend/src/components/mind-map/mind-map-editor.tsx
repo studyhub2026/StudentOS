@@ -5,7 +5,6 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   ReactFlow,
   ReactFlowProvider,
   addEdge,
@@ -731,17 +730,12 @@ function EditorCanvas({ mapId }: { mapId: string }) {
             proOptions={{ hideAttribution: true }}
             deleteKeyCode={null}
             multiSelectionKeyCode={['Shift', 'Meta', 'Control']}
-            panOnScroll
-            selectionOnDrag
+            zoomOnScroll
+            panOnDrag
+            zoomOnPinch
             className="bg-[var(--color-surface)]"
           >
             <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-            <MiniMap
-              pannable
-              zoomable
-              nodeColor={(n) => (n.data as MindNode['data']).color ?? '#8b5cf6'}
-              className="!border-border"
-            />
             <Controls className="!border-border" />
           </ReactFlow>
         </div>
