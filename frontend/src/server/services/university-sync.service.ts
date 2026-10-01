@@ -896,8 +896,31 @@ async function upsertCourse(
   });
   const existing = await prisma.lmsCourse.findUnique({
     where: { connectionId_externalId: { connectionId, externalId: ec.externalId } },
-    select: { id: true, checksum: true },
+    select: { id: true, checksum: true, localSubjectId: true },
   });
+
+  // Fast path: nothing changed and the Subject mirror is already in place.
+  if (existing && existing.checksum === checksum && existing.localSubjectId) {
+    return { created: 0, updated: 0 };
+  }
+
+  // Mirror the LMS course as a local Subject so it shows up in the Subjects
+  // selector that Notes, Assignments, Flashcards, Schedule, Mind Map and the
+  // Course workspace all read from. Upsert on (userId, name) reuses an
+  // existing Subject the student may have already created manually instead
+  // of creating a duplicate.
+  const subject = await prisma.subject.upsert({
+    where: { userId_name: { userId, name: ec.name } },
+    create: {
+      userId,
+      name: ec.name,
+      code: ec.code ?? null,
+      teacherName: ec.instructor ?? null,
+    },
+    update: {},
+    select: { id: true },
+  });
+
   if (!existing) {
     await prisma.lmsCourse.create({
       data: {
@@ -911,11 +934,11 @@ async function upsertCourse(
         active: ec.active,
         remoteUpdatedAt: ec.remoteUpdatedAt,
         checksum,
+        localSubjectId: subject.id,
       },
     });
     return { created: 1, updated: 0 };
   }
-  if (existing.checksum === checksum) return { created: 0, updated: 0 };
   await prisma.lmsCourse.update({
     where: { id: existing.id },
     data: {
@@ -926,6 +949,9 @@ async function upsertCourse(
       active: ec.active,
       remoteUpdatedAt: ec.remoteUpdatedAt,
       checksum,
+      // Only set the link once — never overwrite one the user may have
+      // re-pointed by renaming the Subject.
+      ...(existing.localSubjectId ? {} : { localSubjectId: subject.id }),
     },
   });
   return { created: 0, updated: 1 };
