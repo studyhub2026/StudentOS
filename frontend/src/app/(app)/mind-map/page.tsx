@@ -364,7 +364,33 @@ function AiPromptCard({
   }
 
   function submit() {
-    const p = prompt.trim();
+    let p = prompt.trim();
+    // When the picker alone names what the student wants ("that file", "that
+    // course"), skip the "write 3+ chars" ritual and seed a sensible default
+    // prompt from the first picked item instead.
+    if (p.length < 3 && pickedIds.length > 0) {
+      if (source === 'course_file') {
+        const picked = (extLib?.courseFiles ?? []).find((f) => f.id === pickedIds[0]);
+        if (picked) {
+          p = `Build a comprehensive mind map covering the key concepts and sections of "${picked.filename}". Group related topics into branches.`;
+        }
+      } else if (source === 'document') {
+        const picked = (extLib?.documents ?? []).find((d) => d.id === pickedIds[0]);
+        if (picked) {
+          p = `Build a comprehensive mind map covering the key concepts and sections of "${picked.filename}". Group related topics into branches.`;
+        }
+      } else if (source === 'subject') {
+        const picked = (baseLib?.subjects ?? []).find((s) => s.id === pickedIds[0]);
+        if (picked) {
+          p = `Build a comprehensive mind map for the subject "${picked.name}", organised by topic.`;
+        }
+      } else if (source === 'lms_course') {
+        const picked = (extLib?.lmsCourses ?? []).find((c) => c.id === pickedIds[0]);
+        if (picked) {
+          p = `Build a comprehensive mind map covering the course "${picked.name}", including its topics, assignments and key concepts.`;
+        }
+      }
+    }
     if (p.length < 3) return;
     const body: GenerateBody = { prompt: p, depth };
     if (source === 'notes' && pickedIds.length > 0) body.noteIds = pickedIds.slice(0, 5);
@@ -379,7 +405,12 @@ function AiPromptCard({
   }
 
   const needsPick = source !== 'topic';
-  const canSubmit = prompt.trim().length >= 3 && (!needsPick || pickedIds.length > 0);
+  // Prompt is optional once a source item is selected — we fill in a default
+  // from the picked item at submit time. For the free-form Topic tab the
+  // prompt is still required.
+  const canSubmit = needsPick
+    ? pickedIds.length > 0
+    : prompt.trim().length >= 3;
 
   return (
     <Card>

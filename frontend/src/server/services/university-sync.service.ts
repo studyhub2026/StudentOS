@@ -1302,6 +1302,14 @@ async function upsertFile(
     void ingestLmsFileIntoKnowledgeBase(userId, created.id, courseName, ef, tokens);
     return { created: 1, updated: 0 };
   }
+  // Retry Knowledge Base ingestion on any sync pass where it has not landed
+  // yet — the first attempt is fire-and-forget and may have hit a transient
+  // download / extraction failure. Without this, a file that failed once
+  // stays unindexed forever because the checksum fast-path would short-
+  // circuit every later sync.
+  if (!existing.knowledgeDocumentId) {
+    void ingestLmsFileIntoKnowledgeBase(userId, existing.id, courseName, ef, tokens);
+  }
   if (existing.checksum === checksum) return { created: 0, updated: 0 };
   await prisma.lmsFile.update({
     where: { id: existing.id },
@@ -1325,15 +1333,41 @@ async function ingestLmsFileIntoKnowledgeBase(
   tokens: LmsTokens,
 ): Promise<void> {
   try {
-    if (!ef.url || !ef.mimeType) return;
+    if (!ef.url) return;
+
+    // Skip re-ingestion if a KnowledgeDocument for this file already exists.
+    // Needed because this function now runs again on every sync pass for
+    // files whose first ingestion failed, and we must not create duplicates.
+    const already = await prisma.knowledgeDocument.findFirst({
+      where: { userId, storageKey: `lms:${lmsFileId}` },
+      select: { id: true },
+    });
+    if (already) {
+      await prisma.lmsFile.update({
+        where: { id: lmsFileId },
+        data: { knowledgeDocumentId: already.id },
+      });
+      return;
+    }
+
+    // Moodle sometimes omits mimeType in core_course_get_contents; fall back
+    // to filename-based inference so a PDF with no mimeType does not get
+    // silently dropped.
+    const mimeType = ef.mimeType || inferMimeFromName(ef.filename);
+    if (!mimeType) return;
     try {
-      resolveType(ef.mimeType, ef.filename);
+      resolveType(mimeType, ef.filename);
     } catch {
       return;
     }
 
+    // Moodle attaches auth via `?token=…` query param (see appendMoodleToken),
+    // so adding a Bearer header is redundant and some portals reject the
+    // mixed-mode request. Only send Bearer when the URL carries no inline
+    // token — covers Canvas and other OAuth-style providers.
+    const urlHasToken = /[?&]token=/.test(ef.url);
     const res = await fetch(ef.url, {
-      headers: { Authorization: `Bearer ${tokens.accessToken}` },
+      headers: urlHasToken ? undefined : { Authorization: `Bearer ${tokens.accessToken}` },
     });
     if (!res.ok) {
       logger.warn({ lmsFileId, status: res.status }, 'lms: file download failed');
@@ -1346,13 +1380,13 @@ async function ingestLmsFileIntoKnowledgeBase(
     }
 
     let extractedText: string | null = null;
-    const spec = resolveType(ef.mimeType, ef.filename);
+    const spec = resolveType(mimeType, ef.filename);
     if (spec.mode === 'gemini' && env.hasGemini) {
       try {
         const result = await generateFromPrompt(
           'Extract all readable text from this document verbatim. Return only the extracted text.',
           {
-            attachments: [{ mimeType: ef.mimeType, dataBase64: buffer.toString('base64') }],
+            attachments: [{ mimeType, dataBase64: buffer.toString('base64') }],
             maxOutputTokens: 8192,
           },
         );
@@ -1361,14 +1395,14 @@ async function ingestLmsFileIntoKnowledgeBase(
         logger.warn({ err, lmsFileId }, 'lms: Gemini extraction failed');
       }
     } else {
-      extractedText = await extractText(buffer, ef.mimeType, ef.filename);
+      extractedText = await extractText(buffer, mimeType, ef.filename);
     }
 
     const doc = await prisma.knowledgeDocument.create({
       data: {
         userId,
         filename: ef.filename,
-        mimeType: ef.mimeType,
+        mimeType,
         sizeBytes: ef.sizeBytes ?? buffer.byteLength,
         storageUrl: ef.url,
         storageKey: `lms:${lmsFileId}`,
@@ -1395,6 +1429,32 @@ async function ingestLmsFileIntoKnowledgeBase(
   } catch (err) {
     logger.error({ err, lmsFileId }, 'lms: knowledge-base ingest failed');
   }
+}
+
+function inferMimeFromName(filename: string): string | null {
+  const ext = filename.toLowerCase().split('.').pop();
+  if (!ext) return null;
+  const map: Record<string, string> = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    txt: 'text/plain',
+    md: 'text/markdown',
+    csv: 'text/csv',
+    rtf: 'application/rtf',
+    html: 'text/html',
+    htm: 'text/html',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+  };
+  return map[ext] ?? null;
 }
 
 function chunkText(text: string, size = 2000, overlap = 200): string[] {
