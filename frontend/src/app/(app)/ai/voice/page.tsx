@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Loader2, Mic, MicOff, Square, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Infinity as InfinityIcon, Loader2, Mic, MicOff, Square, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { apiErrorMessage } from '@/lib/api-client';
@@ -79,6 +79,7 @@ export default function AiVoicePage() {
   const [listening, setListening] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [continuous, setContinuous] = useState(false);
   const [voiceName, setVoiceName] = useState<string>('');
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [transcript, setTranscript] = useState('');
@@ -92,6 +93,36 @@ export default function AiVoicePage() {
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
   const finalTranscriptRef = useRef('');
+
+  // Continuous "walk-and-learn" mode: once the AI finishes speaking a reply,
+  // automatically restart listening without a manual tap so the student can
+  // keep the conversation going hands-free. The ref mirrors state so refs
+  // captured in callbacks always see the latest value.
+  const continuousRef = useRef(false);
+  const pendingTtsRef = useRef(0);
+  const streamDoneRef = useRef(true);
+  const startRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    continuousRef.current = continuous;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('omnel:voice-continuous', continuous ? '1' : '0');
+    }
+  }, [continuous]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('omnel:voice-continuous');
+    if (saved === '1') setContinuous(true);
+  }, []);
+
+  function maybeRestartMic() {
+    if (!continuousRef.current) return;
+    if (pendingTtsRef.current > 0) return;
+    if (!streamDoneRef.current) return;
+    // Short pause so the mic doesn't catch the tail-end of the TTS output.
+    setTimeout(() => {
+      if (continuousRef.current) startRef.current();
+    }, 350);
+  }
 
   // Voice list is loaded async in Chrome, populated only after voiceschanged.
   useEffect(() => {
@@ -140,13 +171,21 @@ export default function AiVoicePage() {
   const speak = useCallback(
     (text: string) => {
       if (muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-      window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       const voice = availableVoices.find((v) => v.name === voiceName);
       if (voice) utterance.voice = voice;
       utterance.rate = 1;
       utterance.pitch = 1;
+      pendingTtsRef.current += 1;
+      const finish = () => {
+        pendingTtsRef.current = Math.max(0, pendingTtsRef.current - 1);
+        maybeRestartMic();
+      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
       utteranceRef.current = utterance;
+      // Don't cancel the queue — queue sentences so the full reply is spoken
+      // in order instead of interrupting the previous sentence.
       window.speechSynthesis.speak(utterance);
     },
     [availableVoices, muted, voiceName],
@@ -169,6 +208,7 @@ export default function AiVoicePage() {
   const sendToAi = useCallback(
     async (content: string) => {
       setThinking(true);
+      streamDoneRef.current = false;
       // Cancel any prior in-flight stream (defensive; barge-in also cancels).
       streamAbortRef.current?.abort();
       const controller = new AbortController();
@@ -233,10 +273,18 @@ export default function AiVoicePage() {
         const tail = pendingTail.trim();
         if (tail.length > 0) speak(tail);
       } catch (error) {
-        if ((error as Error).name === 'AbortError') return;
+        if ((error as Error).name === 'AbortError') {
+          streamDoneRef.current = true;
+          return;
+        }
         toast.error(apiErrorMessage(error));
       } finally {
         setThinking(false);
+        streamDoneRef.current = true;
+        // If there was no spoken content (short reply or TTS muted) the mic
+        // never got its onend trigger — restart here so continuous mode
+        // doesn't stall.
+        maybeRestartMic();
       }
     },
     [speak],
@@ -342,6 +390,12 @@ export default function AiVoicePage() {
     recognitionRef.current?.stop();
   }, []);
 
+  // Keep the start-ref pointing at the latest callback so maybeRestartMic
+  // (defined above with stable deps) always triggers the current closure.
+  useEffect(() => {
+    startRef.current = start;
+  }, [start]);
+
   const isTalking = thinking;
 
   const bars = useMemo(() => Array.from({ length: 24 }), []);
@@ -356,6 +410,21 @@ export default function AiVoicePage() {
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> {t('voice.backToChat')}
         </Link>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setContinuous((c) => !c)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium',
+              continuous
+                ? 'border-brand bg-brand/15 text-brand-bright'
+                : 'border-border bg-surface-raised text-fg-muted hover:text-fg',
+            )}
+            aria-label={continuous ? 'Turn off continuous mode' : 'Turn on continuous mode'}
+            title={continuous ? 'Walk-and-learn: mic restarts automatically after each reply' : 'Enable continuous mode'}
+          >
+            <InfinityIcon className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{continuous ? 'Continuous' : 'Hands-free'}</span>
+          </button>
           <button
             type="button"
             onClick={() => setMuted((m) => !m)}
