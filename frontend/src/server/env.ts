@@ -44,12 +44,14 @@ const schema = z.object({
   // Signup: https://console.groq.com — paste the key as GROQ_API_KEY.
   GROQ_API_KEY: z.string().optional().or(z.literal('')),
   GROQ_BASE_URL: z.string().url().default('https://api.groq.com/openai/v1'),
-  // Default to the 70B versatile model since the smaller llama-3.1-8b-instant
-  // was pulled from the free tier for new accounts in late 2025. Still
-  // sub-second end-to-end on Groq's LPUs. Operators can override to any
-  // model their account has access to via GROQ_DEFAULT_MODEL.
-  GROQ_DEFAULT_MODEL: z.string().default('llama-3.3-70b-versatile'),
-  GROQ_PRO_MODEL: z.string().default('llama-3.3-70b-versatile'),
+  // Default to openai/gpt-oss-20b — the 20B open-weight GPT model from OpenAI
+  // that Groq hosts on its LPUs. Available on every tier as of late 2025 and
+  // small enough to keep end-to-end chat under a second. Llama 3.x models
+  // have been pulled from new free accounts, so they are no longer safe
+  // defaults. Operators can override via GROQ_DEFAULT_MODEL to any id their
+  // account can see — hit /api/v1/ai/diagnose for that list.
+  GROQ_DEFAULT_MODEL: z.string().default('openai/gpt-oss-20b'),
+  GROQ_PRO_MODEL: z.string().default('openai/gpt-oss-120b'),
 
   // Per-task provider routing. Blank => resolver default (Gemini everywhere).
   // Values are the provider id: 'gemini' or 'deepseek'.
