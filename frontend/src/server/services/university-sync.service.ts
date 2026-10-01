@@ -584,26 +584,33 @@ export async function runSyncJob(
       for (const ec of extCourses) {
         const local = courseMap.get(ec.externalId);
         if (!local && !options.dryRun) continue;
-        const items = await adapter.getAssignments(tokens, ec.externalId, { since });
-        counts.assignmentsFound += items.length;
-        for (const ea of items) {
-          if (options.dryRun) {
-            await planAssignment(connectionId, ea, plan.assignments, ec.name);
-            continue;
+        try {
+          const items = await adapter.getAssignments(tokens, ec.externalId, { since });
+          counts.assignmentsFound += items.length;
+          for (const ea of items) {
+            if (options.dryRun) {
+              await planAssignment(connectionId, ea, plan.assignments, ec.name);
+              continue;
+            }
+            const stats = await upsertAssignment(connectionId, userId, local!.id, ea, metrics);
+            counts.assignmentsCreated += stats.created;
+            counts.assignmentsUpdated += stats.updated;
+            if (stats.conflict) metrics.incDuplicates();
+            if (stats.created) {
+              await notify(
+                userId,
+                'LMS_NEW_ASSIGNMENT',
+                `New assignment: ${ea.title}`,
+                formatDue(ea.dueAt),
+                '/assignments',
+              );
+            }
           }
-          const stats = await upsertAssignment(connectionId, userId, local!.id, ea, metrics);
-          counts.assignmentsCreated += stats.created;
-          counts.assignmentsUpdated += stats.updated;
-          if (stats.conflict) metrics.incDuplicates();
-          if (stats.created) {
-            await notify(
-              userId,
-              'LMS_NEW_ASSIGNMENT',
-              `New assignment: ${ea.title}`,
-              formatDue(ea.dueAt),
-              '/assignments',
-            );
-          }
+        } catch (err) {
+          log(
+            'warn',
+            `Assignments fetch failed for ${ec.name}: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
     } else {
@@ -615,16 +622,23 @@ export async function runSyncJob(
       for (const ec of extCourses) {
         const local = courseMap.get(ec.externalId);
         if (!local && !options.dryRun) continue;
-        const items = await adapter.getExams(tokens, ec.externalId, { since });
-        counts.examsFound += items.length;
-        for (const ee of items) {
-          if (options.dryRun) {
-            await planExam(connectionId, ee, plan.exams, ec.name);
-            continue;
+        try {
+          const items = await adapter.getExams(tokens, ec.externalId, { since });
+          counts.examsFound += items.length;
+          for (const ee of items) {
+            if (options.dryRun) {
+              await planExam(connectionId, ee, plan.exams, ec.name);
+              continue;
+            }
+            const stats = await upsertExam(connectionId, userId, local!.id, ee);
+            counts.examsCreated += stats.created;
+            counts.examsUpdated += stats.updated;
           }
-          const stats = await upsertExam(connectionId, userId, local!.id, ee);
-          counts.examsCreated += stats.created;
-          counts.examsUpdated += stats.updated;
+        } catch (err) {
+          log(
+            'warn',
+            `Exams fetch failed for ${ec.name}: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
     }
@@ -634,19 +648,26 @@ export async function runSyncJob(
       for (const ec of extCourses) {
         const local = courseMap.get(ec.externalId);
         if (!local && !options.dryRun) continue;
-        const items = await adapter.getAnnouncements(tokens, ec.externalId, { since });
-        counts.announcementsFound += items.length;
-        for (const ea of items) {
-          if (options.dryRun) {
-            await planAnnouncement(connectionId, ea, plan.announcements, ec.name);
-            continue;
+        try {
+          const items = await adapter.getAnnouncements(tokens, ec.externalId, { since });
+          counts.announcementsFound += items.length;
+          for (const ea of items) {
+            if (options.dryRun) {
+              await planAnnouncement(connectionId, ea, plan.announcements, ec.name);
+              continue;
+            }
+            const stats = await upsertAnnouncement(connectionId, userId, local!.id, ea);
+            counts.announcementsCreated += stats.created;
+            counts.announcementsUpdated += stats.updated;
+            if (stats.created) {
+              await notify(userId, 'LMS_ANNOUNCEMENT', ea.title, ea.body?.slice(0, 200), '/university');
+            }
           }
-          const stats = await upsertAnnouncement(connectionId, userId, local!.id, ea);
-          counts.announcementsCreated += stats.created;
-          counts.announcementsUpdated += stats.updated;
-          if (stats.created) {
-            await notify(userId, 'LMS_ANNOUNCEMENT', ea.title, ea.body?.slice(0, 200), '/university');
-          }
+        } catch (err) {
+          log(
+            'warn',
+            `Announcements fetch failed for ${ec.name}: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
     }
@@ -656,27 +677,34 @@ export async function runSyncJob(
       for (const ec of extCourses) {
         const local = courseMap.get(ec.externalId);
         if (!local && !options.dryRun) continue;
-        const items = await adapter.getGrades(tokens, ec.externalId);
-        counts.gradesFound += items.length;
-        for (const eg of items) {
-          if (options.dryRun) {
-            await planGrade(connectionId, eg, plan.grades, ec.name);
-            continue;
+        try {
+          const items = await adapter.getGrades(tokens, ec.externalId);
+          counts.gradesFound += items.length;
+          for (const eg of items) {
+            if (options.dryRun) {
+              await planGrade(connectionId, eg, plan.grades, ec.name);
+              continue;
+            }
+            const stats = await upsertGrade(connectionId, userId, local!.id, eg);
+            counts.gradesCreated += stats.created;
+            counts.gradesUpdated += stats.updated;
+            if (stats.created) {
+              await notify(
+                userId,
+                'LMS_NEW_GRADE',
+                `New grade: ${eg.label}`,
+                eg.score != null && eg.maxScore != null
+                  ? `${eg.score}/${eg.maxScore}`
+                  : (eg.letterGrade ?? 'Grade posted'),
+                '/university',
+              );
+            }
           }
-          const stats = await upsertGrade(connectionId, userId, local!.id, eg);
-          counts.gradesCreated += stats.created;
-          counts.gradesUpdated += stats.updated;
-          if (stats.created) {
-            await notify(
-              userId,
-              'LMS_NEW_GRADE',
-              `New grade: ${eg.label}`,
-              eg.score != null && eg.maxScore != null
-                ? `${eg.score}/${eg.maxScore}`
-                : (eg.letterGrade ?? 'Grade posted'),
-              '/university',
-            );
-          }
+        } catch (err) {
+          log(
+            'warn',
+            `Grades fetch failed for ${ec.name}: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
     }
@@ -687,24 +715,31 @@ export async function runSyncJob(
       for (const ec of extCourses) {
         const local = courseMap.get(ec.externalId);
         if (!local && !options.dryRun) continue;
-        const items = await adapter.getFiles(tokens, ec.externalId, { since });
-        counts.filesFound += items.length;
-        for (const ef of items) {
-          if (options.dryRun) {
-            await planFile(connectionId, ef, plan.files, ec.name);
-            if (ef.sizeBytes) fileBytesForEstimate.push(ef.sizeBytes);
-            continue;
+        try {
+          const items = await adapter.getFiles(tokens, ec.externalId, { since });
+          counts.filesFound += items.length;
+          for (const ef of items) {
+            if (options.dryRun) {
+              await planFile(connectionId, ef, plan.files, ec.name);
+              if (ef.sizeBytes) fileBytesForEstimate.push(ef.sizeBytes);
+              continue;
+            }
+            const stats = await upsertFile(
+              connectionId,
+              userId,
+              local!.id,
+              local!.name,
+              ef,
+              tokens,
+            );
+            counts.filesCreated += stats.created;
+            counts.filesUpdated += stats.updated;
           }
-          const stats = await upsertFile(
-            connectionId,
-            userId,
-            local!.id,
-            local!.name,
-            ef,
-            tokens,
+        } catch (err) {
+          log(
+            'warn',
+            `Files fetch failed for ${ec.name}: ${err instanceof Error ? err.message : String(err)}`,
           );
-          counts.filesCreated += stats.created;
-          counts.filesUpdated += stats.updated;
         }
       }
     }
