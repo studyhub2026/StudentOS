@@ -22,7 +22,7 @@ export const GET = route(async (req: NextRequest) => {
   const { search } = readQuery(req, querySchema);
   const like = search ? { contains: search, mode: 'insensitive' as const } : undefined;
 
-  const [documents, lmsCourses] = await Promise.all([
+  const [documents, lmsCourses, courseFiles] = await Promise.all([
     prisma.knowledgeDocument.findMany({
       where: { userId: user.id, ...(like ? { filename: like } : {}) },
       orderBy: { updatedAt: 'desc' },
@@ -38,7 +38,36 @@ export const GET = route(async (req: NextRequest) => {
       take: 30,
       select: { id: true, name: true, code: true, localSubjectId: true },
     }),
+    // LMS-synced files that already finished ingestion — show them grouped
+    // under their course so a student can pick "the slides from week 3"
+    // without having to remember a filename.
+    prisma.lmsFile.findMany({
+      where: {
+        userId: user.id,
+        knowledgeDocumentId: { not: null },
+        ...(like ? { filename: like } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        filename: true,
+        knowledgeDocumentId: true,
+        course: { select: { name: true, code: true } },
+      },
+    }),
   ]);
 
-  return ok({ documents, lmsCourses });
+  return ok({
+    documents,
+    lmsCourses,
+    courseFiles: courseFiles
+      .filter((f) => f.knowledgeDocumentId)
+      .map((f) => ({
+        id: f.knowledgeDocumentId!,
+        filename: f.filename,
+        courseName: f.course.name,
+        courseCode: f.course.code,
+      })),
+  });
 });

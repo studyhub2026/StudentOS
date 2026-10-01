@@ -31,7 +31,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { ApiEnvelope } from '@/types/api';
 
-type GenerateSource = 'topic' | 'notes' | 'subject' | 'document' | 'lms_course';
+type GenerateSource = 'topic' | 'notes' | 'subject' | 'document' | 'course_file' | 'lms_course';
 
 export default function MindMapListPage() {
   const t = useT();
@@ -320,11 +320,12 @@ function AiPromptCard({
         ApiEnvelope<{
           documents: { id: string; filename: string }[];
           lmsCourses: { id: string; name: string; code: string | null }[];
+          courseFiles: { id: string; filename: string; courseName: string; courseCode: string | null }[];
         }>
       >(`/mind-maps/library-extended${params.toString() ? `?${params.toString()}` : ''}`);
       return data.data;
     },
-    enabled: source === 'document' || source === 'lms_course',
+    enabled: source === 'document' || source === 'lms_course' || source === 'course_file',
     staleTime: 60_000,
   });
 
@@ -342,6 +343,12 @@ function AiPromptCard({
         id: d.id,
         label: d.filename,
         sub: 'Knowledge doc',
+      }));
+    if (source === 'course_file')
+      return (extLib?.courseFiles ?? []).map((f) => ({
+        id: f.id,
+        label: f.filename,
+        sub: f.courseCode ? `${f.courseName} · ${f.courseCode}` : f.courseName,
       }));
     if (source === 'lms_course')
       return (extLib?.lmsCourses ?? []).map((c) => ({
@@ -366,6 +373,7 @@ function AiPromptCard({
       body.includeCourseContext = true;
     }
     if (source === 'document' && pickedIds.length > 0) body.documentIds = pickedIds.slice(0, 3);
+    if (source === 'course_file' && pickedIds.length > 0) body.documentIds = pickedIds.slice(0, 3);
     if (source === 'lms_course' && pickedIds[0]) body.lmsCourseId = pickedIds[0];
     onSubmit(body);
   }
@@ -387,6 +395,7 @@ function AiPromptCard({
               { k: 'topic', label: 'Topic only' },
               { k: 'notes', label: 'From notes' },
               { k: 'subject', label: 'From subject' },
+              { k: 'course_file', label: 'From course file' },
               { k: 'document', label: 'From KB doc' },
               { k: 'lms_course', label: 'From LMS course' },
             ] as const
@@ -465,7 +474,9 @@ function AiPromptCard({
                   ? 'Assignments, LMS files and announcements from this subject are included.'
                   : source === 'document'
                     ? 'Up to 3 documents; the first ~2000 chars of each are shared.'
-                    : 'Assignments, files and announcements from this course are included.'}
+                    : source === 'course_file'
+                      ? 'Up to 3 files from your courses; the AI reads the first ~2000 chars of each.'
+                      : 'Assignments, files and announcements from this course are included.'}
             </p>
           </div>
         ) : null}
