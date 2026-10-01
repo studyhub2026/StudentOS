@@ -69,6 +69,24 @@ async function probeGroq(): Promise<unknown> {
     };
   }
 
+  // List the models this account actually has access to — useful when the
+  // configured GROQ_DEFAULT_MODEL has been deprecated or isn't on the free
+  // tier any more.
+  let availableModels: string[] | string = [];
+  try {
+    const r = await fetch(`${env.GROQ_BASE_URL}/models`, {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (r.ok) {
+      const body = (await r.json()) as { data?: Array<{ id: string }> };
+      availableModels = (body.data ?? []).map((m) => m.id).sort();
+    } else {
+      availableModels = `models endpoint returned HTTP ${r.status}`;
+    }
+  } catch (err) {
+    availableModels = err instanceof Error ? err.message : String(err);
+  }
+
   const started = Date.now();
   try {
     const res = await fetch(`${env.GROQ_BASE_URL}/chat/completions`, {
@@ -102,6 +120,7 @@ async function probeGroq(): Promise<unknown> {
         baseUrl: env.GROQ_BASE_URL,
         body: parsed,
         keyShape,
+        availableModels,
       };
     }
 
@@ -113,6 +132,7 @@ async function probeGroq(): Promise<unknown> {
       firstChars: typeof parsed === 'object' && parsed !== null
         ? JSON.stringify(parsed).slice(0, 200)
         : String(parsed).slice(0, 200),
+      availableModels,
     };
   } catch (err) {
     return {
@@ -121,6 +141,7 @@ async function probeGroq(): Promise<unknown> {
       model: env.GROQ_DEFAULT_MODEL,
       baseUrl: env.GROQ_BASE_URL,
       keyShape,
+      availableModels,
     };
   }
 }

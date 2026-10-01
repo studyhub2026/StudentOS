@@ -44,7 +44,11 @@ const schema = z.object({
   // Signup: https://console.groq.com — paste the key as GROQ_API_KEY.
   GROQ_API_KEY: z.string().optional().or(z.literal('')),
   GROQ_BASE_URL: z.string().url().default('https://api.groq.com/openai/v1'),
-  GROQ_DEFAULT_MODEL: z.string().default('llama-3.1-8b-instant'),
+  // Default to the 70B versatile model since the smaller llama-3.1-8b-instant
+  // was pulled from the free tier for new accounts in late 2025. Still
+  // sub-second end-to-end on Groq's LPUs. Operators can override to any
+  // model their account has access to via GROQ_DEFAULT_MODEL.
+  GROQ_DEFAULT_MODEL: z.string().default('llama-3.3-70b-versatile'),
   GROQ_PRO_MODEL: z.string().default('llama-3.3-70b-versatile'),
 
   // Per-task provider routing. Blank => resolver default (Gemini everywhere).
